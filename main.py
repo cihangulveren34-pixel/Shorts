@@ -101,9 +101,9 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     save_script(script)
     print(f"[main] Script: {script['title']}")
 
-    # 3) TTS — ses üret
+    # 3) TTS — ses + VTT altyazı zamanlaması üret
     print("\n[main] Ses üretiliyor...")
-    audio_path = generate_audio(script["narration"])
+    audio_path, vtt_path = generate_audio(script["narration"])
 
     # Ses süresini al
     from moviepy.editor import AudioFileClip
@@ -113,7 +113,7 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
 
     # 4) Video üret
     print("\n[main] Video üretiliyor...")
-    video_path = build_video(script, audio_path)
+    video_path = build_video(script, audio_path, vtt_path)
 
     # 5) Thumbnail üret
     print("\n[main] Thumbnail üretiliyor...")

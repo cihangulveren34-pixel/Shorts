@@ -1,11 +1,13 @@
 """
-script_gen.py — Claude API kullanarak YouTube Shorts JSON script üretir.
+script_gen.py — Google Gemini 1.5 Flash ile YouTube Shorts JSON script üretir.
+Ücretsiz tier: 1500 istek/gün, kredi kartı gerekmez.
+API key: https://aistudio.google.com/app/apikey
 """
 
 import os
 import json
 import time
-import anthropic
+import google.generativeai as genai
 
 SYSTEM_PROMPT = """You are an expert YouTube Shorts scriptwriter specializing in history and war "what if" scenarios.
 Your job is to write engaging, fast-paced scripts for 50-55 second vertical videos.
@@ -29,28 +31,28 @@ Rules:
 - Output ONLY the JSON, no other text"""
 
 
-def generate_script(topic: str, model: str = "claude-haiku-4-5-20251001") -> dict:
+def generate_script(topic: str) -> dict:
     """
-    Verilen konu için Claude API ile script üretir.
+    Verilen konu için Gemini 1.5 Flash ile script üretir.
     3 deneme hakkı var, başarısız olursa hata fırlatır.
     """
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        generation_config=genai.GenerationConfig(
+            response_mime_type="application/json",
+            max_output_tokens=1024,
+            temperature=0.9,
+        ),
+        system_instruction=SYSTEM_PROMPT,
+    )
 
     for attempt in range(3):
         try:
-            message = client.messages.create(
-                model=model,
-                max_tokens=1024,
-                system=SYSTEM_PROMPT,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": f"Write a YouTube Shorts script for this topic: {topic}"
-                    }
-                ]
+            response = model.generate_content(
+                f"Write a YouTube Shorts script for this topic: {topic}"
             )
-
-            raw = message.content[0].text.strip()
+            raw = response.text.strip()
 
             # JSON bloğu varsa çıkar
             if "```json" in raw:
@@ -73,7 +75,7 @@ def generate_script(topic: str, model: str = "claude-haiku-4-5-20251001") -> dic
                 time.sleep(2 ** attempt)
                 continue
             raise RuntimeError(f"Script generation failed after 3 attempts: {e}")
-        except anthropic.APIError as e:
+        except Exception as e:
             if attempt < 2:
                 time.sleep(2 ** attempt)
                 continue
