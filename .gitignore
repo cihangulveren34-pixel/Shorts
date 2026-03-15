@@ -1,0 +1,19 @@
+# Output dosyaları
+output/
+
+# Hassas dosyalar
+token.json
+client_secret.json
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Geçici
+*.tmp
+*.temp
+assets/backgrounds/
