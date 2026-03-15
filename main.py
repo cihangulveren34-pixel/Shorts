@@ -19,12 +19,22 @@ from tts import generate_audio
 from video_builder import build_video
 from thumbnail import generate_thumbnail
 from uploader import upload_video, build_description
-from notifier import send_notification
+from notifier import send_notification, send_error_notification
 
 
 TOPIC_POOL_PATH = "topic_pool.json"
 USED_TOPICS_PATH = "used_topics.json"
 OUTPUT_DIR = "output"
+
+# Adım adları — hata bildirimlerinde kullanılır
+STEP_NAMES = {
+    "script":    "Script üretimi (Gemini)",
+    "tts":       "Ses üretimi (Edge TTS)",
+    "video":     "Video montajı (MoviePy)",
+    "thumbnail": "Thumbnail (Pillow)",
+    "upload":    "YouTube upload",
+    "notify":    "Telegram bildirimi",
+}
 
 
 def load_topics() -> list:
@@ -45,16 +55,12 @@ def save_used(used_data: dict) -> None:
 
 
 def pick_topic(override: str = None) -> str:
-    """
-    Kullanılmamış bir konu seçer. Tüm konular kullanılmışsa listeyi sıfırlar.
-    """
     if override:
         return override
 
     all_topics = load_topics()
     used_data = load_used()
     used_set = set(used_data.get("used", []))
-
     available = [t for t in all_topics if t not in used_set]
 
     if not available:
@@ -66,91 +72,109 @@ def pick_topic(override: str = None) -> str:
     used_data["used"].append(topic)
     used_data["last_run"] = str(date.today())
     save_used(used_data)
-
     return topic
 
 
 def cleanup_outputs() -> None:
-    """Önceki çalıştırmadan kalan output dosyalarını temizler."""
-    files = [
-        f"{OUTPUT_DIR}/script.json",
-        f"{OUTPUT_DIR}/narration.mp3",
-        f"{OUTPUT_DIR}/short.mp4",
-        f"{OUTPUT_DIR}/thumbnail.png",
-    ]
-    for f in files:
-        if os.path.exists(f):
-            os.remove(f)
+    for fname in ["script.json", "narration.mp3", "narration.vtt", "short.mp4", "thumbnail.png"]:
+        path = os.path.join(OUTPUT_DIR, fname)
+        if os.path.exists(path):
+            os.remove(path)
+
+
+def _step(name: str, fn, topic: str = ""):
+    """
+    Bir pipeline adımını çalıştırır.
+    Hata olursa Telegram'a bildirir ve hatayı yeniden fırlatır.
+    """
+    try:
+        return fn()
+    except Exception as e:
+        label = STEP_NAMES.get(name, name)
+        print(f"\n[main] ❌ HATA — {label}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        send_error_notification(label, e, topic)
+        raise
 
 
 def run(dry_run: bool = False, topic_override: str = None) -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     cleanup_outputs()
 
-    print("=" * 50)
-    print("⚔️  WAR SHORTS — Pipeline Başlatıldı")
-    print("=" * 50)
+    print("=" * 52)
+    print("⚔️   WAR SHORTS — Pipeline Başlatıldı")
+    print("=" * 52)
 
     # 1) Konu seç
     topic = pick_topic(topic_override)
     print(f"\n[main] Konu: {topic}")
 
-    # 2) Script üret
+    # 2) Script
     print("\n[main] Script üretiliyor...")
-    script = generate_script(topic)
+    script = _step("script", lambda: generate_script(topic), topic)
     save_script(script)
-    print(f"[main] Script: {script['title']}")
+    print(f"[main] Başlık: {script['title']}")
 
-    # 3) TTS — ses + VTT altyazı zamanlaması üret
+    # 3) TTS + VTT
     print("\n[main] Ses üretiliyor...")
-    audio_path, vtt_path = generate_audio(script["narration"])
+    audio_path, vtt_path = _step("tts", lambda: generate_audio(script["narration"]), topic)
 
-    # Ses süresini al
     from moviepy.editor import AudioFileClip
-    audio_clip = AudioFileClip(audio_path)
-    duration_sec = audio_clip.duration
-    audio_clip.close()
+    clip = AudioFileClip(audio_path)
+    duration_sec = clip.duration
+    clip.close()
 
-    # 4) Video üret
-    print("\n[main] Video üretiliyor...")
-    video_path = build_video(script, audio_path, vtt_path)
+    # 4) Video
+    print("\n[main] Video üretiliyor (3 klip + CTA + crossfade)...")
+    video_path = _step("video", lambda: build_video(script, audio_path, vtt_path), topic)
 
-    # 5) Thumbnail üret
+    # 5) Thumbnail
     print("\n[main] Thumbnail üretiliyor...")
-    thumb_path = generate_thumbnail(script["title"], script["thumbnail_text"])
+    thumb_path = _step(
+        "thumbnail",
+        lambda: generate_thumbnail(script["title"], script["thumbnail_text"]),
+        topic,
+    )
 
     if dry_run:
-        print("\n" + "=" * 50)
-        print("✅ DRY RUN TAMAMLANDI (upload atlandı)")
-        print(f"   Script:    {OUTPUT_DIR}/script.json")
-        print(f"   Ses:       {audio_path}")
-        print(f"   Video:     {video_path}")
-        print(f"   Thumbnail: {thumb_path}")
-        print("=" * 50)
+        print("\n" + "=" * 52)
+        print("✅  DRY RUN TAMAMLANDI (upload atlandı)")
+        print(f"   Script    → {OUTPUT_DIR}/script.json")
+        print(f"   Ses       → {audio_path}")
+        print(f"   Video     → {video_path}")
+        print(f"   Thumbnail → {thumb_path}")
+        print("=" * 52)
         return
 
-    # 6) YouTube'a yükle
+    # 6) YouTube upload
     print("\n[main] YouTube'a yükleniyor...")
-    video_id = upload_video(
-        video_path=video_path,
-        title=script["title"],
-        description=build_description(script),
-        tags=script["tags"] + ["Shorts", "History", "WhatIf", "WarHistory"],
-        thumbnail_path=thumb_path,
+    video_id = _step(
+        "upload",
+        lambda: upload_video(
+            video_path=video_path,
+            title=script["title"],
+            description=build_description(script),
+            tags=script["tags"] + ["Shorts", "History", "WhatIf", "WarHistory"],
+            thumbnail_path=thumb_path,
+        ),
+        topic,
     )
 
-    # 7) Telegram bildirimi
+    # 7) Telegram başarı bildirimi (hata olsa da pipeline başarılı sayılır)
     print("\n[main] Telegram bildirimi gönderiliyor...")
-    send_notification(
-        title=script["title"],
-        video_id=video_id,
-        duration_sec=duration_sec,
-        tags=script["tags"],
-    )
+    try:
+        send_notification(
+            title=script["title"],
+            video_id=video_id,
+            duration_sec=duration_sec,
+            tags=script["tags"],
+        )
+    except Exception as e:
+        print(f"[main] Telegram bildirimi gönderilemedi (kritik değil): {e}")
 
-    print("\n" + "=" * 50)
-    print(f"✅ TAMAMLANDI! https://youtube.com/shorts/{video_id}")
-    print("=" * 50)
+    print("\n" + "=" * 52)
+    print(f"✅  TAMAMLANDI! https://youtube.com/shorts/{video_id}")
+    print("=" * 52)
 
 
 if __name__ == "__main__":
@@ -162,6 +186,5 @@ if __name__ == "__main__":
     try:
         run(dry_run=args.dry_run, topic_override=args.topic)
     except Exception as e:
-        print(f"\n❌ HATA: {e}", file=sys.stderr)
-        traceback.print_exc()
+        print(f"\n❌ Pipeline başarısız: {e}", file=sys.stderr)
         sys.exit(1)
