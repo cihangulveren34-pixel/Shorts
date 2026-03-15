@@ -29,6 +29,10 @@ from discord_notify import send_video_live as discord_video_live, send_error as 
 from end_screen import add_end_screen
 from hashtag_optimizer import optimize_video_hashtags
 from ab_thumbnail import generate_thumbnails as ab_generate, save_ab_state
+from captions_uploader import upload_captions
+from playlist_manager import add_to_playlist
+from poster_twitter import post_tweet as twitter_post
+from community_post import post_community_update
 
 
 OUTPUT_DIR = "output"
@@ -207,6 +211,20 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     except Exception as e:
         print(f"[main] A/B thumbnail üretilemedi (kritik değil): {e}")
 
+    # 7e) Resmi YouTube altyazısı yükle (SEO)
+    print("\n[main] Altyazı (caption) yükleniyor...")
+    try:
+        upload_captions(video_id, vtt_path, language=script.get("language", "en"))
+    except Exception as e:
+        print(f"[main] Altyazı yüklenemedi (kritik değil): {e}")
+
+    # 7f) Playlist'e ekle
+    print("\n[main] Playlist'e ekleniyor...")
+    try:
+        add_to_playlist(video_id, script)
+    except Exception as e:
+        print(f"[main] Playlist eklenemedi (kritik değil): {e}")
+
     # 8) Pinned yorum gönder
     print("\n[main] Pinned yorum gönderiliyor...")
     try:
@@ -221,6 +239,13 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     except Exception as e:
         print(f"[main] Yorum gönderilemedi (kritik değil): {e}")
 
+    # 8b) Community tab duyurusu
+    print("\n[main] YouTube Community gönderisi yapılıyor...")
+    try:
+        post_community_update(video_id, script)
+    except Exception as e:
+        print(f"[main] Community gönderisi yapılamadı (kritik değil): {e}")
+
     # 9) Instagram Reels cross-post
     if os.environ.get("INSTAGRAM_ACCESS_TOKEN"):
         print("\n[main] Instagram Reels'e yükleniyor...")
@@ -231,7 +256,17 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     else:
         print("\n[main] INSTAGRAM_ACCESS_TOKEN yok, Instagram atlandı.")
 
-    # 10) TikTok cross-post
+    # 10) Twitter/X cross-post
+    if os.environ.get("TWITTER_API_KEY"):
+        print("\n[main] Twitter/X'e tweet atılıyor...")
+        try:
+            twitter_post(script["title"], video_id, script["tags"])
+        except Exception as e:
+            print(f"[main] Twitter hatası (kritik değil): {e}")
+    else:
+        print("\n[main] TWITTER_API_KEY yok, Twitter atlandı.")
+
+    # 11) TikTok cross-post
     if os.environ.get("TIKTOK_ACCESS_TOKEN"):
         print("\n[main] TikTok'a yükleniyor...")
         try:
@@ -241,7 +276,7 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     else:
         print("\n[main] TIKTOK_ACCESS_TOKEN yok, TikTok atlandı.")
 
-    # 11) Google Drive yedek
+    # 12) Google Drive yedek
     if os.environ.get("GOOGLE_DRIVE_BACKUP", "false").lower() == "true":
         print("\n[main] Google Drive'a yedekleniyor...")
         try:
@@ -249,7 +284,7 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         except Exception as e:
             print(f"[main] Drive yedek hatası (kritik değil): {e}")
 
-    # 12) Telegram başarı bildirimi
+    # 13) Telegram başarı bildirimi
     print("\n[main] Telegram bildirimi gönderiliyor...")
     try:
         send_notification(
@@ -261,7 +296,7 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     except Exception as e:
         print(f"[main] Telegram bildirimi gönderilemedi (kritik değil): {e}")
 
-    # 13) Discord başarı bildirimi
+    # 14) Discord başarı bildirimi
     print("\n[main] Discord bildirimi gönderiliyor...")
     try:
         discord_video_live(

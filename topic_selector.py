@@ -96,6 +96,20 @@ def _score_with_trends(topics: list[str], max_topics: int = 8) -> dict[str, floa
         return {}
 
 
+def _maybe_refresh_from_rss() -> None:
+    """
+    RSS monitor'u çalıştırarak topic_pool.json'ı tazeler.
+    Hata alınırsa sessizce atlanır.
+    """
+    try:
+        from rss_monitor import monitor_and_update
+        result = monitor_and_update(max_topics=5)
+        if result.get("topics_added", 0) > 0:
+            print(f"[topic_selector] RSS: {result['topics_added']} yeni konu eklendi.")
+    except Exception as e:
+        print(f"[topic_selector] RSS tarama atlandı: {e}")
+
+
 def pick_trending_topic(override: str = None) -> tuple[str, dict]:
     """
     Google Trends ile en popüler konuyu seçer.
@@ -111,6 +125,9 @@ def pick_trending_topic(override: str = None) -> tuple[str, dict]:
             used_data.setdefault("used", []).append(override)
         used_data["last_run"] = str(date.today())
         return override, used_data
+
+    # RSS beslemelerinden yeni konular ekle (hata toleranslı)
+    _maybe_refresh_from_rss()
 
     available, used_data = _load_available_topics()
 
