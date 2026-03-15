@@ -38,6 +38,14 @@ LOGO_PATH = "assets/logo.png"
 CROSSFADE_DUR = 0.4   # saniye, klip geçiş süresi
 CTA_DURATION = 3.0    # son kaç saniye CTA ekranı
 
+# Ses efekti dosyaları (assets/sfx/ altında, yoksa atlanır)
+SFX = {
+    "hook":      "assets/sfx/drum_hit.mp3",      # 0. sn — hook başlangıcı
+    "twist":     "assets/sfx/sword_clash.mp3",   # ~15. sn — twist bölümü
+    "payoff":    "assets/sfx/explosion.mp3",     # ~40. sn — payoff
+    "cta":       "assets/sfx/trumpet.mp3",       # CTA öncesi
+}
+
 
 # ─── Font yardımcısı ─────────────────────────────────────────────────────────
 
@@ -440,6 +448,40 @@ def _make_watermark_clip(total_duration: float) -> ImageClip | None:
     )
 
 
+# ─── Ses efektleri ───────────────────────────────────────────────────────────
+
+def _build_sfx_audio(audio_duration: float) -> list:
+    """
+    Script bölüm zamanlamalarına göre sfx klipleri oluşturur.
+    Döndürür: AudioFileClip listesi (start zamanı ayarlı, 30% volume).
+    Dosya yoksa sessizce atlanır.
+    """
+    # Sabit zamanlama: script yapısına göre (saniye)
+    timings = {
+        "hook":   0.1,
+        "twist":  15.0,
+        "payoff": 40.0,
+        "cta":    max(0, audio_duration - 0.5),
+    }
+
+    sfx_clips = []
+    for key, t in timings.items():
+        path = SFX.get(key, "")
+        if not path or not os.path.exists(path):
+            continue
+        try:
+            sfx = AudioFileClip(path).volumex(0.35).set_start(t)
+            # Sfx audio_duration'ı aşmasın
+            if t + sfx.duration > audio_duration + CTA_DURATION:
+                sfx = sfx.subclip(0, audio_duration + CTA_DURATION - t)
+            sfx_clips.append(sfx)
+            print(f"[video_builder] SFX eklendi: {key} @ {t:.1f}s")
+        except Exception as e:
+            print(f"[video_builder] SFX yüklenemedi ({key}): {e}")
+
+    return sfx_clips
+
+
 # ─── Ana fonksiyon ───────────────────────────────────────────────────────────
 
 def build_video(
@@ -495,7 +537,7 @@ def build_video(
     final_video = CompositeVideoClip(layers, size=(TARGET_W, TARGET_H))
     final_video = final_video.set_duration(total_duration)
 
-    # 6) Ses: TTS + müzik
+    # 6) Ses: TTS + müzik + sfx
     audio_tracks = [narration_audio]
     if os.path.exists(MUSIC_PATH):
         music = AudioFileClip(MUSIC_PATH).volumex(0.2)
@@ -504,6 +546,9 @@ def build_video(
             music = audio_loop(music, nloops=int(total_duration / music.duration) + 1)
         music = music.subclip(0, total_duration)
         audio_tracks.append(music)
+
+    sfx_clips = _build_sfx_audio(narration_audio.duration)
+    audio_tracks.extend(sfx_clips)
 
     final_video = final_video.set_audio(CompositeAudioClip(audio_tracks))
 

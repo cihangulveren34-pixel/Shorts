@@ -21,10 +21,16 @@ from thumbnail import generate_thumbnail
 from uploader import upload_video, build_description, post_pinned_comment
 from notifier import send_notification, send_error_notification
 from topic_selector import pick_trending_topic
+from poster_instagram import post_reel, build_caption as ig_caption
+from poster_tiktok import post_video as tiktok_post, build_title as tt_title
 
 
 OUTPUT_DIR = "output"
 USED_TOPICS_PATH = "used_topics.json"
+LAST_VIDEO_PATH = os.path.join(OUTPUT_DIR, "last_video.json")
+
+# Dil ayarı: "en" veya "tr"
+LANGUAGE = os.environ.get("LANGUAGE", "en")
 
 # Adım adları — hata bildirimlerinde kullanılır
 STEP_NAMES = {
@@ -47,6 +53,18 @@ def cleanup_outputs() -> None:
         path = os.path.join(OUTPUT_DIR, fname)
         if os.path.exists(path):
             os.remove(path)
+
+
+def save_last_video(video_id: str, script: dict) -> None:
+    """title_optimizer.py için video bilgisini kaydeder."""
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    with open(LAST_VIDEO_PATH, "w") as f:
+        json.dump({
+            "video_id": video_id,
+            "title": script["title"],
+            "hook": script["hook"],
+        }, f, indent=2)
+    print(f"[main] last_video.json kaydedildi: {video_id}")
 
 
 def _step(name: str, fn, topic: str = ""):
@@ -77,15 +95,20 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     save_used(used_data)
     print(f"\n[main] Konu: {topic}")
 
-    # 2) Script
-    print("\n[main] Script üretiliyor...")
-    script = _step("script", lambda: generate_script(topic), topic)
+    # 2) Script (LANGUAGE env'e göre İngilizce veya Türkçe)
+    print(f"\n[main] Script üretiliyor (dil: {LANGUAGE})...")
+    script = _step("script", lambda: generate_script(topic, LANGUAGE), topic)
     save_script(script)
     print(f"[main] Başlık: {script['title']}")
 
-    # 3) TTS + VTT
+    # 3) TTS + VTT (script'teki ses'i kullan)
     print("\n[main] Ses üretiliyor...")
-    audio_path, vtt_path = _step("tts", lambda: generate_audio(script["narration"]), topic)
+    tts_voice = script.get("tts_voice")
+    audio_path, vtt_path = _step(
+        "tts",
+        lambda: generate_audio(script["narration"], voice=tts_voice),
+        topic,
+    )
 
     from moviepy.editor import AudioFileClip
     clip = AudioFileClip(audio_path)
@@ -128,7 +151,10 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         topic,
     )
 
-    # 7) Pinned yorum gönder
+    # 7) Video bilgisini kaydet (title_optimizer için)
+    save_last_video(video_id, script)
+
+    # 8) Pinned yorum gönder
     print("\n[main] Pinned yorum gönderiliyor...")
     try:
         from uploader import _get_credentials
@@ -136,14 +162,33 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         creds = _get_credentials()
         yt = yt_build("youtube", "v3", credentials=creds)
         post_pinned_comment(
-            yt,
-            video_id,
+            yt, video_id,
             "Which alternate outcome do you think is most likely? 👇 Let us know!"
         )
     except Exception as e:
         print(f"[main] Yorum gönderilemedi (kritik değil): {e}")
 
-    # 8) Telegram başarı bildirimi
+    # 9) Instagram Reels cross-post
+    if os.environ.get("INSTAGRAM_ACCESS_TOKEN"):
+        print("\n[main] Instagram Reels'e yükleniyor...")
+        try:
+            post_reel(video_path, ig_caption(script))
+        except Exception as e:
+            print(f"[main] Instagram hatası (kritik değil): {e}")
+    else:
+        print("\n[main] INSTAGRAM_ACCESS_TOKEN yok, Instagram atlandı.")
+
+    # 10) TikTok cross-post
+    if os.environ.get("TIKTOK_ACCESS_TOKEN"):
+        print("\n[main] TikTok'a yükleniyor...")
+        try:
+            tiktok_post(video_path, tt_title(script))
+        except Exception as e:
+            print(f"[main] TikTok hatası (kritik değil): {e}")
+    else:
+        print("\n[main] TIKTOK_ACCESS_TOKEN yok, TikTok atlandı.")
+
+    # 11) Telegram başarı bildirimi
     print("\n[main] Telegram bildirimi gönderiliyor...")
     try:
         send_notification(

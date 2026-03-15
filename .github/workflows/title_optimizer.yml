@@ -1,0 +1,39 @@
+name: WAR SHORTS — 24s Başlık Optimizasyonu
+
+on:
+  schedule:
+    - cron: '15 9 * * *'   # Her gün 09:15 UTC (daily pipeline'dan 24h sonra)
+  workflow_dispatch:
+
+jobs:
+  optimize-title:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore last_video cache
+        uses: actions/cache@v4
+        with:
+          path: output/last_video.json
+          key: last-video-${{ github.run_id }}
+          restore-keys: |
+            last-video-
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install google-generativeai google-api-python-client google-auth-oauthlib requests
+
+      - name: Run title optimizer
+        run: python title_optimizer.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
