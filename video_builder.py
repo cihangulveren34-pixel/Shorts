@@ -8,6 +8,7 @@ video_builder.py — Pexels'ten footage indirir, MoviePy ile 1080×1920 Short ü
   - Hook overlay (ilk 3 sn, sarı metin)
   - CTA bitiş ekranı (son 3 sn, "FOLLOW FOR MORE WHAT-IFS!")
   - Logo/watermark (sağ üst köşe, assets/logo.png)
+  - Kırmızı ilerleme çubuğu (alt kısım, dinamik)
   - Arka plan müziği %20 ses
 """
 
@@ -26,6 +27,7 @@ from moviepy.editor import (
     ColorClip,
     concatenate_videoclips,
 )
+from moviepy.video.VideoClip import VideoClip
 
 TARGET_W = 1080
 TARGET_H = 1920
@@ -381,6 +383,26 @@ def _make_cta_clip(total_duration: float, duration: float = CTA_DURATION) -> lis
     return [bg, bar, follow_clip, sub_clip, arrow_clip]
 
 
+# ─── Progress bar ────────────────────────────────────────────────────────────
+
+def _make_progress_bar(total_duration: float, bar_h: int = 8) -> VideoClip:
+    """
+    Alt kısımda video boyunca büyüyen kırmızı ilerleme çubuğu.
+    Her frame'de mevcut zamana göre genişliği hesaplanır.
+    """
+    def make_frame(t):
+        w = int(TARGET_W * min(t / total_duration, 1.0))
+        frame = np.zeros((bar_h, TARGET_W, 3), dtype=np.uint8)
+        if w > 0:
+            frame[:, :w] = [200, 30, 30]   # kırmızı
+        return frame
+
+    return (
+        VideoClip(make_frame, duration=total_duration)
+        .set_position(("center", TARGET_H - bar_h - 2))
+    )
+
+
 # ─── Logo / watermark ────────────────────────────────────────────────────────
 
 def _make_watermark_clip(total_duration: float) -> ImageClip | None:
@@ -465,6 +487,9 @@ def build_video(
     if wm:
         layers.append(wm)
         print("[video_builder] Watermark eklendi.")
+
+    # İlerleme çubuğu
+    layers.append(_make_progress_bar(total_duration))
 
     # 5) Kompozit
     final_video = CompositeVideoClip(layers, size=(TARGET_W, TARGET_H))

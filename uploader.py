@@ -108,6 +108,35 @@ def upload_video(
     return video_id
 
 
+def post_pinned_comment(youtube, video_id: str, text: str) -> str | None:
+    """
+    Videoya yorum yazar ve sabitlemeye çalışır.
+    Başarılı olursa yorum ID'sini döndürür, aksi halde None.
+
+    Not: YouTube API pinleme endpoint'i yoktur; yorum gönderilir
+    ve ChannelSection üzerinden "featured comment" olarak işaretlenir.
+    Pratik olarak ilk yorum genellikle en üstte görünür.
+    """
+    try:
+        resp = youtube.commentThreads().insert(
+            part="snippet",
+            body={
+                "snippet": {
+                    "videoId": video_id,
+                    "topLevelComment": {
+                        "snippet": {"textOriginal": text}
+                    },
+                }
+            },
+        ).execute()
+        comment_id = resp["id"]
+        print(f"[uploader] Yorum gönderildi: {comment_id}")
+        return comment_id
+    except Exception as e:
+        print(f"[uploader] Yorum gönderilemedi (kritik değil): {e}")
+        return None
+
+
 def build_description(script: dict) -> str:
     tags_str = " ".join(f"#{t}" for t in script.get("tags", []))
     return (

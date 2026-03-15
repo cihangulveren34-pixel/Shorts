@@ -12,19 +12,19 @@ import json
 import os
 import sys
 import traceback
-from datetime import date
+from datetime import date  # noqa: F401 (used by topic_selector)
 
 from script_gen import generate_script, save_script
 from tts import generate_audio
 from video_builder import build_video
 from thumbnail import generate_thumbnail
-from uploader import upload_video, build_description
+from uploader import upload_video, build_description, post_pinned_comment
 from notifier import send_notification, send_error_notification
+from topic_selector import pick_trending_topic
 
 
-TOPIC_POOL_PATH = "topic_pool.json"
-USED_TOPICS_PATH = "used_topics.json"
 OUTPUT_DIR = "output"
+USED_TOPICS_PATH = "used_topics.json"
 
 # Adım adları — hata bildirimlerinde kullanılır
 STEP_NAMES = {
@@ -37,42 +37,9 @@ STEP_NAMES = {
 }
 
 
-def load_topics() -> list:
-    with open(TOPIC_POOL_PATH, encoding="utf-8") as f:
-        return json.load(f)
-
-
-def load_used() -> dict:
-    if os.path.exists(USED_TOPICS_PATH):
-        with open(USED_TOPICS_PATH, encoding="utf-8") as f:
-            return json.load(f)
-    return {"used": [], "last_run": None}
-
-
 def save_used(used_data: dict) -> None:
     with open(USED_TOPICS_PATH, "w", encoding="utf-8") as f:
         json.dump(used_data, f, indent=2, ensure_ascii=False)
-
-
-def pick_topic(override: str = None) -> str:
-    if override:
-        return override
-
-    all_topics = load_topics()
-    used_data = load_used()
-    used_set = set(used_data.get("used", []))
-    available = [t for t in all_topics if t not in used_set]
-
-    if not available:
-        print("[main] Tüm konular kullanıldı, liste sıfırlanıyor.")
-        available = all_topics
-        used_data["used"] = []
-
-    topic = available[0]
-    used_data["used"].append(topic)
-    used_data["last_run"] = str(date.today())
-    save_used(used_data)
-    return topic
 
 
 def cleanup_outputs() -> None:
@@ -105,8 +72,9 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     print("⚔️   WAR SHORTS — Pipeline Başlatıldı")
     print("=" * 52)
 
-    # 1) Konu seç
-    topic = pick_topic(topic_override)
+    # 1) Trending konu seç (Google Trends + fallback)
+    topic, used_data = pick_trending_topic(topic_override)
+    save_used(used_data)
     print(f"\n[main] Konu: {topic}")
 
     # 2) Script
@@ -160,7 +128,22 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         topic,
     )
 
-    # 7) Telegram başarı bildirimi (hata olsa da pipeline başarılı sayılır)
+    # 7) Pinned yorum gönder
+    print("\n[main] Pinned yorum gönderiliyor...")
+    try:
+        from uploader import _get_credentials
+        from googleapiclient.discovery import build as yt_build
+        creds = _get_credentials()
+        yt = yt_build("youtube", "v3", credentials=creds)
+        post_pinned_comment(
+            yt,
+            video_id,
+            "Which alternate outcome do you think is most likely? 👇 Let us know!"
+        )
+    except Exception as e:
+        print(f"[main] Yorum gönderilemedi (kritik değil): {e}")
+
+    # 8) Telegram başarı bildirimi
     print("\n[main] Telegram bildirimi gönderiliyor...")
     try:
         send_notification(
@@ -173,7 +156,8 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         print(f"[main] Telegram bildirimi gönderilemedi (kritik değil): {e}")
 
     print("\n" + "=" * 52)
-    print(f"✅  TAMAMLANDI! https://youtube.com/shorts/{video_id}")
+    print(f"✅  TAMAMLANDI!")
+    print(f"   https://youtube.com/shorts/{video_id}")
     print("=" * 52)
 
 
