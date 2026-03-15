@@ -35,6 +35,8 @@ PEXELS_API = "https://api.pexels.com/videos/search"
 MUSIC_PATH = "assets/music/epic_background.mp3"
 FONT_PATH = "assets/fonts/Montserrat-Bold.ttf"
 LOGO_PATH = "assets/logo.png"
+INTRO_PATH = "assets/intro.mp4"     # 2 saniyelik branded intro (opsiyonel)
+OUTRO_PATH = "assets/outro.mp4"     # 3 saniyelik branded outro (opsiyonel)
 CROSSFADE_DUR = 0.4   # saniye, klip geçiş süresi
 CTA_DURATION = 3.0    # son kaç saniye CTA ekranı
 
@@ -552,7 +554,36 @@ def build_video(
 
     final_video = final_video.set_audio(CompositeAudioClip(audio_tracks))
 
-    # 7) Export
+    # 7) Branded intro / outro ekle
+    segments = []
+
+    if os.path.exists(INTRO_PATH):
+        try:
+            intro = VideoFileClip(INTRO_PATH, audio=True)
+            intro = _resize_to_shorts(intro)
+            segments.append(intro.crossfadeout(0.3))
+            print(f"[video_builder] Intro eklendi ({intro.duration:.1f}s)")
+        except Exception as e:
+            print(f"[video_builder] Intro yüklenemedi: {e}")
+
+    final_video_faded = final_video.crossfadein(0.3) if segments else final_video
+    segments.append(final_video_faded)
+
+    if os.path.exists(OUTRO_PATH):
+        try:
+            outro = VideoFileClip(OUTRO_PATH, audio=True)
+            outro = _resize_to_shorts(outro)
+            segments.append(outro.crossfadein(0.3))
+            print(f"[video_builder] Outro eklendi ({outro.duration:.1f}s)")
+        except Exception as e:
+            print(f"[video_builder] Outro yüklenemedi: {e}")
+
+    if len(segments) > 1:
+        final_video = concatenate_videoclips(
+            segments, method="compose", padding=-0.3
+        )
+
+    # 8) Export
     print(f"[video_builder] Render ediliyor → {output_path}")
     final_video.write_videofile(
         output_path,

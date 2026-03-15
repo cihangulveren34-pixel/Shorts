@@ -1,0 +1,192 @@
+"""
+setup_assets.py — CC0 lisanslı SFX ve arka plan müziklerini otomatik indirir.
+
+Kaynaklar (tamamen ücretsiz, API key gerektirmez):
+  - Pixabay Audio API: ses efektleri ve müzik
+  - Freesound.org API: ücretsiz hesap gerekli (FREESOUND_API_KEY)
+
+Kullanım:
+  python setup_assets.py              # Tüm varlıkları indir
+  python setup_assets.py --sfx-only   # Sadece SFX
+  python setup_assets.py --music-only # Sadece müzik
+"""
+
+import argparse
+import os
+import time
+import requests
+
+SFX_DIR = "assets/sfx"
+MUSIC_DIR = "assets/music"
+
+# Pixabay Audio API (ücretsiz, API key opsiyonel)
+PIXABAY_API = "https://pixabay.com/api/videos/sounds/"
+
+# İndirilecek SFX listesi: (dosya adı, arama terimi)
+SFX_TARGETS = [
+    ("drum_hit.mp3",    "dramatic drum hit"),
+    ("sword_clash.mp3", "sword clash metal"),
+    ("explosion.mp3",   "explosion boom"),
+    ("trumpet.mp3",     "epic trumpet fanfare"),
+]
+
+# İndirilecek müzik listesi: (dosya adı, arama terimi)
+MUSIC_TARGETS = [
+    ("epic_background.mp3", "epic orchestral battle"),
+    ("dramatic_background.mp3", "dramatic cinematic tension"),
+]
+
+# Alternatif: Freesound.org API
+FREESOUND_API = "https://freesound.org/apiv2/search/text/"
+
+# Hardcoded CC0 fallback URL'ler (Pixabay başarısız olursa)
+FALLBACK_URLS = {
+    "drum_hit.mp3":             "https://cdn.pixabay.com/audio/2022/03/24/audio_8073b04b93.mp3",
+    "sword_clash.mp3":          "https://cdn.pixabay.com/audio/2022/01/18/audio_d0c6ff1cbf.mp3",
+    "explosion.mp3":            "https://cdn.pixabay.com/audio/2022/01/13/audio_6d5e8a5a11.mp3",
+    "trumpet.mp3":              "https://cdn.pixabay.com/audio/2022/11/22/audio_febc508520.mp3",
+    "epic_background.mp3":      "https://cdn.pixabay.com/audio/2023/04/13/audio_6ac0a5d5a5.mp3",
+    "dramatic_background.mp3":  "https://cdn.pixabay.com/audio/2022/08/04/audio_2dde668d05.mp3",
+}
+
+
+def _download(url: str, dest: str, label: str) -> bool:
+    """URL'den dosyayı indirir. Başarılı ise True döndürür."""
+    try:
+        r = requests.get(url, timeout=30, stream=True)
+        r.raise_for_status()
+        with open(dest, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+        size_kb = os.path.getsize(dest) / 1024
+        print(f"  ✅ {label} → {dest} ({size_kb:.0f} KB)")
+        return True
+    except Exception as e:
+        print(f"  ❌ {label}: {e}")
+        if os.path.exists(dest):
+            os.remove(dest)
+        return False
+
+
+def _pixabay_search(query: str, api_key: str = None) -> str | None:
+    """Pixabay'de ses arar, bulunan ilk öğenin URL'sini döndürür."""
+    params = {"q": query, "per_page": 3}
+    if api_key:
+        params["key"] = api_key
+
+    try:
+        resp = requests.get(PIXABAY_API, params=params, timeout=15)
+        resp.raise_for_status()
+        hits = resp.json().get("hits", [])
+        if hits:
+            return hits[0].get("audio", {}).get("url") or hits[0].get("url")
+    except Exception as e:
+        print(f"  [pixabay] Arama hatası ({query}): {e}")
+    return None
+
+
+def _freesound_search(query: str, api_key: str) -> str | None:
+    """Freesound'da ses arar, preview URL'sini döndürür."""
+    try:
+        resp = requests.get(
+            FREESOUND_API,
+            params={
+                "query": query,
+                "token": api_key,
+                "fields": "previews",
+                "filter": "license:Creative Commons 0",
+                "page_size": 1,
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        results = resp.json().get("results", [])
+        if results:
+            return results[0]["previews"].get("preview-hq-mp3")
+    except Exception as e:
+        print(f"  [freesound] Arama hatası ({query}): {e}")
+    return None
+
+
+def download_sfx(pixabay_key: str = None, freesound_key: str = None) -> None:
+    os.makedirs(SFX_DIR, exist_ok=True)
+    print(f"\n🔊 SFX indiriliyor ({SFX_DIR}/)...")
+
+    for filename, query in SFX_TARGETS:
+        dest = os.path.join(SFX_DIR, filename)
+        if os.path.exists(dest):
+            print(f"  ⏭️  {filename} zaten mevcut, atlandı.")
+            continue
+
+        url = None
+
+        # 1) Pixabay dene
+        if pixabay_key or True:  # API key opsiyonel
+            url = _pixabay_search(query, pixabay_key)
+
+        # 2) Freesound dene
+        if not url and freesound_key:
+            url = _freesound_search(query, freesound_key)
+
+        # 3) Hardcoded fallback
+        if not url:
+            url = FALLBACK_URLS.get(filename)
+            if url:
+                print(f"  ⚠️  {filename}: fallback URL kullanılıyor.")
+
+        if url:
+            _download(url, dest, filename)
+        else:
+            print(f"  ⚠️  {filename}: URL bulunamadı, manuel ekleyin.")
+
+        time.sleep(0.5)
+
+
+def download_music(pixabay_key: str = None, freesound_key: str = None) -> None:
+    os.makedirs(MUSIC_DIR, exist_ok=True)
+    print(f"\n🎵 Müzik indiriliyor ({MUSIC_DIR}/)...")
+
+    for filename, query in MUSIC_TARGETS:
+        dest = os.path.join(MUSIC_DIR, filename)
+        if os.path.exists(dest):
+            print(f"  ⏭️  {filename} zaten mevcut, atlandı.")
+            continue
+
+        url = _pixabay_search(query, pixabay_key)
+        if not url and freesound_key:
+            url = _freesound_search(query, freesound_key)
+        if not url:
+            url = FALLBACK_URLS.get(filename)
+            if url:
+                print(f"  ⚠️  {filename}: fallback URL kullanılıyor.")
+
+        if url:
+            _download(url, dest, filename)
+        else:
+            print(f"  ⚠️  {filename}: URL bulunamadı, manuel ekleyin.")
+
+        time.sleep(0.5)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="WAR SHORTS — Varlık İndirici")
+    parser.add_argument("--sfx-only", action="store_true")
+    parser.add_argument("--music-only", action="store_true")
+    args = parser.parse_args()
+
+    pixabay_key = os.environ.get("PIXABAY_API_KEY")
+    freesound_key = os.environ.get("FREESOUND_API_KEY")
+
+    print("=" * 50)
+    print("📦 WAR SHORTS — Asset Setup")
+    print("=" * 50)
+
+    if not args.music_only:
+        download_sfx(pixabay_key, freesound_key)
+
+    if not args.sfx_only:
+        download_music(pixabay_key, freesound_key)
+
+    print("\n✅ Tamamlandı!")
+    print(f"   SFX:   {SFX_DIR}/")
+    print(f"   Müzik: {MUSIC_DIR}/")

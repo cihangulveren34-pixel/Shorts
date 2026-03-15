@@ -23,6 +23,8 @@ from notifier import send_notification, send_error_notification
 from topic_selector import pick_trending_topic
 from poster_instagram import post_reel, build_caption as ig_caption
 from poster_tiktok import post_video as tiktok_post, build_title as tt_title
+from drive_backup import backup_to_drive
+from batch_producer import get_next_queued, mark_published
 
 
 OUTPUT_DIR = "output"
@@ -31,6 +33,8 @@ LAST_VIDEO_PATH = os.path.join(OUTPUT_DIR, "last_video.json")
 
 # Dil ayarı: "en" veya "tr"
 LANGUAGE = os.environ.get("LANGUAGE", "en")
+# Kuyruk modu: True ise batch_producer kuyruğundan yayınlar
+USE_QUEUE = os.environ.get("USE_QUEUE", "false").lower() == "true"
 
 # Adım adları — hata bildirimlerinde kullanılır
 STEP_NAMES = {
@@ -90,44 +94,62 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     print("⚔️   WAR SHORTS — Pipeline Başlatıldı")
     print("=" * 52)
 
-    # 1) Trending konu seç (Google Trends + fallback)
-    topic, used_data = pick_trending_topic(topic_override)
-    save_used(used_data)
-    print(f"\n[main] Konu: {topic}")
+    # Kuyruk modu: batch_producer'dan önceden üretilmiş video kullan
+    queued = get_next_queued() if USE_QUEUE and not topic_override else None
 
-    # 2) Script (LANGUAGE env'e göre İngilizce veya Türkçe)
-    print(f"\n[main] Script üretiliyor (dil: {LANGUAGE})...")
-    script = _step("script", lambda: generate_script(topic, LANGUAGE), topic)
-    save_script(script)
-    print(f"[main] Başlık: {script['title']}")
+    if queued:
+        print(f"\n[main] Kuyruk modu — video: {queued['scheduled_date']}")
+        topic = queued["topic"]
+        with open(queued["script_path"], encoding="utf-8") as f:
+            script = json.load(f)
+        audio_path = queued["audio_path"]
+        vtt_path = audio_path.replace(".mp3", ".vtt") if audio_path else None
+        video_path = queued["video_path"]
+        thumb_path = queued["thumbnail_path"]
 
-    # 3) TTS + VTT (script'teki ses'i kullan)
-    print("\n[main] Ses üretiliyor...")
-    tts_voice = script.get("tts_voice")
-    audio_path, vtt_path = _step(
-        "tts",
-        lambda: generate_audio(script["narration"], voice=tts_voice),
-        topic,
-    )
+        from moviepy.editor import AudioFileClip
+        clip = AudioFileClip(audio_path)
+        duration_sec = clip.duration
+        clip.close()
+    else:
+        # 1) Trending konu seç
+        topic, used_data = pick_trending_topic(topic_override)
+        save_used(used_data)
+        print(f"\n[main] Konu: {topic}")
 
-    from moviepy.editor import AudioFileClip
-    clip = AudioFileClip(audio_path)
-    duration_sec = clip.duration
-    clip.close()
+        # 2) Script (LANGUAGE env'e göre)
+        print(f"\n[main] Script üretiliyor (dil: {LANGUAGE})...")
+        script = _step("script", lambda: generate_script(topic, LANGUAGE), topic)
+        save_script(script)
+        print(f"[main] Başlık: {script['title']}")
 
-    # 4) Video
-    print("\n[main] Video üretiliyor (3 klip + CTA + crossfade)...")
-    video_path = _step("video", lambda: build_video(script, audio_path, vtt_path), topic)
+        # 3) TTS + VTT
+        print("\n[main] Ses üretiliyor...")
+        tts_voice = script.get("tts_voice")
+        audio_path, vtt_path = _step(
+            "tts",
+            lambda: generate_audio(script["narration"], voice=tts_voice),
+            topic,
+        )
 
-    # 5) Thumbnail
-    print("\n[main] Thumbnail üretiliyor...")
-    thumb_path = _step(
-        "thumbnail",
-        lambda: generate_thumbnail(script["title"], script["thumbnail_text"]),
-        topic,
-    )
+        from moviepy.editor import AudioFileClip
+        clip = AudioFileClip(audio_path)
+        duration_sec = clip.duration
+        clip.close()
 
-    if dry_run:
+        # 4) Video
+        print("\n[main] Video üretiliyor (3 klip + CTA + crossfade)...")
+        video_path = _step("video", lambda: build_video(script, audio_path, vtt_path), topic)
+
+        # 5) Thumbnail
+        print("\n[main] Thumbnail üretiliyor...")
+        thumb_path = _step(
+            "thumbnail",
+            lambda: generate_thumbnail(script["title"], script["thumbnail_text"]),
+            topic,
+        )
+
+    if dry_run:  # noqa — shared between queue and fresh modes
         print("\n" + "=" * 52)
         print("✅  DRY RUN TAMAMLANDI (upload atlandı)")
         print(f"   Script    → {OUTPUT_DIR}/script.json")
@@ -151,8 +173,11 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         topic,
     )
 
-    # 7) Video bilgisini kaydet (title_optimizer için)
+    # 7) Video bilgisini kaydet + kuyruk güncelle
     save_last_video(video_id, script)
+    if queued:
+        mark_published(queued["scheduled_date"])
+        print(f"[main] Kuyruk güncellendi: {queued['scheduled_date']} → yayınlandı")
 
     # 8) Pinned yorum gönder
     print("\n[main] Pinned yorum gönderiliyor...")
@@ -188,7 +213,15 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     else:
         print("\n[main] TIKTOK_ACCESS_TOKEN yok, TikTok atlandı.")
 
-    # 11) Telegram başarı bildirimi
+    # 11) Google Drive yedek
+    if os.environ.get("GOOGLE_DRIVE_BACKUP", "false").lower() == "true":
+        print("\n[main] Google Drive'a yedekleniyor...")
+        try:
+            backup_to_drive(video_path, thumb_path, script)
+        except Exception as e:
+            print(f"[main] Drive yedek hatası (kritik değil): {e}")
+
+    # 12) Telegram başarı bildirimi
     print("\n[main] Telegram bildirimi gönderiliyor...")
     try:
         send_notification(
