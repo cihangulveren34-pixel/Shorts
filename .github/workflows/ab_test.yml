@@ -1,0 +1,62 @@
+name: WAR SHORTS — A/B Thumbnail Test
+
+on:
+  schedule:
+    # İlk round: günlük pipeline'dan 26 saat sonra (Variant A → B geçişi)
+    - cron: '0 11 * * *'   # 09:00 UTC upload + 26 saat = 11:00 UTC ertesi gün
+    # İkinci round: 48 saat sonra (B sonucu + kazanan seçimi)
+    # Bu aynı cron'da gerçekleşir, state dosyası hangi aşamada olduğunu belirler
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Test modu (generate / compare)'
+        required: false
+        default: 'compare'
+
+jobs:
+  ab-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore A/B state cache
+        uses: actions/cache@v4
+        with:
+          path: output/ab_state.json
+          key: ab-state-${{ github.run_id }}
+          restore-keys: |
+            ab-state-
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run A/B comparison
+        run: python ab_thumbnail.py ${{ github.event.inputs.mode || 'compare' }}
+        env:
+          YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      - name: Save A/B state cache
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: output/ab_state.json
+          key: ab-state-${{ github.run_id }}
+
+      - name: Upload A/B results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ab-test-results-${{ github.run_id }}
+          path: output/ab_state.json
+          retention-days: 14

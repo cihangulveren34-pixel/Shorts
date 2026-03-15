@@ -50,6 +50,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USE_QUEUE: ${{ vars.USE_QUEUE || 'false' }}
           GOOGLE_DRIVE_BACKUP: ${{ vars.GOOGLE_DRIVE_BACKUP || 'false' }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          COMPETITOR_CHANNEL_IDS: ${{ vars.COMPETITOR_CHANNEL_IDS }}
 
       - name: Save last_video cache
         if: always()
@@ -57,6 +59,13 @@ jobs:
         with:
           path: output/last_video.json
           key: last-video-${{ github.run_id }}
+
+      - name: Save A/B state cache
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: output/ab_state.json
+          key: ab-state-${{ github.run_id }}
 
       - name: Save used_topics cache
         if: always()

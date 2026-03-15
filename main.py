@@ -25,6 +25,10 @@ from poster_instagram import post_reel, build_caption as ig_caption
 from poster_tiktok import post_video as tiktok_post, build_title as tt_title
 from drive_backup import backup_to_drive
 from batch_producer import get_next_queued, mark_published
+from discord_notify import send_video_live as discord_video_live, send_error as discord_error
+from end_screen import add_end_screen
+from hashtag_optimizer import optimize_video_hashtags
+from ab_thumbnail import generate_thumbnails as ab_generate, save_ab_state
 
 
 OUTPUT_DIR = "output"
@@ -83,6 +87,10 @@ def _step(name: str, fn, topic: str = ""):
         print(f"\n[main] ❌ HATA — {label}: {e}", file=sys.stderr)
         traceback.print_exc()
         send_error_notification(label, e, topic)
+        try:
+            discord_error(label, str(e), topic)
+        except Exception:
+            pass
         raise
 
 
@@ -179,6 +187,26 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         mark_published(queued["scheduled_date"])
         print(f"[main] Kuyruk güncellendi: {queued['scheduled_date']} → yayınlandı")
 
+    # 7b) End screen ekle
+    print("\n[main] End screen ekleniyor...")
+    add_end_screen(video_id, duration_sec)
+
+    # 7c) Hashtag optimizasyonu
+    print("\n[main] Hashtag optimizasyonu yapılıyor...")
+    try:
+        optimize_video_hashtags(video_id, script)
+    except Exception as e:
+        print(f"[main] Hashtag optimizasyonu başarısız (kritik değil): {e}")
+
+    # 7d) A/B thumbnail üret ve state kaydet
+    print("\n[main] A/B thumbnail varyantları üretiliyor...")
+    try:
+        a_path, b_path = ab_generate(script["thumbnail_text"], script["title"])
+        save_ab_state(video_id, a_path, b_path)
+        print(f"[main] A/B thumbnails hazır → ab_test.yml 24 saat sonra karşılaştıracak")
+    except Exception as e:
+        print(f"[main] A/B thumbnail üretilemedi (kritik değil): {e}")
+
     # 8) Pinned yorum gönder
     print("\n[main] Pinned yorum gönderiliyor...")
     try:
@@ -232,6 +260,18 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         )
     except Exception as e:
         print(f"[main] Telegram bildirimi gönderilemedi (kritik değil): {e}")
+
+    # 13) Discord başarı bildirimi
+    print("\n[main] Discord bildirimi gönderiliyor...")
+    try:
+        discord_video_live(
+            title=script["title"],
+            video_id=video_id,
+            duration_sec=duration_sec,
+            tags=script["tags"],
+        )
+    except Exception as e:
+        print(f"[main] Discord bildirimi gönderilemedi (kritik değil): {e}")
 
     print("\n" + "=" * 52)
     print(f"✅  TAMAMLANDI!")
