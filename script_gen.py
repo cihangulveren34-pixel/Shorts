@@ -8,6 +8,7 @@ Dil desteği: "en" (İngilizce) veya "tr" (Türkçe)
 
 import os
 import json
+import re
 import time
 from google import genai
 from google.genai import types
@@ -88,42 +89,43 @@ def generate_script(topic: str, language: str = "en") -> dict:
                     response_mime_type="application/json",
                     max_output_tokens=1024,
                     temperature=0.9,
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
                 ),
             )
             raw = response.text.strip()
+            print(f"[script_gen] Attempt {attempt+1} raw response ({len(raw)} chars): {raw[:200]}...")
 
             if "```json" in raw:
                 raw = raw.split("```json")[1].split("```")[0].strip()
             elif "```" in raw:
                 raw = raw.split("```")[1].split("```")[0].strip()
 
-            # Fix unescaped newlines inside JSON string values
-            import re
-            raw = re.sub(r'(?<=": ")(.*?)(?="[,\s*}])', lambda m: m.group(0).replace('\n', ' '), raw, flags=re.DOTALL)
+            # Extract JSON object if there's extra text around it
+            json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+            if json_match:
+                raw = json_match.group(0)
 
-            try:
-                script = json.loads(raw)
-            except json.JSONDecodeError:
-                # Fallback: replace all literal newlines between quotes
-                fixed = ""
-                in_string = False
-                escape = False
-                for ch in raw:
-                    if escape:
-                        fixed += ch
-                        escape = False
-                        continue
-                    if ch == '\\':
-                        fixed += ch
-                        escape = True
-                        continue
-                    if ch == '"':
-                        in_string = not in_string
-                    if ch == '\n' and in_string:
-                        fixed += ' '
-                    else:
-                        fixed += ch
-                script = json.loads(fixed)
+            # Fix unescaped newlines/tabs inside JSON string values
+            fixed = ""
+            in_string = False
+            escape = False
+            for ch in raw:
+                if escape:
+                    fixed += ch
+                    escape = False
+                    continue
+                if ch == '\\':
+                    fixed += ch
+                    escape = True
+                    continue
+                if ch == '"':
+                    in_string = not in_string
+                if in_string and ch in ('\n', '\r', '\t'):
+                    fixed += ' '
+                else:
+                    fixed += ch
+
+            script = json.loads(fixed)
             required = ["title", "hook", "narration", "tags", "thumbnail_text", "search_keywords"]
             for field in required:
                 if field not in script:
