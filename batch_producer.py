@@ -163,7 +163,7 @@ def produce_batch(count: int = 7, dry_run: bool = False, language: str = "en") -
     print(f"\n{'='*52}")
     print(f"✅ Batch tamamlandı: {success}/{count} video üretildi")
     print(f"   Kuyruk: {QUEUE_PATH}")
-    print(f"='*52}")
+    print(f"{'='*52}")
 
     # Telegram bildirimi
     _send(
