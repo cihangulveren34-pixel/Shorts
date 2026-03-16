@@ -39,9 +39,9 @@ jobs:
         run: python setup_assets.py
 
       - name: Setup YouTube cookies
-        run: echo "$YT_COOKIES" > yt_cookies.txt
+        run: echo "$YT_COOKIES_B64" | base64 -d > yt_cookies.txt
         env:
-          YT_COOKIES: ${{ secrets.YT_COOKIES }}
+          YT_COOKIES_B64: ${{ secrets.YT_COOKIES_B64 }}
 
       - name: Run batch producer
         run: |
