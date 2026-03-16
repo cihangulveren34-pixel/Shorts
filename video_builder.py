@@ -17,6 +17,8 @@ import json
 import random
 import requests
 import tempfile
+import shutil
+import subprocess
 from dataclasses import dataclass
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -41,6 +43,8 @@ TARGET_H = 1920
 PEXELS_API = "https://api.pexels.com/videos/search"
 PEXELS_PHOTO_API = "https://api.pexels.com/v1/search"
 WIKIMEDIA_API = "https://commons.wikimedia.org/w/api.php"
+DVIDS_API = "https://api.dvidshub.net/search"
+ARCHIVE_API = "https://archive.org/advancedsearch.php"
 PIXABAY_VIDEO_API = "https://pixabay.com/api/videos/"
 FONT_PATH = "assets/fonts/Montserrat-Bold.ttf"
 LOGO_PATH = "assets/logo.png"
@@ -616,14 +620,175 @@ def _photo_to_video(photo_path: str, duration: float, kb_effect: str = "zoom_in"
     return clip
 
 
+def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> list:
+    """DVIDS'ten (ABD Savunma Bakanlığı) gerçek askeri video indirir. Public Domain."""
+    if not shutil.which("ffmpeg"):
+        print("[video_builder] ffmpeg bulunamadı, DVIDS atlanıyor.")
+        return []
+
+    downloaded = []
+    queries = []
+    if len(keywords) >= 2:
+        queries.append(" ".join(keywords[:2]))
+    for kw in keywords[:4]:
+        queries.append(kw)
+
+    # Askeri fallback sorguları
+    military_fallbacks = [
+        "military exercise", "fighter jet", "aircraft carrier",
+        "special operations", "drone strike", "naval operations",
+    ]
+    random.shuffle(military_fallbacks)
+    queries.extend(military_fallbacks[:3])
+
+    for query in queries:
+        if len(downloaded) >= n:
+            break
+        params = {
+            "q": query,
+            "max_results": 10,
+            "api_key": api_key,
+        }
+        try:
+            resp = requests.get(DVIDS_API, params=params, timeout=20)
+            resp.raise_for_status()
+            results = resp.json().get("results", [])
+            random.shuffle(results)
+            for asset in results:
+                if len(downloaded) >= n:
+                    break
+                # Sadece video
+                if asset.get("type") != "video":
+                    continue
+                vid = f"dvids_{asset.get('id')}"
+                if vid in seen_ids:
+                    continue
+                seen_ids.add(vid)
+                hls_url = asset.get("hls_url")
+                if not hls_url:
+                    continue
+                # HLS → MP4 (ffmpeg subprocess)
+                try:
+                    tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="dvids_")
+                    tmp.close()
+                    cmd = [
+                        "ffmpeg", "-y", "-i", hls_url,
+                        "-c", "copy", "-t", "30",  # max 30 saniye
+                        "-loglevel", "error",
+                        tmp.name,
+                    ]
+                    result = subprocess.run(cmd, timeout=60, capture_output=True)
+                    if result.returncode == 0 and os.path.getsize(tmp.name) > 10000:
+                        downloaded.append(tmp.name)
+                        print(f"[video_builder] DVIDS klip {len(downloaded)}/{n} (id:{vid})")
+                    else:
+                        os.unlink(tmp.name)
+                except (subprocess.TimeoutExpired, Exception) as e:
+                    print(f"[video_builder] DVIDS indirme hatası: {e}")
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError:
+                        pass
+        except Exception as e:
+            print(f"[video_builder] DVIDS arama hatası ({query}): {e}")
+
+    return downloaded
+
+
+def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
+    """Internet Archive'dan Public Domain askeri video indirir. API key gereksiz."""
+    downloaded = []
+    queries = []
+    if len(keywords) >= 2:
+        queries.append(" ".join(keywords[:2]))
+    for kw in keywords[:3]:
+        queries.append(kw)
+
+    # Koleksiyon bazlı fallback'ler
+    archive_fallbacks = [
+        "military aircraft", "world war", "nuclear test",
+        "navy ships", "military training", "cold war",
+    ]
+    random.shuffle(archive_fallbacks)
+    queries.extend(archive_fallbacks[:2])
+
+    headers = {"User-Agent": "WarShorts/1.0 (video asset downloader)"}
+
+    for query in queries:
+        if len(downloaded) >= n:
+            break
+        search_q = f"({query}) AND mediatype:movies AND collection:(usgovfilms OR military)"
+        params = {
+            "q": search_q,
+            "output": "json",
+            "rows": 10,
+            "page": 1,
+            "sort[]": "downloads desc",
+            "fl[]": "identifier,title",
+        }
+        try:
+            resp = requests.get(ARCHIVE_API, params=params, timeout=20, headers=headers)
+            resp.raise_for_status()
+            docs = resp.json().get("response", {}).get("docs", [])
+            random.shuffle(docs)
+            for doc in docs:
+                if len(downloaded) >= n:
+                    break
+                identifier = doc.get("identifier")
+                if not identifier:
+                    continue
+                vid = f"archive_{identifier}"
+                if vid in seen_ids:
+                    continue
+                seen_ids.add(vid)
+                # Metadata'dan mp4 dosyası bul
+                try:
+                    meta_url = f"https://archive.org/metadata/{identifier}"
+                    meta_resp = requests.get(meta_url, timeout=15, headers=headers)
+                    meta_resp.raise_for_status()
+                    files = meta_resp.json().get("files", [])
+                    # mp4 dosyası ara (boyut < 50MB)
+                    mp4_file = None
+                    for f in files:
+                        name = f.get("name", "")
+                        size = int(f.get("size", 0) or 0)
+                        fmt = f.get("format", "").lower()
+                        if (name.lower().endswith(".mp4") or "mpeg4" in fmt or "mp4" in fmt) \
+                                and 0 < size < 50 * 1024 * 1024:
+                            mp4_file = name
+                            break
+                    if not mp4_file:
+                        continue
+                    # İndir
+                    dl_url = f"https://archive.org/download/{identifier}/{mp4_file}"
+                    tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="archive_")
+                    r = requests.get(dl_url, stream=True, timeout=60, headers=headers)
+                    r.raise_for_status()
+                    for chunk in r.iter_content(chunk_size=8192):
+                        tmp.write(chunk)
+                    tmp.close()
+                    if os.path.getsize(tmp.name) > 10000:
+                        downloaded.append(tmp.name)
+                        print(f"[video_builder] Archive klip {len(downloaded)}/{n}: {identifier}")
+                    else:
+                        os.unlink(tmp.name)
+                except Exception as e:
+                    print(f"[video_builder] Archive indirme hatası ({identifier}): {e}")
+        except Exception as e:
+            print(f"[video_builder] Archive arama hatası ({query}): {e}")
+
+    return downloaded
+
+
 def _fetch_clips(keywords: list, n: int = 8) -> list:
     """
-    Pexels + Pixabay'dan klip + fotoğraf indirip karıştırır.
+    DVIDS + Archive + Pexels + Pixabay'dan klip + fotoğraf indirip karıştırır.
     %60 video + %40 fotoğraf pattern: V, V, F, V, F, V, V, F
     Returns: [("video", path), ("photo", path), ...] tuple listesi.
     """
     pexels_key = os.environ.get("PEXELS_API_KEY")
     pixabay_key = os.environ.get("PIXABAY_API_KEY")
+    dvids_key = os.environ.get("DVIDS_API_KEY")
 
     if not pexels_key:
         raise RuntimeError("PEXELS_API_KEY eksik")
@@ -634,22 +799,44 @@ def _fetch_clips(keywords: list, n: int = 8) -> list:
     n_videos = max(1, int(n * 0.6))
     n_photos = n - n_videos
 
-    # Video indirme (mevcut mantık)
     video_paths = []
-    if pixabay_key:
-        n_pex = n_videos // 2
-        n_pix = n_videos - n_pex
-        print(f"[video_builder] {n_pex} Pexels + {n_pix} Pixabay video + {n_photos} fotoğraf...")
-        pexels_clips = _fetch_pexels_clips(keywords, pexels_key, n_pex, seen_ids)
-        pixabay_clips = _fetch_pixabay_clips(keywords, pixabay_key, n_pix, seen_ids)
-        for i in range(max(len(pexels_clips), len(pixabay_clips))):
-            if i < len(pexels_clips):
-                video_paths.append(pexels_clips[i])
-            if i < len(pixabay_clips):
-                video_paths.append(pixabay_clips[i])
-    else:
-        print(f"[video_builder] {n_videos} Pexels video + {n_photos} fotoğraf...")
-        video_paths = _fetch_pexels_clips(keywords, pexels_key, n_videos, seen_ids)
+
+    # ─── 1) DVIDS — gerçek askeri footage (Public Domain) ────────────
+    n_dvids = 2 if dvids_key else 0
+    if dvids_key:
+        try:
+            dvids_clips = _fetch_dvids_clips(keywords, dvids_key, n_dvids, seen_ids)
+            video_paths.extend(dvids_clips)
+            print(f"[video_builder] DVIDS: {len(dvids_clips)} klip")
+        except Exception as e:
+            print(f"[video_builder] DVIDS hatası: {e}")
+
+    # ─── 2) Internet Archive — tarihi askeri footage (Public Domain) ──
+    n_archive = 2 if not dvids_key else 1
+    try:
+        archive_clips = _fetch_archive_clips(keywords, n_archive, seen_ids)
+        video_paths.extend(archive_clips)
+        print(f"[video_builder] Archive: {len(archive_clips)} klip")
+    except Exception as e:
+        print(f"[video_builder] Archive hatası: {e}")
+
+    # ─── 3) Pexels + Pixabay — stock footage (kalan) ─────────────────
+    n_stock = max(0, n_videos - len(video_paths))
+    if n_stock > 0:
+        if pixabay_key:
+            n_pex = n_stock // 2
+            n_pix = n_stock - n_pex
+            print(f"[video_builder] {n_pex} Pexels + {n_pix} Pixabay stock video...")
+            pexels_clips = _fetch_pexels_clips(keywords, pexels_key, n_pex, seen_ids)
+            pixabay_clips = _fetch_pixabay_clips(keywords, pixabay_key, n_pix, seen_ids)
+            for i in range(max(len(pexels_clips), len(pixabay_clips))):
+                if i < len(pexels_clips):
+                    video_paths.append(pexels_clips[i])
+                if i < len(pixabay_clips):
+                    video_paths.append(pixabay_clips[i])
+        else:
+            print(f"[video_builder] {n_stock} Pexels stock video...")
+            video_paths.extend(_fetch_pexels_clips(keywords, pexels_key, n_stock, seen_ids))
 
     # Yeterli video yoksa Pexels'ten tamamla
     if len(video_paths) < n_videos:
