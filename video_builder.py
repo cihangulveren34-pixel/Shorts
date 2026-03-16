@@ -811,16 +811,7 @@ def _fetch_clips(keywords: list, n: int = 8) -> list:
         except Exception as e:
             print(f"[video_builder] DVIDS hatası: {e}")
 
-    # ─── 2) Internet Archive — tarihi askeri footage (Public Domain) ──
-    n_archive = 2 if not dvids_key else 1
-    try:
-        archive_clips = _fetch_archive_clips(keywords, n_archive, seen_ids)
-        video_paths.extend(archive_clips)
-        print(f"[video_builder] Archive: {len(archive_clips)} klip")
-    except Exception as e:
-        print(f"[video_builder] Archive hatası: {e}")
-
-    # ─── 3) Pexels + Pixabay — stock footage (kalan) ─────────────────
+    # ─── 2) Pexels + Pixabay — stock footage (ana kaynak) ──────────────
     n_stock = max(0, n_videos - len(video_paths))
     if n_stock > 0:
         if pixabay_key:
@@ -842,6 +833,17 @@ def _fetch_clips(keywords: list, n: int = 8) -> list:
     if len(video_paths) < n_videos:
         extra = _fetch_pexels_clips(keywords, pexels_key, n_videos - len(video_paths), seen_ids)
         video_paths.extend(extra)
+
+    # ─── 3) Internet Archive — son çare fallback (düşük kalite riski) ──
+    if len(video_paths) < n_videos:
+        n_archive = n_videos - len(video_paths)
+        try:
+            archive_clips = _fetch_archive_clips(keywords, n_archive, seen_ids)
+            video_paths.extend(archive_clips)
+            if archive_clips:
+                print(f"[video_builder] Archive fallback: {len(archive_clips)} klip")
+        except Exception as e:
+            print(f"[video_builder] Archive hatası: {e}")
 
     # Fotoğraf indirme — Wikimedia öncelikli, Pexels yedek
     photo_paths = []
