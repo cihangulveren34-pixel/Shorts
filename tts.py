@@ -16,12 +16,20 @@ PITCH = "-10Hz"
 async def _synthesize(text: str, audio_path: str, vtt_path: str, voice: str = DEFAULT_VOICE) -> None:
     communicate = edge_tts.Communicate(text, voice, rate=RATE, pitch=PITCH)
     subs = edge_tts.SubMaker()
+    sub_type = None  # Track which boundary type we use
     with open(audio_path, "wb") as audio_f:
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
                 audio_f.write(chunk["data"])
             elif chunk["type"] in ("WordBoundary", "SentenceBoundary"):
-                subs.feed(chunk)
+                # SubMaker only accepts one type, use whichever comes first
+                if sub_type is None:
+                    sub_type = chunk["type"]
+                if chunk["type"] == sub_type:
+                    try:
+                        subs.feed(chunk)
+                    except Exception:
+                        pass
     # get_srt() returns SRT format, convert to VTT
     srt_content = subs.get_srt()
     vtt_content = _srt_to_vtt(srt_content)
