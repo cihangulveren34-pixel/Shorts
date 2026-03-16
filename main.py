@@ -37,6 +37,7 @@ from video_validator import validate_or_raise
 from subtitle_translator import translate_and_upload_captions
 from auto_reply import reply_to_comments
 from topic_expander import expand_if_low
+from rss_monitor import monitor_and_update as rss_update
 from script_scorer import score_or_warn, SCORE_WARN
 from poster_facebook import post_reel as facebook_post
 
@@ -112,6 +113,15 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     print("=" * 52)
     print("⚔️   WAR SHORTS — Pipeline Başlatıldı")
     print("=" * 52)
+
+    # Güncel savaş/jeopolitik haberlerinden konu üret
+    print("\n[main] RSS haberleri taranıyor...")
+    try:
+        rss_result = rss_update(max_topics=8)
+        if rss_result.get("topics_added"):
+            print(f"[main] {rss_result['topics_added']} güncel analiz konusu eklendi")
+    except Exception as e:
+        print(f"[main] RSS tarama hatası (kritik değil): {e}")
 
     # Pool düşükse Gemini ile otomatik genişlet
     expand_if_low()
@@ -202,7 +212,7 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
             video_path=video_path,
             title=script["title"],
             description=build_description(script),
-            tags=script["tags"] + ["Shorts", "History", "WhatIf", "WarHistory"],
+            tags=script["tags"] + ["Shorts", "Military", "Geopolitics", "Defense", "War"],
             thumbnail_path=thumb_path,
         ),
         topic,
@@ -266,7 +276,7 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         yt = yt_build("youtube", "v3", credentials=creds)
         post_pinned_comment(
             yt, video_id,
-            "Which alternate outcome do you think is most likely? 👇 Let us know!"
+            "What do you think happens next? 👇 Drop your prediction below!"
         )
     except Exception as e:
         print(f"[main] Yorum gönderilemedi (kritik değil): {e}")

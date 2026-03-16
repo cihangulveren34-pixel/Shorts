@@ -1,18 +1,18 @@
 """
-rss_monitor.py — Haber RSS beslemelerini izleyerek güncel konu önerir.
+rss_monitor.py — Günlük savaş/jeopolitik haberlerini izler, analiz videosu konusu üretir.
 
-Tarih, savaş ve "what if" içerikleriyle ilgili RSS beslemelerini tarar,
-trend olan konuları topic_pool.json'a ekler.
+RSS beslemelerinden güncel askeri gelişmeleri çeker, Gemini ile
+"Bu ne anlama geliyor?" tarzı analiz videosu konusuna dönüştürür.
 
-Besleme kaynakları (ücretsiz, kayıt gerekmez):
-  - BBC History RSS
-  - History.com RSS
-  - Ancient History Encyclopedia
-  - Wikipedia Current Events
-  - Google News (history/war) RSS
+Kaynaklar:
+  - Google News (military, geopolitics, defense)
+  - Reuters / Al Jazeera / BBC (conflict, military)
+  - Defense News RSS
 
-Ayrıca Wikipedia "On This Day" API'sini kullanır:
-  Her gün o günün tarihi olaylarından konu üretir.
+Konu formatları:
+  - "Turkey just tested [weapon]: Here's what it means"
+  - "Iran's latest move changes EVERYTHING in the Middle East"
+  - "Why [country]'s new [weapon] should terrify [country]"
 """
 
 import json
@@ -24,61 +24,100 @@ from typing import Optional
 
 import requests
 
+try:
+    from google import genai
+    from google.genai import types
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+
 TIMEOUT = 15
 MONITOR_STATE_PATH = "rss_state.json"
 
 RSS_FEEDS = [
     {
-        "name": "BBC History",
-        "url": "https://feeds.bbci.co.uk/news/topics/c7zzmg45lnyt/rss.xml",
-        "keywords": ["war", "battle", "history", "empire", "ancient", "medieval"],
+        "name": "Google News — Military",
+        "url": "https://news.google.com/rss/search?q=military+weapon+defense+2025&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["military", "weapon", "missile", "drone", "fighter", "tank", "navy", "army", "defense"],
     },
     {
-        "name": "Ancient History Encyclopedia",
-        "url": "https://www.worldhistory.org/feeds/articles/",
-        "keywords": [],  # Tüm makaleler tarihle ilgili
+        "name": "Google News — Turkey Military",
+        "url": "https://news.google.com/rss/search?q=Turkey+military+drone+bayraktar+kaan&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["turkey", "turkish", "bayraktar", "kaan", "drone", "defense"],
     },
     {
-        "name": "Google News — War History",
-        "url": "https://news.google.com/rss/search?q=war+history+what+if&hl=en-US&gl=US&ceid=US:en",
-        "keywords": ["what if", "war", "battle", "empire"],
+        "name": "Google News — Iran Military",
+        "url": "https://news.google.com/rss/search?q=Iran+military+missile+nuclear+drone&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["iran", "missile", "nuclear", "drone", "hormuz", "irgc"],
     },
     {
-        "name": "Google News — Ancient History",
-        "url": "https://news.google.com/rss/search?q=ancient+history+discovery&hl=en-US&gl=US&ceid=US:en",
-        "keywords": ["ancient", "discovery", "archaeolog"],
+        "name": "Google News — Russia Ukraine",
+        "url": "https://news.google.com/rss/search?q=Russia+Ukraine+war+military+weapon&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["russia", "ukraine", "war", "missile", "drone", "front", "offensive"],
     },
     {
-        "name": "Google News — Current Conflicts",
-        "url": "https://news.google.com/rss/search?q=war+conflict+military+operation&hl=en-US&gl=US&ceid=US:en",
-        "keywords": ["war", "conflict", "military", "invasion", "attack", "troops", "missile", "drone", "ceasefire", "NATO"],
+        "name": "Google News — China Taiwan",
+        "url": "https://news.google.com/rss/search?q=China+Taiwan+military+navy+south+china+sea&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["china", "taiwan", "navy", "carrier", "military", "pla"],
     },
     {
-        "name": "Google News — Geopolitics",
-        "url": "https://news.google.com/rss/search?q=geopolitics+military+tension+what+if&hl=en-US&gl=US&ceid=US:en",
-        "keywords": ["tension", "military", "nuclear", "alliance", "sanctions", "escalat"],
+        "name": "Google News — Israel Middle East",
+        "url": "https://news.google.com/rss/search?q=Israel+Iran+military+strike+missile+defense&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["israel", "iran", "strike", "missile", "hezbollah", "hamas", "iron dome"],
     },
     {
-        "name": "Reuters — World Conflicts",
-        "url": "https://news.google.com/rss/search?q=site:reuters.com+war+conflict&hl=en-US&gl=US&ceid=US:en",
-        "keywords": ["war", "conflict", "military", "crisis"],
+        "name": "Google News — NATO Defense",
+        "url": "https://news.google.com/rss/search?q=NATO+defense+military+spending+weapon&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["nato", "defense", "military", "alliance", "spending"],
+    },
+    {
+        "name": "Google News — Hypersonic Nuclear",
+        "url": "https://news.google.com/rss/search?q=hypersonic+missile+nuclear+weapon+test&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["hypersonic", "nuclear", "missile", "test", "icbm", "warhead"],
+    },
+    {
+        "name": "Google News — AI Warfare Drones",
+        "url": "https://news.google.com/rss/search?q=AI+warfare+autonomous+drone+military+robot&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["ai", "autonomous", "drone", "robot", "warfare", "swarm"],
+    },
+    {
+        "name": "Google News — Gulf Military UAE Saudi",
+        "url": "https://news.google.com/rss/search?q=UAE+Saudi+Arabia+military+arms+deal+defense&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["uae", "saudi", "qatar", "arms", "defense", "deal", "military"],
     },
 ]
 
-# "What if" konu üretim kalıpları
-WHATIF_TEMPLATES = [
-    "What if {subject} had {action}?",
-    "What if {subject} never {action}?",
-    "What if {subject} won the {battle}?",
-    "What if {subject} lost at {battle}?",
-]
-
-# Yaygın konu filtre kelimeleri (alakasız haberleri eler)
+# Alakasız içerik filtreleri
 EXCLUDE_KEYWORDS = [
     "stock", "crypto", "bitcoin", "celebrity", "sports", "football",
     "soccer", "basketball", "entertainment", "movie", "film", "music",
-    "album", "singer", "actor", "fashion",
+    "album", "singer", "actor", "fashion", "weather", "recipe",
 ]
+
+# Gemini ile haber → analiz konusu dönüştürme prompt'u
+NEWS_TO_TOPIC_PROMPT = """You generate VIRAL YouTube Shorts topics from breaking military/geopolitics news.
+
+Here are today's headlines:
+{headlines}
+
+Convert these into {count} YouTube Shorts topics. Each topic should be an ANALYSIS angle:
+- "What does [event] mean for [region/country]?"
+- "[Country] just [action]: Here's why it changes everything"
+- "Why [weapon/event] should terrify [country]"
+- "[Event] explained: What nobody is telling you"
+- "The REAL reason behind [event]"
+
+RULES:
+- Focus on ANALYSIS and IMPLICATIONS, not just restating the news
+- Make it sound URGENT and TERRIFYING
+- Use specific names, weapons, countries
+- Each topic must create massive CURIOSITY
+- Topics must work as standalone Shorts (viewer doesn't need to know the news)
+- NO ancient history — ONLY current events (2024-2025)
+- Mix "What does this mean?" analysis with "What if this escalates?" scenarios
+
+Return ONLY a JSON array of strings:
+["Topic 1", "Topic 2", ...]"""
 
 
 def _load_state() -> dict:
@@ -105,16 +144,13 @@ def _fetch_rss(url: str) -> list[dict]:
         root = ET.fromstring(resp.content)
         items = []
 
-        # Standart RSS
         for item in root.findall(".//item"):
             title_el = item.find("title")
             desc_el = item.find("description")
-            link_el = item.find("link")
             if title_el is not None and title_el.text:
                 items.append({
                     "title": title_el.text.strip(),
                     "description": desc_el.text.strip() if desc_el is not None and desc_el.text else "",
-                    "link": link_el.text.strip() if link_el is not None and link_el.text else "",
                 })
 
         # Atom feed desteği
@@ -126,7 +162,6 @@ def _fetch_rss(url: str) -> list[dict]:
                 items.append({
                     "title": title_el.text.strip(),
                     "description": summary_el.text.strip() if summary_el is not None and summary_el.text else "",
-                    "link": "",
                 })
 
         return items
@@ -135,110 +170,88 @@ def _fetch_rss(url: str) -> list[dict]:
         return []
 
 
-def _is_history_relevant(title: str, desc: str, keywords: list[str]) -> bool:
-    """Başlık + açıklamanın tarih/savaş içeriğiyle alakalı olup olmadığını kontrol eder."""
+def _is_relevant(title: str, desc: str, keywords: list[str]) -> bool:
+    """Başlığın askeri/jeopolitik içerikle alakalı olup olmadığını kontrol eder."""
     combined = (title + " " + desc).lower()
 
-    # Alakasız içerikleri ele
     for excl in EXCLUDE_KEYWORDS:
         if excl in combined:
             return False
 
-    # Beslemeye özgü filtre
     if keywords:
         return any(kw.lower() in combined for kw in keywords)
 
-    # Genel tarih/savaş/güncel çatışma tespiti
-    history_kws = ["war", "battle", "empire", "ancient", "history", "king", "queen",
-                   "army", "conquest", "invasion", "revolution", "dynasty", "medieval",
-                   "roman", "greek", "egypt", "ottoman", "mongol", "napoleon",
-                   "conflict", "military", "troops", "missile", "drone", "nuclear",
-                   "nato", "sanctions", "ceasefire", "escalat", "tension", "geopolit",
-                   "ukraine", "russia", "china", "taiwan", "iran", "israel", "korea"]
-    return any(kw in combined for kw in history_kws)
+    # Genel askeri/jeopolitik tespiti
+    military_kws = [
+        "military", "war", "missile", "drone", "nuclear", "weapon",
+        "army", "navy", "air force", "fighter", "bomb", "strike",
+        "nato", "troops", "conflict", "invasion", "attack",
+        "defense", "sanctions", "escalat", "tension", "geopolit",
+        "ukraine", "russia", "china", "taiwan", "iran", "israel",
+        "turkey", "saudi", "uae", "korea", "hypersonic", "stealth",
+        "submarine", "carrier", "cyber", "satellite",
+    ]
+    return any(kw in combined for kw in military_kws)
 
 
-def _extract_topic_from_headline(title: str) -> Optional[str]:
-    """
-    Haber başlığından YouTube Shorts konusu üretir.
-    Olası formatlar:
-      "Ancient Roman coin hoard found in Britain" → "What if Rome had conquered Britain?"
-      "New evidence of battle of Marathon discovered" → "What if Greece lost at Marathon?"
-    """
-    title_clean = re.sub(r"\s*[-|:]\s*.*$", "", title).strip()
+def _headlines_to_topics_gemini(headlines: list[str], count: int = 8) -> list[str]:
+    """Gemini ile haber başlıklarını analiz videosu konularına dönüştürür."""
+    if not GEMINI_AVAILABLE:
+        print("[rss] google-generativeai kurulu değil, fallback kullanılıyor.")
+        return _headlines_to_topics_fallback(headlines, count)
 
-    # "What if" kalıbı zaten varsa direkt kullan
-    if re.search(r"what if", title_clean, re.IGNORECASE):
-        return title_clean[:100]
-
-    # Tarihi olaylar içeren başlıklar için "What if?" konu üret
-    battle_match = re.search(
-        r"battle of (\w[\w\s]{2,30})", title_clean, re.IGNORECASE
-    )
-    if battle_match:
-        battle = battle_match.group(1).title()
-        return f"What if the Battle of {battle} had a different outcome?"
-
-    # Kişi/imparatorluk içeren başlıklar
-    empire_match = re.search(
-        r"(roman|greek|ottoman|mongol|byzantine|persian|british|french|spanish)\s+empire",
-        title_clean, re.IGNORECASE,
-    )
-    if empire_match:
-        empire = empire_match.group(0).title()
-        return f"What if the {empire} Never Fell?"
-
-    # Güncel çatışma/geopolitik olaylar
-    conflict_match = re.search(
-        r"(ukraine|russia|china|taiwan|iran|israel|nato|north korea|syria|yemen)",
-        title_clean, re.IGNORECASE,
-    )
-    if conflict_match:
-        subject = conflict_match.group(0).title()
-        return f"What if {subject} scenario escalates? {title_clean[:60]}"
-
-    # Genel dönüştürme
-    if len(title_clean) > 20:
-        return f"What if: {title_clean[:80]}"
-
-    return None
-
-
-def fetch_wikipedia_on_this_day() -> list[str]:
-    """
-    Wikipedia 'On This Day' API'si: bugünün tarihi olaylarını getirir.
-    Her gün farklı, güncel ve alakalı konular.
-    """
-    today = date.today()
-    url = f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/{today.month:02d}/{today.day:02d}"
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        print("[rss] GEMINI_API_KEY yok, fallback kullanılıyor.")
+        return _headlines_to_topics_fallback(headlines, count)
 
     try:
-        resp = requests.get(url, timeout=TIMEOUT, headers={
-            "User-Agent": "WAR-SHORTS-Bot/1.0 (educational pipeline)"
-        })
-        if resp.status_code != 200:
-            return []
+        client = genai.Client(api_key=api_key)
+        headlines_text = "\n".join(f"- {h}" for h in headlines[:20])
+        prompt = NEWS_TO_TOPIC_PROMPT.format(headlines=headlines_text, count=count)
 
-        data = resp.json()
-        events = data.get("events", [])
-        topics = []
-
-        for event in events[:10]:
-            text = event.get("text", "")
-            year = event.get("year", "")
-
-            # Savaş/imparatorluk/tarih olaylarını filtrele
-            if _is_history_relevant(text, "", []):
-                # "What if?" sorusu üret
-                topic = f"What if {year}: {text[:80]}?"
-                topics.append(topic)
-
-        print(f"[rss] Wikipedia 'On This Day': {len(topics)} konu bulundu")
-        return topics
-
-    except Exception as e:
-        print(f"[rss] Wikipedia API hatası: {e}")
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.9,
+                max_output_tokens=1024,
+            ),
+        )
+        raw = response.text.strip()
+        topics = json.loads(raw)
+        if isinstance(topics, list):
+            return [t.strip() for t in topics if isinstance(t, str) and len(t) > 15][:count]
         return []
+
+    except json.JSONDecodeError:
+        print("[rss] Gemini JSON parse hatası, fallback kullanılıyor.")
+        return _headlines_to_topics_fallback(headlines, count)
+    except Exception as e:
+        print(f"[rss] Gemini hatası: {e}")
+        return _headlines_to_topics_fallback(headlines, count)
+
+
+def _headlines_to_topics_fallback(headlines: list[str], count: int = 8) -> list[str]:
+    """Gemini yoksa kural bazlı dönüştürme."""
+    topics = []
+    templates = [
+        "{headline}: Here's What It Means for the World",
+        "Why {headline} Changes Everything",
+        "{headline}: The Analysis Nobody Is Giving You",
+        "What {headline} Really Means for the Future",
+    ]
+
+    for i, headline in enumerate(headlines[:count]):
+        # Başlığı temizle
+        clean = re.sub(r"\s*[-|:]\s*.*$", "", headline).strip()
+        if len(clean) < 15:
+            continue
+        template = templates[i % len(templates)]
+        topics.append(template.format(headline=clean[:70]))
+
+    return topics
 
 
 def _update_topic_pool(new_topics: list[str]) -> int:
@@ -266,7 +279,7 @@ def _update_topic_pool(new_topics: list[str]) -> int:
 
 def monitor_and_update(max_topics: int = 10) -> dict:
     """
-    RSS beslemelerini tara, topic_pool.json'a yeni konular ekle.
+    RSS beslemelerini tara, Gemini ile analiz konusu üret, topic_pool.json'a ekle.
 
     Returns:
         {"topics_found": int, "topics_added": int, "sources_checked": int}
@@ -274,9 +287,8 @@ def monitor_and_update(max_topics: int = 10) -> dict:
     state = _load_state()
     seen = set(state.get("seen_titles", []))
 
-    all_topics = []
+    all_headlines = []
 
-    # RSS beslemeleri
     for feed in RSS_FEEDS:
         print(f"[rss] Taranıyor: {feed['name']}")
         items = _fetch_rss(feed["url"])
@@ -284,35 +296,37 @@ def monitor_and_update(max_topics: int = 10) -> dict:
             title = item["title"]
             if title in seen:
                 continue
-            if not _is_history_relevant(title, item["description"], feed["keywords"]):
+            if not _is_relevant(title, item["description"], feed["keywords"]):
                 continue
-            topic = _extract_topic_from_headline(title)
-            if topic:
-                all_topics.append(topic)
-                seen.add(title)
+            all_headlines.append(title)
+            seen.add(title)
 
-    # Wikipedia "On This Day"
-    wiki_topics = fetch_wikipedia_on_this_day()
-    all_topics.extend(wiki_topics)
+    print(f"[rss] {len(all_headlines)} alakalı haber bulundu")
 
-    # Dedup + limit
-    unique = list(dict.fromkeys(all_topics))[:max_topics]
+    if not all_headlines:
+        state["last_run"] = datetime.now(timezone.utc).isoformat()
+        _save_state(state)
+        return {"topics_found": 0, "topics_added": 0, "sources_checked": len(RSS_FEEDS)}
+
+    # Gemini ile analiz konularına dönüştür
+    topics = _headlines_to_topics_gemini(all_headlines, count=max_topics)
+    print(f"[rss] {len(topics)} analiz konusu üretildi")
 
     # topic_pool.json güncelle
-    added = _update_topic_pool(unique)
+    added = _update_topic_pool(topics)
 
     # State güncelle
-    state["seen_titles"] = list(seen)[-500:]  # son 500 başlığı tut
+    state["seen_titles"] = list(seen)[-500:]
     state["last_run"] = datetime.now(timezone.utc).isoformat()
     _save_state(state)
 
     result = {
-        "topics_found": len(unique),
+        "topics_found": len(topics),
         "topics_added": added,
-        "sources_checked": len(RSS_FEEDS) + 1,
-        "sample_topics": unique[:3],
+        "sources_checked": len(RSS_FEEDS),
+        "sample_topics": topics[:3],
     }
-    print(f"[rss] Tamamlandı: {added} yeni konu eklendi → topic_pool.json")
+    print(f"[rss] Tamamlandı: {added} yeni analiz konusu eklendi → topic_pool.json")
     return result
 
 
