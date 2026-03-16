@@ -1,0 +1,69 @@
+name: WAR SHORTS — Otomatik Yorum Yanıtı
+
+on:
+  schedule:
+    # Günde 2 kez çalışır: upload'dan 3 saat sonra + akşam
+    - cron: '0 12 * * *'   # 12:00 UTC (upload'dan 3 saat sonra)
+    - cron: '0 18 * * *'   # 18:00 UTC (akşam turu)
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: 'Belirli bir video ID (boş bırakılırsa son video)'
+        required: false
+        default: ''
+
+jobs:
+  auto-reply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore replied comments cache
+        uses: actions/cache@v4
+        with:
+          path: output/replied_comments.json
+          key: replied-comments-${{ github.run_id }}
+          restore-keys: |
+            replied-comments-
+
+      - name: Restore last_video cache
+        uses: actions/cache@v4
+        with:
+          path: output/last_video.json
+          key: last-video-${{ github.run_id }}
+          restore-keys: |
+            last-video-
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run auto reply
+        run: |
+          VIDEO_ID="${{ github.event.inputs.video_id }}"
+          if [ -z "$VIDEO_ID" ] && [ -f "output/last_video.json" ]; then
+            VIDEO_ID=$(python -c "import json; d=json.load(open('output/last_video.json')); print(d.get('video_id',''))")
+            TITLE=$(python -c "import json; d=json.load(open('output/last_video.json')); print(d.get('title',''))")
+          fi
+          if [ -n "$VIDEO_ID" ]; then
+            python auto_reply.py "$VIDEO_ID" "$TITLE"
+          else
+            echo "Video ID bulunamadı, atlanıyor."
+          fi
+        env:
+          YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Save replied comments cache
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: output/replied_comments.json
+          key: replied-comments-${{ github.run_id }}

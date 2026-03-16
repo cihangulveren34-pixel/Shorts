@@ -33,6 +33,10 @@ from captions_uploader import upload_captions
 from playlist_manager import add_to_playlist
 from poster_twitter import post_tweet as twitter_post
 from community_post import post_community_update
+from video_validator import validate_or_raise
+from subtitle_translator import translate_and_upload_captions
+from auto_reply import reply_to_comments
+from topic_expander import expand_if_low
 
 
 OUTPUT_DIR = "output"
@@ -50,6 +54,7 @@ STEP_NAMES = {
     "tts":       "Ses üretimi (Edge TTS)",
     "video":     "Video montajı (MoviePy)",
     "thumbnail": "Thumbnail (Pillow)",
+    "validate":  "Kalite kontrolü",
     "upload":    "YouTube upload",
     "notify":    "Telegram bildirimi",
 }
@@ -106,6 +111,9 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     print("⚔️   WAR SHORTS — Pipeline Başlatıldı")
     print("=" * 52)
 
+    # Pool düşükse Gemini ile otomatik genişlet
+    expand_if_low()
+
     # Kuyruk modu: batch_producer'dan önceden üretilmiş video kullan
     queued = get_next_queued() if USE_QUEUE and not topic_override else None
 
@@ -161,6 +169,14 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
             topic,
         )
 
+    # 5b) Kalite kontrolü (upload öncesi)
+    print("\n[main] Kalite kontrolü yapılıyor...")
+    _step(
+        "validate",
+        lambda: validate_or_raise(video_path, thumb_path, script, vtt_path),
+        topic,
+    )
+
     if dry_run:  # noqa — shared between queue and fresh modes
         print("\n" + "=" * 52)
         print("✅  DRY RUN TAMAMLANDI (upload atlandı)")
@@ -211,12 +227,21 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     except Exception as e:
         print(f"[main] A/B thumbnail üretilemedi (kritik değil): {e}")
 
-    # 7e) Resmi YouTube altyazısı yükle (SEO)
+    # 7e) Resmi YouTube altyazısı yükle (SEO) + çok dilli çeviri
     print("\n[main] Altyazı (caption) yükleniyor...")
     try:
         upload_captions(video_id, vtt_path, language=script.get("language", "en"))
     except Exception as e:
         print(f"[main] Altyazı yüklenemedi (kritik değil): {e}")
+
+    print("\n[main] Çok dilli altyazı çevriliyor...")
+    try:
+        translate_and_upload_captions(
+            video_id, vtt_path,
+            source_language=script.get("language", "en"),
+        )
+    except Exception as e:
+        print(f"[main] Altyazı çevirisi başarısız (kritik değil): {e}")
 
     # 7f) Playlist'e ekle
     print("\n[main] Playlist'e ekleniyor...")
@@ -296,7 +321,14 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     except Exception as e:
         print(f"[main] Telegram bildirimi gönderilemedi (kritik değil): {e}")
 
-    # 14) Discord başarı bildirimi
+    # 14) Otomatik yorum yanıtı (ilk yorumlar için)
+    print("\n[main] Otomatik yorum yanıtları kontrol ediliyor...")
+    try:
+        reply_to_comments(video_id, script["title"])
+    except Exception as e:
+        print(f"[main] Otomatik yorum yanıtı başarısız (kritik değil): {e}")
+
+    # 15) Discord başarı bildirimi
     print("\n[main] Discord bildirimi gönderiliyor...")
     try:
         discord_video_live(

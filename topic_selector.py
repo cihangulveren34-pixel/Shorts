@@ -129,6 +129,13 @@ def pick_trending_topic(override: str = None) -> tuple[str, dict]:
     # RSS beslemelerinden yeni konular ekle (hata toleranslı)
     _maybe_refresh_from_rss()
 
+    # Pool azaldıysa Gemini ile otomatik genişlet
+    try:
+        from topic_expander import expand_if_low
+        expand_if_low()
+    except Exception:
+        pass
+
     available, used_data = _load_available_topics()
 
     if len(available) == 1:
