@@ -44,6 +44,7 @@ TARGET_H = 1920
 DVIDS_API = "https://api.dvidshub.net/search"
 ARCHIVE_API = "https://archive.org/advancedsearch.php"
 YT_COOKIES_PATH = os.environ.get("YT_COOKIES_PATH", "yt_cookies.txt")
+YT_OAUTH_TOKEN = os.environ.get("YT_OAUTH_TOKEN", "")  # yt-dlp OAuth2 refresh token
 
 # ─── YouTube CC Askeri Keyword Havuzu ────────────────────────────────────────
 
@@ -454,11 +455,22 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "--no-warnings",
                 "--quiet",
                 "--no-progress",
+                "--geo-bypass",
+                "--extractor-args", "youtube:player_client=tv_embedded,web",
                 "-o", tmp.name,
             ]
 
-            # Cookie dosyası varsa ekle (YouTube bot koruması için)
-            if os.path.exists(YT_COOKIES_PATH):
+            # Kimlik doğrulama: OAuth2 token > cookies > anonim
+            if YT_OAUTH_TOKEN:
+                # OAuth2 token dosyası oluştur
+                token_cache = os.path.join(tempfile.gettempdir(), "yt_oauth_cache")
+                os.makedirs(token_cache, exist_ok=True)
+                token_file = os.path.join(token_cache, "youtube-oauth2.token")
+                if not os.path.exists(token_file):
+                    with open(token_file, "w") as f:
+                        f.write(YT_OAUTH_TOKEN)
+                cmd.extend(["--username", "oauth2", "--password", "", "--cache-dir", token_cache])
+            elif os.path.exists(YT_COOKIES_PATH):
                 cmd.extend(["--cookies", YT_COOKIES_PATH])
 
             print(f"[video_builder] YouTube CC aranıyor: '{query}'...")
