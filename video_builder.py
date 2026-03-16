@@ -37,7 +37,7 @@ from moviepy.video.VideoClip import VideoClip
 TARGET_W = 1080
 TARGET_H = 1920
 PEXELS_API = "https://api.pexels.com/videos/search"
-MUSIC_PATH = "assets/music/epic_background.mp3"
+MUSIC_PATH = "assets/music/epic_background.wav"
 FONT_PATH = "assets/fonts/Montserrat-Bold.ttf"
 LOGO_PATH = "assets/logo.png"
 INTRO_PATH = "assets/intro.mp4"     # 2 saniyelik branded intro (opsiyonel)
@@ -47,10 +47,10 @@ CTA_DURATION = 3.0    # son kaç saniye CTA ekranı
 
 # Ses efekti dosyaları (assets/sfx/ altında, yoksa atlanır)
 SFX = {
-    "hook":      "assets/sfx/drum_hit.mp3",      # 0. sn — hook başlangıcı
-    "twist":     "assets/sfx/sword_clash.mp3",   # ~15. sn — twist bölümü
-    "payoff":    "assets/sfx/explosion.mp3",     # ~40. sn — payoff
-    "cta":       "assets/sfx/trumpet.mp3",       # CTA öncesi
+    "hook":      "assets/sfx/drum_hit.wav",      # 0. sn — hook başlangıcı
+    "twist":     "assets/sfx/sword_clash.wav",   # ~15. sn — twist bölümü
+    "payoff":    "assets/sfx/explosion.wav",     # ~40. sn — payoff
+    "cta":       "assets/sfx/trumpet.wav",       # CTA öncesi
 }
 
 
