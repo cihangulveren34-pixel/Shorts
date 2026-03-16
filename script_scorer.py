@@ -249,7 +249,7 @@ def _gemini_quality_bonus(script: dict) -> int:
         return 0
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.0-flash")
         prompt = (
             f"Rate this YouTube Shorts script on a scale of 1-10 for viral potential.\n"
             f"Title: {script.get('title', '')}\n"

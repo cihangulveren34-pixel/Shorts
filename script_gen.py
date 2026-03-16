@@ -72,7 +72,7 @@ def generate_script(topic: str, language: str = "en") -> dict:
 
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="gemini-2.0-flash",
         generation_config=genai.GenerationConfig(
             response_mime_type="application/json",
             max_output_tokens=1024,

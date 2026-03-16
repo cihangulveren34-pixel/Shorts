@@ -106,7 +106,7 @@ def _generate_with_gemini(existing_sample: list[str], count: int) -> list[str]:
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
+            model_name="gemini-2.0-flash",
             generation_config=genai.GenerationConfig(
                 response_mime_type="application/json",
                 temperature=1.0,        # Yaratıcılık için yüksek temperature
