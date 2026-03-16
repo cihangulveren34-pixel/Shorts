@@ -9,8 +9,8 @@ import re
 import edge_tts
 
 DEFAULT_VOICE = "en-US-GuyNeural"
-RATE = "-5%"
-PITCH = "-10Hz"
+RATE = "+15%"
+PITCH = "-5Hz"
 
 
 async def _synthesize(text: str, audio_path: str, vtt_path: str, voice: str = DEFAULT_VOICE) -> None:

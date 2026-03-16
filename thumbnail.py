@@ -46,11 +46,11 @@ def generate_thumbnail(
             dist = ((x ** 2 + y ** 2) ** 0.5) / ((THUMB_W ** 2 + THUMB_H ** 2) ** 0.5)
             if dist < 0.5:
                 blend = int(alpha * (1 - dist * 2))
-                cx, cy = img.getpixel((x, y))
+                cr, cg, cb = img.getpixel((x, y))
                 img.putpixel((x, y), (
-                    min(255, cx + blend),
-                    cy,
-                    cy,
+                    min(255, cr + blend),
+                    cg,
+                    cb,
                 ))
 
     # Büyük ana metin (thumbnail_text — 4 kelimeye kadar, ALL CAPS)
