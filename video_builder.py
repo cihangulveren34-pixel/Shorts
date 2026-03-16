@@ -98,17 +98,28 @@ def _fetch_multiple_clips(keywords: list, api_key: str, n: int = 8) -> list:
     headers = {"Authorization": api_key}
     downloaded = []
 
-    # Her keyword için ayrı arama → çeşitlilik
-    queries = [
-        " ".join(keywords[:2]),
-        keywords[0] if keywords else "war history",
-        keywords[1] if len(keywords) > 1 else "ancient empire",
-        keywords[2] if len(keywords) > 2 else "military history",
-        "ancient battle war cinematic",
-        "dramatic history documentary",
-        "epic war soldiers cinematic",
-        "ancient ruins civilization",
-    ]
+    # Script'in search_keywords'lerinden dinamik sorgular oluştur
+    queries = []
+
+    # Keyword kombinasyonları (en alakalı)
+    if len(keywords) >= 2:
+        queries.append(" ".join(keywords[:2]))
+    if len(keywords) >= 3:
+        queries.append(" ".join(keywords[1:3]))
+
+    # Her keyword tek başına
+    for kw in keywords:
+        queries.append(kw)
+
+    # Keyword'lere dayalı varyasyonlar
+    for kw in keywords[:2]:
+        queries.append(f"{kw} cinematic")
+
+    # Fallback (yeterli klip bulunamazsa)
+    queries.extend([
+        "military dramatic cinematic",
+        "dramatic aerial landscape",
+    ])
 
     for query in queries:
         if len(downloaded) >= n:
