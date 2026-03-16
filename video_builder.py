@@ -595,7 +595,7 @@ def build_video(
         fps=30,
         codec="libx264",
         audio_codec="aac",
-        temp_audiofile="output/temp_audio.m4a",
+        temp_audiofile=os.path.join(os.path.dirname(output_path), "temp_audio.m4a"),
         remove_temp=True,
         threads=2,
         preset="fast",
