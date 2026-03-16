@@ -31,30 +31,31 @@ FORMAT_PROMPTS = {
 HOOK FORMULA (pick the most powerful one for this topic):
 - Pattern interrupt: "Stop scrolling. This changes everything about [topic]."
 - Shocking stat: "In just 48 hours, [X] would have been completely different."
-- Controversial: "Historians are WRONG about [topic]. Here's why."
-- Curiosity gap: "What if I told you [event] almost didn't happen?"
+- Controversial: "The military doesn't want you to know this about [topic]."
+- Curiosity gap: "What if I told you [country] already has [weapon]?"
 
 SCRIPT STRUCTURE (50-55 seconds):
-0-3s HOOK: The most shocking/controversial statement possible. Make scrolling IMPOSSIBLE.
-3-15s SETUP: Fast context with SPECIFIC numbers, dates, names. Paint vivid mental images.
-15-40s ESCALATION: ONE main alternate outcome explored DEEPLY. Build tension: "But here's where it gets dark..." "And it gets worse..."
-40-50s PAYOFF: The most mind-blowing consequence. Connect it to TODAY. Make the viewer say "holy shit."
-50-55s CTA: "Follow for more history that'll blow your mind."
+0-3s HOOK: The most shocking/terrifying military fact. Make scrolling IMPOSSIBLE.
+3-15s SETUP: Fast context with SPECIFIC numbers, weapon names, country stats. Paint vivid scenarios.
+15-40s ESCALATION: ONE main scenario explored DEEPLY. Build tension: "But here's where it gets terrifying..." "And it gets worse..."
+40-50s PAYOFF: The most mind-blowing consequence. Connect it to RIGHT NOW. Make the viewer say "holy shit."
+50-55s CTA: "Follow for more military facts that'll blow your mind."
 
 VIRALITY RULES:
-- Use power words: "shocking", "terrifying", "secret", "never", "actually", "real reason"
-- Build tension: "But it gets worse..." "Here's where it gets DARK..."
+- Use power words: "shocking", "terrifying", "secret", "classified", "never", "actually", "real reason"
+- Build tension: "But it gets worse..." "Here's the terrifying part..."
 - Withhold the BEST detail until 40s (curiosity gap)
-- Use SPECIFIC numbers: "47,000 soldiers" not "many soldiers"
+- Use SPECIFIC numbers: "$13 billion carrier" not "expensive ship", "Mach 10" not "very fast"
 - Short punchy sentences. 5-8 words max. Like this. Hit hard. Move on.
 - Present tense for ALL narration (creates urgency)
+- MODERN focus: everything about current military, geopolitics, technology (2020-2025)
 
 Output ONLY valid JSON:
 {
-  "title": "What if [Scenario]? (max 60 chars)",
+  "title": "Topic title (max 60 chars)",
   "hook": "Opening shock line (max 15 words)",
   "narration": "Full script 150-180 words following structure above",
-  "tags": ["history", "whatif", "war", "shorts", "specific_tag1", "specific_tag2"],
+  "tags": ["military", "geopolitics", "war", "shorts", "specific_tag1", "specific_tag2"],
   "thumbnail_text": "4 WORD SHOCK CAPS",
   "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6"],
   "mood": "dark|epic|mysterious|inspiring",
@@ -62,7 +63,7 @@ Output ONLY valid JSON:
 }
 
 CRITICAL:
-- search_keywords must have 6 items, each SPECIFIC and VISUAL for stock footage search: "Roman legions battle formation" not "Rome", "ancient stone ruins aerial" not "ruins"
+- search_keywords must have 6 items, each SPECIFIC and VISUAL for stock footage: "fighter jet takeoff night" not "jet", "missile launch smoke trail" not "missile"
 - mood must match the script's emotional tone
 - narration MUST be 150-180 words, present tense, short sentences""",
 
@@ -241,29 +242,30 @@ Output ONLY valid JSON:
 HOOK FORMÜLLERI (en güçlüsünü seç):
 - Pattern interrupt: "Kaydırmayı bırak. Bu [konu] hakkında her şeyi değiştiriyor."
 - Şok istatistik: "Sadece 48 saatte [X] tamamen farklı olacaktı."
-- Tartışmalı: "Tarihçiler [konu] hakkında YANILIYOR. İşte nedeni."
-- Merak boşluğu: "Ya sana [olay] neredeyse olmayacaktı desem?"
+- Tartışmalı: "Ordular bunu bilmeni İSTEMİYOR. İşte nedeni."
+- Merak boşluğu: "Ya sana [ülke] zaten [silahı] geliştirdi desem?"
 
 SENARYO YAPISI (50-55 saniye):
-0-3sn HOOK: Mümkün olan en şok edici cümle. Kaydırmayı İMKANSIZ kıl.
-3-15sn KURULUM: Hızlı bağlam, SPESİFİK sayılar, tarihler, isimler. Canlı zihinsel resimler.
-15-40sn TIRMANMA: TEK bir alternatif sonucu DERİNLEMESİNE işle. Gerilim kur.
-40-50sn PATLAMA: En akıl almaz sonuç. BUGÜNE bağla.
-50-55sn CTA: "Aklını uçuracak daha fazla tarih için takip et."
+0-3sn HOOK: En şok edici askeri gerçek. Kaydırmayı İMKANSIZ kıl.
+3-15sn KURULUM: Hızlı bağlam, SPESİFİK silah isimleri, ülke istatistikleri. Canlı senaryolar.
+15-40sn TIRMANMA: TEK bir senaryoyu DERİNLEMESİNE işle. Gerilim kur.
+40-50sn PATLAMA: En akıl almaz sonuç. ŞU AN'a bağla.
+50-55sn CTA: "Aklını uçuracak daha fazla askeri bilgi için takip et."
 
 VİRALLİK KURALLARI:
-- Güçlü kelimeler: "şok edici", "korkunç", "gizli", "asla", "aslında", "gerçek sebep"
-- Gerilim: "Ama daha bitmedi..." "İşte karanlık kısım..."
+- Güçlü kelimeler: "şok edici", "korkunç", "gizli", "gizli", "aslında", "gerçek sebep"
+- Gerilim: "Ama daha bitmedi..." "İşte korkunç kısım..."
 - EN İYİ detayı 40. saniyeye sakla
-- SPESİFİK sayılar: "47.000 asker" (belirsiz "birçok asker" DEĞİL)
+- SPESİFİK sayılar: "13 milyar dolarlık uçak gemisi" ("pahalı gemi" DEĞİL), "Mach 10" ("çok hızlı" DEĞİL)
 - Kısa, çarpıcı cümleler. 5-8 kelime. Geniş zaman.
+- MODERN odak: 2020-2025 askeri, jeopolitik, teknoloji
 
 SADECE geçerli JSON çıkar:
 {
-  "title": "Ya [Senaryo] Olmasaydı? (max 60 karakter)",
+  "title": "Konu başlığı (max 60 karakter)",
   "hook": "Şok açılış (max 15 kelime)",
   "narration": "150-180 kelime tam senaryo",
-  "tags": ["tarih", "yasaolmasaydi", "savas", "shorts", "spesifik_tag1"],
+  "tags": ["military", "geopolitics", "war", "shorts", "spesifik_tag1"],
   "thumbnail_text": "4 KELİME BÜYÜK HARF",
   "search_keywords": ["spesifik görsel 1", "spesifik görsel 2", "spesifik görsel 3", "spesifik görsel 4", "spesifik görsel 5", "spesifik görsel 6"],
   "mood": "dark|epic|mysterious|inspiring",
@@ -271,7 +273,7 @@ SADECE geçerli JSON çıkar:
 }
 
 KRİTİK:
-- search_keywords 6 adet, İngilizce ve SPESİFİK görsel: "Roman legions battle formation" ("Rome" DEĞİL), "ancient stone ruins aerial" ("ruins" DEĞİL)
+- search_keywords 6 adet, İngilizce ve SPESİFİK görsel: "fighter jet takeoff night" ("jet" DEĞİL), "missile launch smoke trail" ("missile" DEĞİL)
 - narration 150-180 kelime, geniş zaman, kısa cümleler""",
 
         "countdown": """Sen viral YouTube Shorts senaryo yazarısın. Geri sayım/liste formatında uzmanlaşmışsın.

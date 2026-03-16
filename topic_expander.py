@@ -30,52 +30,56 @@ EXPAND_COUNT = 20           # Her genişletmede eklenecek yeni konu sayısı
 
 # Konu kategorileri ve hedef dağılım oranları
 CATEGORIES = {
-    "Ancient World":    ["rome", "greek", "persia", "egypt", "babylon", "carthage", "sparta"],
-    "Medieval":         ["mongol", "crusade", "viking", "feudal", "plague", "byzantine"],
-    "Early Modern":     ["napoleon", "ottoman", "colonial", "aztec", "inca", "ming"],
-    "World War I/II":   ["ww1", "ww2", "nazi", "d-day", "pacific", "stalingrad", "trench"],
-    "Cold War":         ["cold war", "soviet", "nuclear", "vietnam", "korea", "space race"],
-    "Asian History":    ["samurai", "shogun", "china", "japan", "india", "mughal", "silk road", "khmer", "qing", "korea"],
-    "African History":  ["zulu", "mali", "ethiopia", "african", "shaka", "zimbabwe", "scramble"],
-    "Americas":         ["maya", "aztec", "inca", "amazon", "revolution", "civil war", "confederate"],
-    "Ancient Mystery":  ["atlantis", "pyramid", "lost civilization", "antikythera", "göbekli", "voynich"],
-    "Tech Mashup":      ["gunpowder", "machine gun", "nuclear", "ai ", "internet", "gps"],
-    "Cultural":         ["olympics", "music", "photography", "shakespeare", "printing press", "movie"],
-    "Modern Conflict":  ["nato", "russia", "china", "taiwan", "iran", "ukraine", "cyber", "israel", "turkey", "uae", "qatar", "saudi", "brics", "ww3"],
-    "Military Tech":    ["drone", "hypersonic", "stealth", "missile", "railgun", "laser", "swarm", "submarine", "fighter jet", "iron dome", "bayraktar", "carrier", "ai warfare", "kaan", "b-21"],
+    "Turkey":           ["turkey", "turkish", "bayraktar", "kaan", "akıncı", "kızılelma", "blue homeland", "nato turkey"],
+    "Iran":             ["iran", "iranian", "tehran", "hormuz", "hezbollah", "proxy", "persian gulf"],
+    "Russia":           ["russia", "russian", "putin", "kremlin", "wagner", "kinzhal", "poseidon", "nato russia"],
+    "China":            ["china", "chinese", "beijing", "taiwan", "pla", "south china sea", "df-41", "rare earth"],
+    "Israel":           ["israel", "israeli", "mossad", "iron dome", "idf", "hamas", "hezbollah"],
+    "USA":              ["america", "us ", "pentagon", "b-21", "ngad", "ford class", "nato", "pacific"],
+    "Gulf States":      ["uae", "emirates", "qatar", "saudi", "gulf", "neom", "edge group", "bahrain"],
+    "Military Tech":    ["drone", "hypersonic", "stealth", "missile", "railgun", "laser", "swarm", "submarine", "fighter jet", "carrier", "ai warfare", "emp", "thermobaric", "quantum radar", "microwave weapon"],
+    "Cyber & Space":    ["cyber", "satellite", "space weapon", "starlink", "gps", "hack", "internet cable", "anti-satellite"],
+    "Nuclear":          ["nuclear", "nuke", "warhead", "icbm", "triad", "dead hand", "doomsday", "fallout"],
+    "Asia Pacific":     ["india", "pakistan", "japan", "south korea", "north korea", "australia", "aukus"],
+    "Europe Defense":   ["poland", "germany", "france", "europe military", "nato europe", "rearmament"],
+    "WW3 Scenarios":    ["world war 3", "ww3", "global war", "first 24 hours", "all satellites", "bioweapon"],
+    "Rankings":         ["top 5", "top 10", "most powerful", "most dangerous", "deadliest", "strongest"],
 }
 
-EXPANSION_PROMPT = """You are a VIRAL YouTube Shorts scriptwriter generating addictive alternate history topics.
+EXPANSION_PROMPT = """You are a VIRAL YouTube Shorts scriptwriter generating addictive MODERN military & geopolitics topics.
+
+IMPORTANT: NO ancient history, NO medieval, NO pre-1990 topics. ONLY modern (2000-2025) military, geopolitics, and technology.
 
 Current topics in the pool (for reference — do NOT repeat these):
 {existing_sample}
 
 Generate exactly {count} NEW topics that get MILLIONS of views. Mix these types:
-- Classic "What if": "What if [historical entity] had [alternate outcome]?"
-- Modern geopolitics: "What if [country] [military action]?" (Turkey, Iran, Russia, China, Israel, USA, UAE)
-- Military tech: "[Weapon system]: Why It Changes Everything" (drones, hypersonics, stealth, AI warfare)
-- Country vs Country: "[Country A] vs [Country B]: Who Really Wins?"
-- Mystery: "The REAL reason [event] happened"
-- Myth-busting: "Everything you know about [topic] is WRONG"
-- Hidden stories: "The [person/event] that almost changed everything"
+- "What if [country] [military action]?" — Turkey, Iran, Russia, China, Israel, USA, UAE, India, Pakistan
+- "[Weapon system]: Why It Changes Everything" — drones, hypersonics, stealth, AI, cyber, space weapons
+- "[Country A] vs [Country B]: Who Really Wins?" — military comparisons with specific stats
+- "Top 5/10 [military category]" — rankings with shocking reveals
+- "[Country]'s Secret [Weapon/Program]: What Nobody Knows" — classified/unknown military programs
+- "What if [WW3 scenario]?" — modern doomsday scenarios
 
-CATEGORY BALANCE (at least HALF should be modern/current):
-- Modern Geopolitics (Turkey, Iran, Russia, China, Israel, USA, UAE, Qatar, Saudi, NATO, BRICS) — HIGH PRIORITY
-- Military Technology (drones, hypersonic missiles, stealth jets, AI warfare, cyber weapons, railguns) — HIGH PRIORITY
-- Country Military Rankings & Comparisons
-- Asian History (Japan, China, India, Korea)
-- African History (Zulu, Mali, Ethiopia)
-- Classic War History (WW1, WW2, Cold War)
-- Ancient Mysteries & Tech Mashups
+MUST cover these countries (spread evenly):
+- Turkey (Bayraktar, KAAN, Akıncı, Kızılelma, defense industry)
+- Iran (missiles, drones, proxies, nuclear program, Hormuz)
+- Russia (hypersonics, nuclear arsenal, navy, Wagner, Arctic)
+- China (Taiwan, carriers, AI warfare, hypersonics, space)
+- Israel (Iron Dome, Mossad, nukes, AI battlefield)
+- USA (B-21, NGAD, carriers, nuclear triad, AUKUS)
+- UAE/Qatar/Saudi (military rise, arms race, Gulf tensions)
+- India/Pakistan/Japan/South Korea (nuclear, rearmament)
 
 VIRALITY RULES:
-- Topics must create CURIOSITY (make people click)
-- Use specific weapon names, country names, military programs (not generic)
-- Mix geopolitics + military tech + historical what-ifs
-- At least 10 topics should be about CURRENT military/geopolitics (2024-2025)
+- Use SPECIFIC weapon names: "Bayraktar TB3" not "Turkish drone"
+- Use SHOCKING numbers: "$13 billion carrier" not "expensive ship"
+- Create FEAR and CURIOSITY: "Should the world worry?"
+- Every topic must make viewer think "I NEED to know this"
+- NO historical topics before 1990
 
 Return ONLY a JSON array of strings:
-["What if ...", "The REAL reason ...", "Everything you know about ... is WRONG", ...]"""
+["What if ...", "Turkey's ...", "Top 5 ...", ...]"""
 
 
 def _load_pool() -> list[str]:

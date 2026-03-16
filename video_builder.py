@@ -299,23 +299,33 @@ def _fetch_pexels_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> 
     # Konuya bağlı tematik fallback'ler
     topic_fallbacks = []
     kw_lower = " ".join(k.lower() for k in keywords)
-    if any(w in kw_lower for w in ["rome", "roman", "greek", "ancient", "egypt", "persia", "sparta"]):
-        topic_fallbacks = ["ancient ruins columns", "roman architecture aerial", "ancient civilization artifacts", "marble statue closeup"]
-    elif any(w in kw_lower for w in ["war", "ww", "battle", "military", "army", "soldier", "trench"]):
-        topic_fallbacks = ["soldiers marching formation", "military tanks battlefield", "war memorial dramatic", "battlefield smoke dramatic"]
-    elif any(w in kw_lower for w in ["medieval", "knight", "viking", "crusade", "castle"]):
-        topic_fallbacks = ["medieval castle aerial", "knight armor closeup", "old fortress dramatic", "sword shield medieval"]
-    elif any(w in kw_lower for w in ["japan", "samurai", "china", "india", "mongol", "silk"]):
-        topic_fallbacks = ["asian temple dramatic", "ancient eastern architecture", "samurai warrior cinematic", "silk road landscape"]
-    elif any(w in kw_lower for w in ["africa", "zulu", "mali", "ethiopia", "pyramid"]):
-        topic_fallbacks = ["african landscape dramatic", "ancient pyramid aerial", "desert sand dunes cinematic", "tribal warriors dramatic"]
-    elif any(w in kw_lower for w in ["nuclear", "cold war", "soviet", "space", "missile"]):
-        topic_fallbacks = ["nuclear explosion dramatic", "cold war bunker", "rocket launch cinematic", "missile silo dramatic"]
+    if any(w in kw_lower for w in ["turkey", "turkish", "bayraktar", "kaan", "akinci"]):
+        topic_fallbacks = ["military drone flying", "fighter jet cockpit", "turkish flag waving", "military parade formation"]
+    elif any(w in kw_lower for w in ["iran", "iranian", "tehran", "hormuz"]):
+        topic_fallbacks = ["missile launch trail", "military parade missiles", "oil tanker ocean", "desert military base"]
+    elif any(w in kw_lower for w in ["russia", "russian", "moscow", "kremlin"]):
+        topic_fallbacks = ["russian military parade", "submarine underwater", "hypersonic missile launch", "arctic military base"]
+    elif any(w in kw_lower for w in ["china", "chinese", "beijing", "taiwan"]):
+        topic_fallbacks = ["aircraft carrier ocean", "military ships formation", "fighter jet formation flying", "chinese military parade"]
+    elif any(w in kw_lower for w in ["israel", "israeli", "mossad", "iron dome"]):
+        topic_fallbacks = ["missile interception night sky", "military technology screen", "fighter jet desert", "soldiers tactical formation"]
+    elif any(w in kw_lower for w in ["america", "us ", "pentagon", "nato"]):
+        topic_fallbacks = ["aircraft carrier aerial ocean", "stealth bomber flying", "navy fleet formation", "military base aerial"]
+    elif any(w in kw_lower for w in ["uae", "emirates", "qatar", "saudi", "gulf"]):
+        topic_fallbacks = ["modern city desert aerial", "fighter jet desert flying", "military vehicles desert", "luxury city skyline night"]
+    elif any(w in kw_lower for w in ["drone", "swarm", "autonomous", "ai warfare"]):
+        topic_fallbacks = ["military drone closeup", "drone swarm sky", "technology circuit board", "robot military futuristic"]
+    elif any(w in kw_lower for w in ["nuclear", "nuke", "missile", "hypersonic", "icbm"]):
+        topic_fallbacks = ["nuclear explosion dramatic", "missile launch smoke trail", "rocket launch cinematic", "mushroom cloud dramatic"]
+    elif any(w in kw_lower for w in ["cyber", "hack", "internet", "satellite", "space"]):
+        topic_fallbacks = ["server room technology", "satellite earth orbit", "space station earth", "digital code screen green"]
+    elif any(w in kw_lower for w in ["submarine", "navy", "carrier", "ship", "fleet"]):
+        topic_fallbacks = ["submarine underwater dramatic", "aircraft carrier ocean aerial", "warship ocean dramatic", "navy fleet formation"]
 
-    # Genel fallback (son çare)
+    # Genel fallback (son çare — askeri/modern)
     general_fallbacks = [
-        "old map history dramatic", "dramatic aerial landscape",
-        "dark clouds storm cinematic", "ancient ruins dramatic",
+        "military dramatic cinematic", "fighter jet flying dramatic",
+        "explosion smoke dramatic", "soldiers tactical night vision",
     ]
     random.shuffle(topic_fallbacks)
     random.shuffle(general_fallbacks)
@@ -361,18 +371,22 @@ def _fetch_pixabay_clips(keywords: list, api_key: str, n: int, seen_ids: set) ->
     # Konuya bağlı Pixabay fallback'ler
     kw_lower = " ".join(k.lower() for k in keywords)
     pixabay_topic = []
-    if any(w in kw_lower for w in ["rome", "roman", "greek", "ancient", "egypt"]):
-        pixabay_topic = ["ancient+ruins", "roman+columns", "ancient+temple"]
-    elif any(w in kw_lower for w in ["war", "battle", "military", "soldier"]):
-        pixabay_topic = ["military+tanks", "soldiers+march", "war+memorial"]
-    elif any(w in kw_lower for w in ["japan", "samurai", "china", "asia"]):
-        pixabay_topic = ["asian+temple", "japanese+garden", "eastern+architecture"]
-    elif any(w in kw_lower for w in ["medieval", "knight", "viking", "castle"]):
-        pixabay_topic = ["medieval+castle", "knight+armor", "old+fortress"]
+    if any(w in kw_lower for w in ["drone", "bayraktar", "turkey", "uav"]):
+        pixabay_topic = ["drone+flying", "military+drone", "technology+aircraft"]
+    elif any(w in kw_lower for w in ["missile", "nuclear", "hypersonic", "rocket"]):
+        pixabay_topic = ["rocket+launch", "missile+military", "explosion+fire"]
+    elif any(w in kw_lower for w in ["navy", "carrier", "submarine", "ship"]):
+        pixabay_topic = ["warship+ocean", "submarine+underwater", "aircraft+carrier"]
+    elif any(w in kw_lower for w in ["fighter", "stealth", "jet", "aircraft"]):
+        pixabay_topic = ["fighter+jet", "airplane+military", "cockpit+pilot"]
+    elif any(w in kw_lower for w in ["cyber", "hack", "ai", "technology"]):
+        pixabay_topic = ["technology+computer", "server+room", "digital+code"]
+    elif any(w in kw_lower for w in ["soldier", "army", "military", "war"]):
+        pixabay_topic = ["soldiers+military", "army+tanks", "military+training"]
 
     pixabay_general = [
-        "ancient+ruins", "aerial+landscape", "dramatic+sky",
-        "old+map", "historical+monument",
+        "military+dramatic", "fighter+jet", "explosion+dramatic",
+        "technology+futuristic", "soldiers+formation",
     ]
     random.shuffle(pixabay_topic)
     random.shuffle(pixabay_general)

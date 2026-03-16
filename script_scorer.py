@@ -56,14 +56,16 @@ IDEAL_WORD_MAX = 160
 
 # Arama odaklı tag kelimeleri
 SEO_TAG_KEYWORDS = [
-    "history", "shorts", "whatif", "war", "ancient", "medieval", "ww2",
-    "what if", "alternate", "empire", "battle", "world", "facts",
+    "military", "shorts", "war", "drone", "missile", "nuclear", "nato",
+    "what if", "geopolitics", "weapon", "army", "navy", "stealth",
+    "hypersonic", "turkey", "iran", "russia", "china", "israel", "usa",
 ]
 
 # Başlık CTR kelimeleri
 TITLE_CTR_WORDS = [
     "what if", "never", "secret", "truth", "real", "hidden", "actually",
-    "dark", "untold", "?", "almost", "biggest",
+    "terrifying", "?", "most dangerous", "deadly", "powerful", "shocking",
+    "vs", "top 5", "top 10", "who wins",
 ]
 
 
