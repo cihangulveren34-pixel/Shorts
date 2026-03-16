@@ -37,6 +37,8 @@ from video_validator import validate_or_raise
 from subtitle_translator import translate_and_upload_captions
 from auto_reply import reply_to_comments
 from topic_expander import expand_if_low
+from script_scorer import score_or_warn, SCORE_WARN
+from poster_facebook import post_reel as facebook_post
 
 
 OUTPUT_DIR = "output"
@@ -142,6 +144,11 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         script = _step("script", lambda: generate_script(topic, LANGUAGE), topic)
         save_script(script)
         print(f"[main] Başlık: {script['title']}")
+
+        # 2b) Script kalite skoru
+        score_bd = score_or_warn(script)
+        if score_bd.total < SCORE_WARN:
+            print(f"[main] ⚠️  Script skoru düşük ({score_bd.total}/100) — yine de devam ediliyor.")
 
         # 3) TTS + VTT
         print("\n[main] Ses üretiliyor...")
@@ -281,7 +288,17 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     else:
         print("\n[main] INSTAGRAM_ACCESS_TOKEN yok, Instagram atlandı.")
 
-    # 10) Twitter/X cross-post
+    # 10) Facebook cross-post
+    if os.environ.get("FACEBOOK_ACCESS_TOKEN"):
+        print("\n[main] Facebook'a yükleniyor...")
+        try:
+            facebook_post(video_path, script, video_id)
+        except Exception as e:
+            print(f"[main] Facebook hatası (kritik değil): {e}")
+    else:
+        print("\n[main] FACEBOOK_ACCESS_TOKEN yok, Facebook atlandı.")
+
+    # 10b) Twitter/X cross-post
     if os.environ.get("TWITTER_API_KEY"):
         print("\n[main] Twitter/X'e tweet atılıyor...")
         try:
