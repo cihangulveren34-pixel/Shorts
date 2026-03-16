@@ -148,18 +148,16 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         topic, used_data = pick_trending_topic(topic_override)
         save_used(used_data)
 
-        # [NEWS] prefix'li konular → news_analysis formatı
-        forced_format = None
+        # [NEWS] prefix varsa kaldır
         if topic.startswith("[NEWS] "):
-            topic = topic[7:]  # Prefix'i kaldır
-            forced_format = "news_analysis"
+            topic = topic[7:]
             print(f"\n[main] Konu (GÜNCEL HABER): {topic}")
         else:
             print(f"\n[main] Konu: {topic}")
 
-        # 2) Script (LANGUAGE env'e göre)
+        # 2) Script (her zaman news_analysis formatı)
         print(f"\n[main] Script üretiliyor (dil: {LANGUAGE})...")
-        script = _step("script", lambda: generate_script(topic, LANGUAGE, forced_format=forced_format), topic)
+        script = _step("script", lambda: generate_script(topic, LANGUAGE), topic)
         save_script(script)
         print(f"[main] Başlık: {script['title']}")
 

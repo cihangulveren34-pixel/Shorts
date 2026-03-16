@@ -1,7 +1,8 @@
 """
-video_builder.py — Pexels + Pixabay'dan footage indirir, MoviePy ile 1080×1920 Short üretir.
+video_builder.py — YouTube CC + DVIDS + Archive'dan footage indirir, MoviePy ile 1080×1920 Short üretir.
 Özellikler:
-  - Çift kaynaklı klip (Pexels + Pixabay)
+  - YouTube Creative Commons lisanslı gerçek askeri videolar (yt-dlp)
+  - DVIDS + Internet Archive fallback
   - Style Profile sistemi (her video benzersiz görünüm)
   - 6 yönlü Ken Burns efekti
   - 8 renk tonu preset'i (mood-aware)
@@ -40,12 +41,105 @@ from moviepy.video.VideoClip import VideoClip
 
 TARGET_W = 1080
 TARGET_H = 1920
-PEXELS_API = "https://api.pexels.com/videos/search"
-PEXELS_PHOTO_API = "https://api.pexels.com/v1/search"
-WIKIMEDIA_API = "https://commons.wikimedia.org/w/api.php"
 DVIDS_API = "https://api.dvidshub.net/search"
 ARCHIVE_API = "https://archive.org/advancedsearch.php"
-PIXABAY_VIDEO_API = "https://pixabay.com/api/videos/"
+
+# ─── YouTube CC Askeri Keyword Havuzu ────────────────────────────────────────
+
+YT_MILITARY_KEYWORDS = {
+    "training": [
+        "military training footage", "army training exercise footage",
+        "military drill footage", "combat training footage",
+        "army boot camp footage", "military obstacle course footage",
+        "live fire exercise footage", "infantry training footage",
+        "paratrooper training footage", "military academy footage",
+        "amphibious assault training footage", "urban warfare training footage",
+        "night vision military training footage", "joint military exercise footage",
+        "ranger training footage", "marine corps training footage",
+    ],
+    "jets": [
+        "fighter jet takeoff footage", "fighter jet cockpit footage",
+        "F-35 footage", "F-22 raptor footage", "Su-57 footage",
+        "fighter jet dogfight footage", "air force scramble footage",
+        "military jet formation footage", "stealth bomber footage",
+        "B-2 bomber footage", "fighter jet landing footage",
+        "supersonic jet footage", "jet afterburner footage",
+        "eurofighter typhoon footage", "rafale fighter footage",
+        "F-16 footage", "F-15 eagle footage", "MiG-29 footage",
+    ],
+    "helicopter": [
+        "military helicopter takeoff footage", "attack helicopter firing footage",
+        "Apache helicopter footage", "Black Hawk helicopter footage",
+        "helicopter gunship footage", "military helicopter rescue footage",
+        "CH-47 Chinook footage", "helicopter air assault footage",
+        "Ka-52 helicopter footage", "military helicopter formation footage",
+        "medevac helicopter footage", "helicopter fast rope footage",
+    ],
+    "tanks": [
+        "tank firing footage", "tank live fire exercise footage",
+        "M1 Abrams tank footage", "Leopard 2 tank footage",
+        "tank battle footage", "armored vehicle footage",
+        "tank convoy footage", "T-90 tank footage",
+        "tank urban combat footage", "Challenger 2 tank footage",
+        "Merkava tank footage", "tank night firing footage",
+        "armored personnel carrier footage", "tank column footage",
+    ],
+    "drone": [
+        "military drone footage", "drone surveillance footage",
+        "Bayraktar TB2 footage", "drone strike footage",
+        "UAV military footage", "predator drone footage",
+        "reaper drone footage", "combat drone footage",
+        "drone swarm military footage", "reconnaissance drone footage",
+        "military quadcopter footage", "kamikaze drone footage",
+        "drone warfare footage", "tactical drone footage",
+    ],
+    "navy": [
+        "navy exercise footage", "aircraft carrier operations footage",
+        "warship footage", "destroyer ship footage",
+        "submarine footage", "naval fleet footage",
+        "navy SEAL footage", "amphibious landing footage",
+        "aircraft carrier takeoff footage", "battleship footage",
+        "frigate naval footage", "naval bombardment footage",
+        "submarine surfacing footage", "carrier strike group footage",
+        "navy fleet formation footage", "cruiser warship footage",
+    ],
+    "special_forces": [
+        "special forces training footage", "navy seals training footage",
+        "special operations footage", "delta force footage",
+        "SAS training footage", "commando raid footage",
+        "special forces night raid footage", "counter terrorism footage",
+        "hostage rescue footage", "special forces parachute footage",
+        "green beret footage", "spetsnaz training footage",
+        "special forces CQB footage", "SWAT tactical footage",
+    ],
+    "missiles": [
+        "missile launch footage", "ICBM launch footage",
+        "cruise missile footage", "anti ship missile footage",
+        "patriot missile footage", "S-400 missile footage",
+        "hypersonic missile footage", "ballistic missile footage",
+        "missile defense system footage", "THAAD missile footage",
+        "iron dome interception footage", "tomahawk cruise missile footage",
+        "nuclear missile test footage", "air defense missile footage",
+    ],
+    "explosions": [
+        "military explosion footage", "bomb explosion footage",
+        "airstrike footage", "demolition military footage",
+        "artillery firing footage", "howitzer firing footage",
+        "carpet bombing footage", "precision strike footage",
+        "bunker buster footage", "controlled demolition military footage",
+        "mortar firing footage", "rocket artillery footage",
+    ],
+    "misc": [
+        "military parade footage", "soldiers marching footage",
+        "military ceremony footage", "troops deployment footage",
+        "military logistics footage", "military base footage",
+        "war memorial footage", "veterans ceremony footage",
+        "military equipment footage", "defense industry footage",
+        "military convoy footage", "armed forces footage",
+        "military flag ceremony footage", "soldiers patrol footage",
+        "military camp footage", "army barracks footage",
+    ],
+}
 FONT_PATH = "assets/fonts/Montserrat-Bold.ttf"
 LOGO_PATH = "assets/logo.png"
 INTRO_PATH = "assets/intro.mp4"
@@ -277,347 +371,186 @@ def _download_clip(url: str) -> str:
     return tmp.name
 
 
-def _best_pexels_url(video: dict) -> str:
-    for q in ("hd", "sd"):
-        for vf in video.get("video_files", []):
-            if vf.get("quality") == q:
-                return vf["link"]
-    return video["video_files"][0]["link"]
+def _pick_yt_category(keywords: list) -> str:
+    """Script keyword'lerine göre en uygun YT keyword kategorisini seçer."""
+    kw_lower = " ".join(k.lower() for k in keywords)
+
+    category_hints = {
+        "jets": ["jet", "fighter", "f-35", "f-22", "f-16", "stealth", "bomber", "aircraft", "air force", "kaan", "su-57", "rafale"],
+        "helicopter": ["helicopter", "apache", "black hawk", "chinook", "heli", "ka-52"],
+        "tanks": ["tank", "abrams", "leopard", "armored", "t-90", "merkava", "challenger"],
+        "drone": ["drone", "uav", "bayraktar", "tb2", "reaper", "predator", "akinci", "swarm"],
+        "navy": ["navy", "carrier", "submarine", "ship", "destroyer", "fleet", "frigate", "cruiser", "naval"],
+        "special_forces": ["special forces", "seal", "delta", "sas", "commando", "spetsnaz", "green beret"],
+        "missiles": ["missile", "icbm", "hypersonic", "patriot", "s-400", "iron dome", "thaad", "nuclear", "nuke", "rocket"],
+        "explosions": ["explosion", "bomb", "airstrike", "artillery", "howitzer", "demolition", "mortar"],
+        "training": ["training", "exercise", "drill", "boot camp"],
+    }
+
+    for cat, hints in category_hints.items():
+        if any(h in kw_lower for h in hints):
+            return cat
+
+    return random.choice(list(YT_MILITARY_KEYWORDS.keys()))
 
 
-def _fetch_pexels_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> list:
-    """Pexels'ten n adet benzersiz klip indirir."""
-    headers = {"Authorization": api_key}
+def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
+    """YouTube'dan Creative Commons lisanslı askeri video indirir (yt-dlp).
+    İndirilen videodan rastgele 5-10sn segment keser.
+    Returns: list of file paths.
+    """
+    if not shutil.which("yt-dlp"):
+        print("[video_builder] yt-dlp bulunamadı, YouTube CC atlanıyor.")
+        return []
+    if not shutil.which("ffmpeg"):
+        print("[video_builder] ffmpeg bulunamadı, YouTube CC atlanıyor.")
+        return []
+
     downloaded = []
 
-    queries = []
-    if len(keywords) >= 2:
-        queries.append(" ".join(keywords[:2]))
-    if len(keywords) >= 3:
-        queries.append(" ".join(keywords[1:3]))
-    for kw in keywords:
-        queries.append(kw)
+    # Keyword havuzundan sorgu listesi oluştur
+    category = _pick_yt_category(keywords)
+    yt_pool = list(YT_MILITARY_KEYWORDS.get(category, []))
+    random.shuffle(yt_pool)
 
-    suffixes = ["cinematic", "dramatic", "aerial", "dark", "historical", "ancient"]
+    # Script keyword'lerinden de sorgu ekle
+    script_queries = []
     for kw in keywords[:3]:
-        queries.append(f"{kw} {random.choice(suffixes)}")
+        script_queries.append(f"{kw} footage")
+    if len(keywords) >= 2:
+        script_queries.append(f"{keywords[0]} {keywords[1]} footage")
 
-    # Konuya bağlı tematik fallback'ler
-    topic_fallbacks = []
-    kw_lower = " ".join(k.lower() for k in keywords)
-    if any(w in kw_lower for w in ["turkey", "turkish", "bayraktar", "kaan", "akinci"]):
-        topic_fallbacks = ["military drone flying", "fighter jet cockpit", "turkish flag waving", "military parade formation"]
-    elif any(w in kw_lower for w in ["iran", "iranian", "tehran", "hormuz"]):
-        topic_fallbacks = ["missile launch trail", "military parade missiles", "oil tanker ocean", "desert military base"]
-    elif any(w in kw_lower for w in ["russia", "russian", "moscow", "kremlin"]):
-        topic_fallbacks = ["russian military parade", "submarine underwater", "hypersonic missile launch", "arctic military base"]
-    elif any(w in kw_lower for w in ["china", "chinese", "beijing", "taiwan"]):
-        topic_fallbacks = ["aircraft carrier ocean", "military ships formation", "fighter jet formation flying", "chinese military parade"]
-    elif any(w in kw_lower for w in ["israel", "israeli", "mossad", "iron dome"]):
-        topic_fallbacks = ["missile interception night sky", "military technology screen", "fighter jet desert", "soldiers tactical formation"]
-    elif any(w in kw_lower for w in ["america", "us ", "pentagon", "nato"]):
-        topic_fallbacks = ["aircraft carrier aerial ocean", "stealth bomber flying", "navy fleet formation", "military base aerial"]
-    elif any(w in kw_lower for w in ["uae", "emirates", "qatar", "saudi", "gulf"]):
-        topic_fallbacks = ["modern city desert aerial", "fighter jet desert flying", "military vehicles desert", "luxury city skyline night"]
-    elif any(w in kw_lower for w in ["drone", "swarm", "autonomous", "ai warfare"]):
-        topic_fallbacks = ["military drone closeup", "drone swarm sky", "technology circuit board", "robot military futuristic"]
-    elif any(w in kw_lower for w in ["nuclear", "nuke", "missile", "hypersonic", "icbm"]):
-        topic_fallbacks = ["nuclear explosion dramatic", "missile launch smoke trail", "rocket launch cinematic", "mushroom cloud dramatic"]
-    elif any(w in kw_lower for w in ["cyber", "hack", "internet", "satellite", "space"]):
-        topic_fallbacks = ["server room technology", "satellite earth orbit", "space station earth", "digital code screen green"]
-    elif any(w in kw_lower for w in ["submarine", "navy", "carrier", "ship", "fleet"]):
-        topic_fallbacks = ["submarine underwater dramatic", "aircraft carrier ocean aerial", "warship ocean dramatic", "navy fleet formation"]
+    # Karışık sorgu listesi: script keywords + havuz keywords
+    all_queries = script_queries + yt_pool
+    # Tekrarları kaldır
+    seen_queries = set()
+    unique_queries = []
+    for q in all_queries:
+        ql = q.lower()
+        if ql not in seen_queries:
+            seen_queries.add(ql)
+            unique_queries.append(q)
 
-    # Genel fallback (son çare — askeri/modern)
-    general_fallbacks = [
-        "military dramatic cinematic", "fighter jet flying dramatic",
-        "explosion smoke dramatic", "soldiers tactical night vision",
-    ]
-    random.shuffle(topic_fallbacks)
-    random.shuffle(general_fallbacks)
-    queries.extend(topic_fallbacks)
-    queries.extend(general_fallbacks)
-
-    for query in queries:
+    for query in unique_queries:
         if len(downloaded) >= n:
             break
-        page = random.randint(1, 4)
-        params = {"query": query, "per_page": 10, "page": page, "size": "medium"}
+
         try:
-            resp = requests.get(PEXELS_API, headers=headers, params=params, timeout=20)
-            resp.raise_for_status()
-            videos = resp.json().get("videos", [])
-            random.shuffle(videos)
-            for v in videos:
-                if len(downloaded) >= n:
-                    break
-                vid = f"pexels_{v.get('id')}"
-                if vid in seen_ids:
-                    continue
-                seen_ids.add(vid)
-                url = _best_pexels_url(v)
-                print(f"[video_builder] Pexels klip {len(downloaded)+1}/{n} (id:{vid})...")
-                downloaded.append(_download_clip(url))
-        except Exception as e:
-            print(f"[video_builder] Pexels hata ({query}): {e}")
+            # Geçici dosya
+            tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="ytcc_full_")
+            tmp.close()
 
-    return downloaded
+            # yt-dlp ile YouTube CC video ara ve indir
+            cmd = [
+                "yt-dlp",
+                f"ytsearch5:{query}",
+                "--match-filter", "license=Creative Commons",
+                "--format", "bestvideo[height>=720][ext=mp4]+bestaudio[ext=m4a]/best[height>=720][ext=mp4]/best",
+                "--merge-output-format", "mp4",
+                "--max-downloads", "1",
+                "--max-filesize", "100M",
+                "--no-playlist",
+                "--no-warnings",
+                "--quiet",
+                "--no-progress",
+                "-o", tmp.name,
+            ]
 
+            print(f"[video_builder] YouTube CC aranıyor: '{query}'...")
+            result = subprocess.run(cmd, timeout=120, capture_output=True, text=True)
 
-def _fetch_pixabay_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> list:
-    """Pixabay'dan n adet benzersiz klip indirir."""
-    downloaded = []
-
-    queries = []
-    if len(keywords) >= 2:
-        queries.append("+".join(keywords[:2]))
-    for kw in keywords[:3]:
-        queries.append(kw)
-
-    # Konuya bağlı Pixabay fallback'ler
-    kw_lower = " ".join(k.lower() for k in keywords)
-    pixabay_topic = []
-    if any(w in kw_lower for w in ["drone", "bayraktar", "turkey", "uav"]):
-        pixabay_topic = ["drone+flying", "military+drone", "technology+aircraft"]
-    elif any(w in kw_lower for w in ["missile", "nuclear", "hypersonic", "rocket"]):
-        pixabay_topic = ["rocket+launch", "missile+military", "explosion+fire"]
-    elif any(w in kw_lower for w in ["navy", "carrier", "submarine", "ship"]):
-        pixabay_topic = ["warship+ocean", "submarine+underwater", "aircraft+carrier"]
-    elif any(w in kw_lower for w in ["fighter", "stealth", "jet", "aircraft"]):
-        pixabay_topic = ["fighter+jet", "airplane+military", "cockpit+pilot"]
-    elif any(w in kw_lower for w in ["cyber", "hack", "ai", "technology"]):
-        pixabay_topic = ["technology+computer", "server+room", "digital+code"]
-    elif any(w in kw_lower for w in ["soldier", "army", "military", "war"]):
-        pixabay_topic = ["soldiers+military", "army+tanks", "military+training"]
-
-    pixabay_general = [
-        "military+dramatic", "fighter+jet", "explosion+dramatic",
-        "technology+futuristic", "soldiers+formation",
-    ]
-    random.shuffle(pixabay_topic)
-    random.shuffle(pixabay_general)
-    queries.extend(pixabay_topic)
-    queries.extend(pixabay_general)
-
-    for query in queries:
-        if len(downloaded) >= n:
-            break
-        params = {
-            "key": api_key, "q": query,
-            "per_page": 10, "page": random.randint(1, 3),
-            "video_type": "all",
-        }
-        try:
-            resp = requests.get(PIXABAY_VIDEO_API, params=params, timeout=20)
-            resp.raise_for_status()
-            hits = resp.json().get("hits", [])
-            random.shuffle(hits)
-            for hit in hits:
-                if len(downloaded) >= n:
-                    break
-                vid = f"pixabay_{hit.get('id')}"
-                if vid in seen_ids:
-                    continue
-                seen_ids.add(vid)
-                videos = hit.get("videos", {})
-                url = None
-                for quality in ("large", "medium", "small"):
-                    v_data = videos.get(quality, {})
-                    if v_data.get("url"):
-                        url = v_data["url"]
+            # yt-dlp dosya adını değiştirebilir (format merge), kontrol et
+            actual_file = tmp.name
+            if not os.path.exists(actual_file) or os.path.getsize(actual_file) < 10000:
+                # yt-dlp bazen .mp4.mp4 gibi suffix ekleyebilir
+                for ext in [".mp4", ".webm", ".mkv"]:
+                    alt = tmp.name + ext
+                    if os.path.exists(alt) and os.path.getsize(alt) > 10000:
+                        actual_file = alt
                         break
-                if not url:
-                    continue
-                print(f"[video_builder] Pixabay klip {len(downloaded)+1}/{n} (id:{vid})...")
-                downloaded.append(_download_clip(url))
-        except Exception as e:
-            print(f"[video_builder] Pixabay hata ({query}): {e}")
 
-    return downloaded
-
-
-def _fetch_pexels_photos(keywords: list, api_key: str, n: int = 3) -> list:
-    """Pexels'ten fotoğraf indirir."""
-    headers = {"Authorization": api_key}
-    downloaded = []
-
-    queries = []
-    if len(keywords) >= 2:
-        queries.append(" ".join(keywords[:2]))
-    for kw in keywords[:3]:
-        queries.append(kw)
-
-    # Askeri/sinematik suffix'ler
-    for kw in keywords[:2]:
-        queries.append(f"{kw} military")
-        queries.append(f"{kw} dramatic")
-
-    for query in queries:
-        if len(downloaded) >= n:
-            break
-        params = {"query": query, "per_page": 5, "page": random.randint(1, 3), "size": "large"}
-        try:
-            resp = requests.get(PEXELS_PHOTO_API, headers=headers, params=params, timeout=15)
-            resp.raise_for_status()
-            photos = resp.json().get("photos", [])
-            random.shuffle(photos)
-            for photo in photos:
-                if len(downloaded) >= n:
-                    break
-                # En iyi çözünürlüğü al
-                url = photo.get("src", {}).get("large2x") or photo.get("src", {}).get("large")
-                if not url:
-                    continue
+            if not os.path.exists(actual_file) or os.path.getsize(actual_file) < 10000:
+                # İndirilemedi, temizle
                 try:
-                    tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
-                    r = requests.get(url, timeout=30)
-                    r.raise_for_status()
-                    tmp.write(r.content)
-                    tmp.close()
-                    downloaded.append(tmp.name)
-                    print(f"[video_builder] Pexels fotoğraf {len(downloaded)}/{n}")
-                except Exception:
+                    os.unlink(tmp.name)
+                except OSError:
                     pass
-        except Exception as e:
-            print(f"[video_builder] Pexels foto hata ({query}): {e}")
+                if result.stderr:
+                    print(f"[video_builder] yt-dlp hata: {result.stderr[:200]}")
+                continue
 
-    return downloaded
+            # Video süresini al
+            probe_cmd = [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                actual_file,
+            ]
+            probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=15)
+            try:
+                video_duration = float(probe_result.stdout.strip())
+            except (ValueError, AttributeError):
+                video_duration = 30.0  # fallback
 
+            # Rastgele 5-10sn segment kes
+            segment_dur = random.uniform(5.0, 10.0)
+            if video_duration <= segment_dur + 1:
+                # Video kısaysa tamamını al
+                segment_start = 0
+                segment_dur = min(segment_dur, video_duration)
+            else:
+                max_start = max(0, video_duration - segment_dur - 1)
+                segment_start = random.uniform(0, max_start)
 
-def _fetch_wikimedia_photos(keywords: list, limit: int = 3) -> list:
-    """Wikimedia Commons'tan fotoğraf indirir (askeri keyword'ler için öncelikli)."""
-    downloaded = []
+            segment_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="ytcc_seg_")
+            segment_file.close()
 
-    queries = []
-    if len(keywords) >= 2:
-        queries.append(" ".join(keywords[:2]) + " military")
-    for kw in keywords[:3]:
-        queries.append(kw)
+            cut_cmd = [
+                "ffmpeg", "-y",
+                "-ss", str(segment_start),
+                "-i", actual_file,
+                "-t", str(segment_dur),
+                "-c", "copy",
+                "-loglevel", "error",
+                segment_file.name,
+            ]
+            cut_result = subprocess.run(cut_cmd, timeout=30, capture_output=True)
 
-    for query in queries:
-        if len(downloaded) >= limit:
-            break
-        params = {
-            "action": "query",
-            "format": "json",
-            "generator": "search",
-            "gsrnamespace": 6,  # File namespace
-            "gsrsearch": query,
-            "gsrlimit": 5,
-            "prop": "imageinfo",
-            "iiprop": "url",
-            "iiurlwidth": 1920,
-        }
-        try:
-            headers = {"User-Agent": "WarShorts/1.0 (video asset downloader)"}
-            resp = requests.get(WIKIMEDIA_API, params=params, timeout=15, headers=headers)
-            resp.raise_for_status()
-            pages = resp.json().get("query", {}).get("pages", {})
-            for page_id, page in pages.items():
-                if len(downloaded) >= limit:
-                    break
-                imageinfo = page.get("imageinfo", [{}])[0]
-                url = imageinfo.get("thumburl") or imageinfo.get("url")
-                if not url:
-                    continue
-                # Sadece resim dosyaları
-                if not any(url.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".webp"]):
-                    continue
+            # Orijinal tam videoyu sil
+            try:
+                os.unlink(actual_file)
+            except OSError:
+                pass
+
+            if cut_result.returncode == 0 and os.path.exists(segment_file.name) and os.path.getsize(segment_file.name) > 5000:
+                vid_id = f"ytcc_{hash(query)}_{len(downloaded)}"
+                if vid_id not in seen_ids:
+                    seen_ids.add(vid_id)
+                    downloaded.append(segment_file.name)
+                    print(f"[video_builder] YouTube CC klip {len(downloaded)}/{n}: "
+                          f"'{query}' [{segment_start:.1f}s-{segment_start+segment_dur:.1f}s]")
+                else:
+                    os.unlink(segment_file.name)
+            else:
                 try:
-                    tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
-                    r = requests.get(url, timeout=30)
-                    r.raise_for_status()
-                    tmp.write(r.content)
-                    tmp.close()
-                    downloaded.append(tmp.name)
-                    print(f"[video_builder] Wikimedia foto {len(downloaded)}/{limit}")
-                except Exception:
+                    os.unlink(segment_file.name)
+                except OSError:
                     pass
+
+        except subprocess.TimeoutExpired:
+            print(f"[video_builder] YouTube CC timeout: '{query}'")
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass
         except Exception as e:
-            print(f"[video_builder] Wikimedia hata ({query}): {e}")
+            print(f"[video_builder] YouTube CC hata ({query}): {e}")
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass
 
     return downloaded
-
-
-def _photo_to_video(photo_path: str, duration: float, kb_effect: str = "zoom_in",
-                    intensity: float = 0.05) -> VideoFileClip:
-    """Fotoğrafı Ken Burns efektli video klibine çevirir."""
-    img = Image.open(photo_path).convert("RGB")
-
-    # 1080x1920 oranına crop + resize
-    target_ratio = TARGET_W / TARGET_H
-    w, h = img.size
-    current_ratio = w / h
-
-    if current_ratio > target_ratio:
-        new_w = int(h * target_ratio)
-        left = (w - new_w) // 2
-        img = img.crop((left, 0, left + new_w, h))
-    else:
-        new_h = int(w / target_ratio)
-        top = (h - new_h) // 2
-        img = img.crop((0, top, w, top + new_h))
-
-    # Biraz büyüt (Ken Burns için margin)
-    scale = 1 + intensity + 0.02
-    base_w = int(TARGET_W * scale)
-    base_h = int(TARGET_H * scale)
-    img = img.resize((base_w, base_h), Image.LANCZOS)
-    base_arr = np.array(img)
-
-    def make_frame(t):
-        progress = t / max(duration, 0.01)
-
-        if kb_effect == "zoom_in":
-            s = 1 + intensity * progress
-        elif kb_effect == "zoom_out":
-            s = 1 + intensity * (1 - progress)
-        elif kb_effect == "pan_right":
-            s = 1.0
-        elif kb_effect == "pan_left":
-            s = 1.0
-        else:
-            s = 1 + intensity * progress * 0.5
-
-        bh, bw = base_arr.shape[:2]
-        crop_w, crop_h = TARGET_W, TARGET_H
-
-        if kb_effect == "pan_right":
-            max_x = bw - crop_w
-            x = int(max_x * progress)
-            y = (bh - crop_h) // 2
-        elif kb_effect == "pan_left":
-            max_x = bw - crop_w
-            x = int(max_x * (1 - progress))
-            y = (bh - crop_h) // 2
-        elif kb_effect == "pan_down":
-            x = (bw - crop_w) // 2
-            max_y = bh - crop_h
-            y = int(max_y * progress)
-        else:
-            # Zoom — merkeze crop
-            cur_w = int(crop_w / s) if s > 0 else crop_w
-            cur_h = int(crop_h / s) if s > 0 else crop_h
-            cur_w = min(cur_w, bw)
-            cur_h = min(cur_h, bh)
-
-            resized = Image.fromarray(base_arr).resize(
-                (int(bw * s), int(bh * s)), Image.LANCZOS
-            )
-            rw, rh = resized.size
-            x = (rw - crop_w) // 2
-            y = (rh - crop_h) // 2
-            x = max(0, min(x, rw - crop_w))
-            y = max(0, min(y, rh - crop_h))
-            return np.array(resized.crop((x, y, x + crop_w, y + crop_h)))
-
-        x = max(0, min(x, bw - crop_w))
-        y = max(0, min(y, bh - crop_h))
-        return base_arr[y:y + crop_h, x:x + crop_w]
-
-    clip = VideoClip(make_frame, duration=duration)
-    clip = clip.set_fps(30)
-    return clip
 
 
 def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> list:
@@ -780,30 +713,26 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
     return downloaded
 
 
-def _fetch_clips(keywords: list, n: int = 8) -> list:
+def _fetch_clips(keywords: list, n: int = 10) -> list[str]:
     """
-    DVIDS + Archive + Pexels + Pixabay'dan klip + fotoğraf indirip karıştırır.
-    %60 video + %40 fotoğraf pattern: V, V, F, V, F, V, V, F
-    Returns: [("video", path), ("photo", path), ...] tuple listesi.
+    YouTube CC + DVIDS + Archive'dan video klip indirir.
+    Returns: list of file paths (sadece video, tuple yok).
     """
-    pexels_key = os.environ.get("PEXELS_API_KEY")
-    pixabay_key = os.environ.get("PIXABAY_API_KEY")
     dvids_key = os.environ.get("DVIDS_API_KEY")
-
-    if not pexels_key:
-        raise RuntimeError("PEXELS_API_KEY eksik")
-
     seen_ids = set()
-
-    # Video klipleri (%60)
-    n_videos = max(1, int(n * 0.6))
-    n_photos = n - n_videos
-
     video_paths = []
 
-    # ─── 1) DVIDS — gerçek askeri footage (Public Domain) ────────────
-    n_dvids = 2 if dvids_key else 0
-    if dvids_key:
+    # ─── 1) YouTube CC — ana kaynak ──────────────────────────────────
+    try:
+        yt_clips = _fetch_youtube_cc_clips(keywords, n, seen_ids)
+        video_paths.extend(yt_clips)
+        print(f"[video_builder] YouTube CC: {len(yt_clips)} klip")
+    except Exception as e:
+        print(f"[video_builder] YouTube CC hatası: {e}")
+
+    # ─── 2) DVIDS — ek klipler (Public Domain) ──────────────────────
+    if len(video_paths) < n and dvids_key:
+        n_dvids = min(2, n - len(video_paths))
         try:
             dvids_clips = _fetch_dvids_clips(keywords, dvids_key, n_dvids, seen_ids)
             video_paths.extend(dvids_clips)
@@ -811,32 +740,9 @@ def _fetch_clips(keywords: list, n: int = 8) -> list:
         except Exception as e:
             print(f"[video_builder] DVIDS hatası: {e}")
 
-    # ─── 2) Pexels + Pixabay — stock footage (ana kaynak) ──────────────
-    n_stock = max(0, n_videos - len(video_paths))
-    if n_stock > 0:
-        if pixabay_key:
-            n_pex = n_stock // 2
-            n_pix = n_stock - n_pex
-            print(f"[video_builder] {n_pex} Pexels + {n_pix} Pixabay stock video...")
-            pexels_clips = _fetch_pexels_clips(keywords, pexels_key, n_pex, seen_ids)
-            pixabay_clips = _fetch_pixabay_clips(keywords, pixabay_key, n_pix, seen_ids)
-            for i in range(max(len(pexels_clips), len(pixabay_clips))):
-                if i < len(pexels_clips):
-                    video_paths.append(pexels_clips[i])
-                if i < len(pixabay_clips):
-                    video_paths.append(pixabay_clips[i])
-        else:
-            print(f"[video_builder] {n_stock} Pexels stock video...")
-            video_paths.extend(_fetch_pexels_clips(keywords, pexels_key, n_stock, seen_ids))
-
-    # Yeterli video yoksa Pexels'ten tamamla
-    if len(video_paths) < n_videos:
-        extra = _fetch_pexels_clips(keywords, pexels_key, n_videos - len(video_paths), seen_ids)
-        video_paths.extend(extra)
-
-    # ─── 3) Internet Archive — son çare fallback (düşük kalite riski) ──
-    if len(video_paths) < n_videos:
-        n_archive = n_videos - len(video_paths)
+    # ─── 3) Internet Archive — son çare fallback ─────────────────────
+    if len(video_paths) < n:
+        n_archive = n - len(video_paths)
         try:
             archive_clips = _fetch_archive_clips(keywords, n_archive, seen_ids)
             video_paths.extend(archive_clips)
@@ -845,60 +751,11 @@ def _fetch_clips(keywords: list, n: int = 8) -> list:
         except Exception as e:
             print(f"[video_builder] Archive hatası: {e}")
 
-    # Fotoğraf indirme — Wikimedia öncelikli, Pexels yedek
-    photo_paths = []
-    if n_photos > 0:
-        # Askeri keyword'ler için Wikimedia öncelikli
-        kw_lower = " ".join(k.lower() for k in keywords)
-        military_kw = ["military", "army", "navy", "air force", "weapon", "tank", "missile",
-                       "drone", "fighter", "war", "soldier", "submarine", "aircraft"]
-        is_military = any(w in kw_lower for w in military_kw)
+    if not video_paths:
+        raise RuntimeError("Hiç video klip indirilemedi.")
 
-        if is_military:
-            wiki_photos = _fetch_wikimedia_photos(keywords, limit=n_photos)
-            photo_paths.extend(wiki_photos)
-
-        # Kalan fotoğrafları Pexels'ten al
-        remaining = n_photos - len(photo_paths)
-        if remaining > 0:
-            pexels_photos = _fetch_pexels_photos(keywords, pexels_key, remaining)
-            photo_paths.extend(pexels_photos)
-
-    if not video_paths and not photo_paths:
-        raise RuntimeError("Hiç klip veya fotoğraf indirilemedi.")
-
-    # Pattern: V, V, F, V, F, V, V, F (yaklaşık)
-    mixed = []
-    vi, pi = 0, 0
-    pattern = ["video", "video", "photo", "video", "photo", "video", "video", "photo"]
-    for slot in pattern[:n]:
-        if slot == "video" and vi < len(video_paths):
-            mixed.append(("video", video_paths[vi]))
-            vi += 1
-        elif slot == "photo" and pi < len(photo_paths):
-            mixed.append(("photo", photo_paths[pi]))
-            pi += 1
-        elif vi < len(video_paths):
-            mixed.append(("video", video_paths[vi]))
-            vi += 1
-        elif pi < len(photo_paths):
-            mixed.append(("photo", photo_paths[pi]))
-            pi += 1
-
-    # Kalan medyaları ekle
-    while vi < len(video_paths) and len(mixed) < n:
-        mixed.append(("video", video_paths[vi]))
-        vi += 1
-    while pi < len(photo_paths) and len(mixed) < n:
-        mixed.append(("photo", photo_paths[pi]))
-        pi += 1
-
-    if not mixed:
-        raise RuntimeError("Hiç medya birleştirilemedi.")
-
-    print(f"[video_builder] Toplam: {sum(1 for t,_ in mixed if t=='video')} video + "
-          f"{sum(1 for t,_ in mixed if t=='photo')} fotoğraf")
-    return mixed[:n]
+    print(f"[video_builder] Toplam: {len(video_paths)} video klip")
+    return video_paths[:n]
 
 
 # ─── Resize / crop ───────────────────────────────────────────────────────────
@@ -1058,29 +915,16 @@ def _add_film_grain(clip: VideoFileClip, intensity: float) -> VideoFileClip:
 def _build_background(clip_paths: list, total_duration: float,
                       style: StyleProfile) -> VideoFileClip:
     """
-    Klipleri style profile'a göre işler ve birleştirir.
-    clip_paths: [("video", path), ("photo", path), ...] veya [path, ...] (geriye uyumlu)
+    Video klipleri style profile'a göre işler ve birleştirir.
+    clip_paths: list[str] — video dosya yolları.
     """
     processed = []
     per_clip = total_duration / len(clip_paths)
 
-    for i, item in enumerate(clip_paths):
-        # Geriye uyumluluk: tuple veya string
-        if isinstance(item, tuple):
-            media_type, path = item
-        else:
-            media_type, path = "video", item
-
+    for i, path in enumerate(clip_paths):
         kb = style.ken_burns_pool[i % len(style.ken_burns_pool)]
 
-        if media_type == "photo":
-            try:
-                c = _photo_to_video(path, per_clip, kb_effect=kb)
-                c = _color_grade(c, style.color_grade)
-            except Exception as e:
-                print(f"[video_builder] Fotoğraf işleme hatası, atlaniyor: {e}")
-                continue
-        else:
+        try:
             c = VideoFileClip(path, audio=False)
             c = _resize_to_shorts(c)
             c = _color_grade(c, style.color_grade)
@@ -1091,6 +935,9 @@ def _build_background(clip_paths: list, total_duration: float,
                 repeats = int(per_clip / c.duration) + 1
                 c = concatenate_videoclips([c] * repeats)
             c = c.subclip(0, per_clip)
+        except Exception as e:
+            print(f"[video_builder] Klip işleme hatası, atlanıyor: {e}")
+            continue
 
         # Overlay efektleri
         if style.vignette_intensity > 0:
@@ -1389,14 +1236,14 @@ def build_video(
     # Style profile (her video benzersiz görünüm)
     style = _generate_style_profile(script)
 
-    # 1) Çoklu klip indir (Pexels + Pixabay)
+    # 1) Çoklu klip indir (YouTube CC + DVIDS + Archive)
     # search_keywords + title'dan ek keyword'ler çıkar
     keywords = list(script.get("search_keywords", []))
     title_words = _extract_title_keywords(script.get("title", ""))
     for tw in title_words:
         if tw not in " ".join(keywords).lower():
             keywords.append(tw)
-    clip_paths = _fetch_clips(keywords, n=8)
+    clip_paths = _fetch_clips(keywords, n=10)
 
     # 2) Ses süresi
     narration_audio = AudioFileClip(audio_path)
@@ -1436,7 +1283,7 @@ def build_video(
         )
 
         narration_text = script.get("narration", "")
-        video_format = script.get("format", "classic_whatif")
+        video_format = script.get("format", "news_analysis")
 
         if vtt_chunks:
             # 1) Harita overlay'leri (max 3 ülke)
@@ -1629,8 +1476,7 @@ def build_video(
 
     # Cleanup
     narration_audio.close()
-    for item in clip_paths:
-        path = item[1] if isinstance(item, tuple) else item
+    for path in clip_paths:
         try:
             os.unlink(path)
         except OSError:
