@@ -143,6 +143,7 @@ def _fetch_multiple_clips(keywords: list, api_key: str, n: int = 8) -> list:
     """
     headers = {"Authorization": api_key}
     downloaded = []
+    seen_ids = set()  # Aynı videonun tekrar indirilmesini engelle
 
     # Script'in search_keywords'lerinden dinamik sorgular oluştur
     queries = []
@@ -170,7 +171,7 @@ def _fetch_multiple_clips(keywords: list, api_key: str, n: int = 8) -> list:
     for query in queries:
         if len(downloaded) >= n:
             break
-        params = {"query": query, "per_page": 3, "orientation": "portrait", "size": "medium"}
+        params = {"query": query, "per_page": 5, "orientation": "portrait", "size": "medium"}
         try:
             resp = requests.get(PEXELS_API, headers=headers, params=params, timeout=20)
             resp.raise_for_status()
@@ -178,8 +179,12 @@ def _fetch_multiple_clips(keywords: list, api_key: str, n: int = 8) -> list:
             for v in videos:
                 if len(downloaded) >= n:
                     break
+                vid = v.get("id")
+                if vid in seen_ids:
+                    continue
+                seen_ids.add(vid)
                 url = _best_file_url(v)
-                print(f"[video_builder] Klip {len(downloaded)+1}/{n} indiriliyor...")
+                print(f"[video_builder] Klip {len(downloaded)+1}/{n} indiriliyor (id:{vid})...")
                 downloaded.append(_download_clip(url))
         except Exception as e:
             print(f"[video_builder] Klip indirme hatası ({query}): {e}")
