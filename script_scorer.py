@@ -23,7 +23,8 @@ import re
 from dataclasses import dataclass, field
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
@@ -248,8 +249,7 @@ def _gemini_quality_bonus(script: dict) -> int:
     if not api_key:
         return 0
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        client = genai.Client(api_key=api_key)
         prompt = (
             f"Rate this YouTube Shorts script on a scale of 1-10 for viral potential.\n"
             f"Title: {script.get('title', '')}\n"
@@ -257,9 +257,10 @@ def _gemini_quality_bonus(script: dict) -> int:
             f"Narration (first 200 chars): {script.get('narration', '')[:200]}\n\n"
             f"Reply with ONLY a single integer (1-10), nothing else."
         )
-        resp = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(max_output_tokens=5, temperature=0.1),
+        resp = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(max_output_tokens=5, temperature=0.1),
         )
         return min(10, max(1, int(resp.text.strip())))
     except Exception:

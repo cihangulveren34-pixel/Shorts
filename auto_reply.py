@@ -22,7 +22,8 @@ import tempfile
 from datetime import datetime, timezone, timedelta
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
@@ -182,15 +183,13 @@ def _generate_reply(comment_text: str, video_title: str) -> str:
         return ""
 
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
-            system_instruction=SYSTEM_PROMPT,
-        )
+        client = genai.Client(api_key=api_key)
         prompt = f'Video: "{video_title}"\nComment: "{comment_text}"\n\nReply:'
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
                 max_output_tokens=80,
                 temperature=0.7,
             ),

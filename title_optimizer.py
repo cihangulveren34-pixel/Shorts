@@ -13,7 +13,8 @@ import os
 import sys
 import time
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -80,15 +81,7 @@ def get_video_views_24h(video_id: str) -> int:
 
 def generate_title_variants(original_title: str, hook: str) -> list[str]:
     """Gemini ile 3 farklı başlık varyantı üretir."""
-    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
-        generation_config=genai.GenerationConfig(
-            response_mime_type="application/json",
-            max_output_tokens=512,
-            temperature=1.0,
-        ),
-    )
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
     prompt = f"""You are a YouTube title optimization expert.
 The video title "{original_title}" got low views in the first 24 hours.
@@ -106,7 +99,15 @@ Output ONLY a JSON array of 3 strings:
 
     for attempt in range(3):
         try:
-            resp = model.generate_content(prompt)
+            resp = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    max_output_tokens=512,
+                    temperature=1.0,
+                ),
+            )
             variants = json.loads(resp.text.strip())
             if isinstance(variants, list) and len(variants) >= 3:
                 return variants[:3]

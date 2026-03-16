@@ -16,7 +16,8 @@ import os
 import re
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
@@ -104,15 +105,7 @@ def _generate_with_gemini(existing_sample: list[str], count: int) -> list[str]:
         return []
 
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json",
-                temperature=1.0,        # Yaratıcılık için yüksek temperature
-                max_output_tokens=1024,
-            ),
-        )
+        client = genai.Client(api_key=api_key)
 
         sample_text = "\n".join(f"- {t}" for t in existing_sample[:15])
         prompt = EXPANSION_PROMPT.format(
@@ -120,7 +113,15 @@ def _generate_with_gemini(existing_sample: list[str], count: int) -> list[str]:
             count=count,
         )
 
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=1.0,
+                max_output_tokens=1024,
+            ),
+        )
         raw = response.text.strip()
 
         # JSON parse

@@ -1,5 +1,5 @@
 """
-script_gen.py — Google Gemini 1.5 Flash ile YouTube Shorts JSON script üretir.
+script_gen.py — Google Gemini 2.5 Flash ile YouTube Shorts JSON script üretir.
 Ücretsiz tier: 1500 istek/gün, kredi kartı gerekmez.
 API key: https://aistudio.google.com/app/apikey
 
@@ -9,7 +9,8 @@ Dil desteği: "en" (İngilizce) veya "tr" (Türkçe)
 import os
 import json
 import time
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 
 SYSTEM_PROMPTS = {
@@ -64,22 +65,13 @@ TTS_VOICES = {
 
 def generate_script(topic: str, language: str = "en") -> dict:
     """
-    Verilen konu için Gemini 1.5 Flash ile script üretir.
+    Verilen konu için Gemini 2.5 Flash ile script üretir.
     language: "en" (varsayılan) veya "tr"
     """
     lang = language if language in SYSTEM_PROMPTS else "en"
     system_prompt = SYSTEM_PROMPTS[lang]
 
-    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
-        generation_config=genai.GenerationConfig(
-            response_mime_type="application/json",
-            max_output_tokens=1024,
-            temperature=0.9,
-        ),
-        system_instruction=system_prompt,
-    )
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
     user_prompt = {
         "en": f"Write a YouTube Shorts script for this topic: {topic}",
@@ -88,7 +80,16 @@ def generate_script(topic: str, language: str = "en") -> dict:
 
     for attempt in range(3):
         try:
-            response = model.generate_content(user_prompt)
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    response_mime_type="application/json",
+                    max_output_tokens=1024,
+                    temperature=0.9,
+                ),
+            )
             raw = response.text.strip()
 
             if "```json" in raw:
