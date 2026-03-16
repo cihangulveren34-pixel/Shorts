@@ -159,23 +159,36 @@ def _fetch_multiple_clips(keywords: list, api_key: str, n: int = 8) -> list:
         queries.append(kw)
 
     # Keyword'lere dayalı varyasyonlar
+    suffixes = ["cinematic", "dramatic", "aerial", "dark", "fire", "smoke"]
     for kw in keywords[:2]:
-        queries.append(f"{kw} cinematic")
+        queries.append(f"{kw} {random.choice(suffixes)}")
 
     # Fallback (yeterli klip bulunamazsa)
-    queries.extend([
+    fallbacks = [
         "military dramatic cinematic",
         "dramatic aerial landscape",
-    ])
+        "fire explosion smoke",
+        "dark clouds storm",
+        "old map history",
+        "soldiers marching",
+        "city destruction ruins",
+        "ocean waves dramatic",
+    ]
+    random.shuffle(fallbacks)
+    queries.extend(fallbacks)
 
     for query in queries:
         if len(downloaded) >= n:
             break
-        params = {"query": query, "per_page": 5, "orientation": "portrait", "size": "medium"}
+        # Rastgele sayfa (farklı sonuçlar için)
+        page = random.randint(1, 4)
+        # Portrait ve landscape karışık al (crop zaten yapılıyor)
+        params = {"query": query, "per_page": 10, "page": page, "size": "medium"}
         try:
             resp = requests.get(PEXELS_API, headers=headers, params=params, timeout=20)
             resp.raise_for_status()
             videos = resp.json().get("videos", [])
+            random.shuffle(videos)  # Hep ilk sonuçları almamak için
             for v in videos:
                 if len(downloaded) >= n:
                     break
@@ -184,7 +197,7 @@ def _fetch_multiple_clips(keywords: list, api_key: str, n: int = 8) -> list:
                     continue
                 seen_ids.add(vid)
                 url = _best_file_url(v)
-                print(f"[video_builder] Klip {len(downloaded)+1}/{n} indiriliyor (id:{vid})...")
+                print(f"[video_builder] Klip {len(downloaded)+1}/{n} indiriliyor (id:{vid}, q:'{query}' p:{page})...")
                 downloaded.append(_download_clip(url))
         except Exception as e:
             print(f"[video_builder] Klip indirme hatası ({query}): {e}")
@@ -615,7 +628,7 @@ def build_video(
     audio_tracks = [narration_audio]
     music_path = _pick_music(script)
     if music_path and os.path.exists(music_path):
-        music = AudioFileClip(music_path).volumex(0.18)
+        music = AudioFileClip(music_path).volumex(0.135)
         if music.duration < total_duration:
             from moviepy.audio.fx.audio_loop import audio_loop
             music = audio_loop(music, nloops=int(total_duration / music.duration) + 1)
