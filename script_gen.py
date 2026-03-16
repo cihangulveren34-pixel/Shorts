@@ -168,34 +168,36 @@ Output ONLY valid JSON:
   "format": "mystery"
 }""",
 
-        "comparison": """You are a VIRAL YouTube Shorts scriptwriter specializing in mind-blowing historical comparisons.
+        "comparison": """You are a VIRAL YouTube Shorts scriptwriter specializing in MODERN military and geopolitical comparisons.
 
 HOOK FORMULA:
-- "[Ancient Empire] vs [Modern Country]. The similarities are TERRIFYING."
-- "The Roman Empire fell exactly like America is falling right now. Here's proof."
-- "[Historical figure] predicted EXACTLY what's happening in 2025."
+- "[Country A] vs [Country B]: Who REALLY wins?"
+- "Everyone says [Country A] is stronger. But look at the numbers."
+- "[Country A]'s military vs [Country B]'s military. The result will SHOCK you."
+
+IMPORTANT: Do NOT write about ancient empires, historical figures, or past civilizations. Focus ONLY on modern countries, current militaries, and TODAY's geopolitical reality (2024-2025).
 
 SCRIPT STRUCTURE (50-55 seconds):
 0-3s HOOK: State the comparison with maximum shock value.
-3-12s SIDE A: Quick portrait of the historical subject. Vivid details.
-12-22s SIDE B: The modern parallel. Draw shocking connections.
-22-40s THE PARALLELS: 3-4 specific, undeniable similarities. Numbers, patterns.
-40-50s THE WARNING: What happened THEN that might happen NOW.
-50-55s CTA: "Follow to see more terrifying parallels."
+3-12s SIDE A: Country/military A — key stats, weapons, strengths.
+12-22s SIDE B: Country/military B — key stats, weapons, strengths.
+22-40s HEAD TO HEAD: 3-4 specific comparisons. Budget, troops, technology, alliances.
+40-50s THE VERDICT: Who has the edge and WHY. Surprising conclusion.
+50-55s CTA: "Follow for more military breakdowns."
 
 RULES:
-- Make connections feel INEVITABLE, not forced
-- Use specific parallels: economic data, military sizes, social patterns
-- Create a "holy shit, it's happening again" feeling
-- Balance between historical accuracy and dramatic presentation
+- ONLY modern military comparisons (no ancient/historical content)
+- Use real, current data: defense budgets, troop numbers, weapon counts
+- Compare specific systems: fighter jets, tanks, missiles, navies
+- Create a "I had no idea" feeling with surprising stats
 - 150-180 words
 
 Output ONLY valid JSON:
 {
-  "title": "[Historical] vs [Modern]: Shocking Parallels (max 60 chars)",
+  "title": "[Country A] vs [Country B]: Military comparison (max 60 chars)",
   "hook": "Comparison shock (max 15 words)",
-  "narration": "Full 150-180 word comparison script",
-  "tags": ["history", "comparison", "parallels", "shorts", "specific_tag1", "specific_tag2"],
+  "narration": "Full 150-180 word modern military comparison script",
+  "tags": ["military", "comparison", "defense", "shorts", "specific_tag1", "specific_tag2"],
   "thumbnail_text": "4 WORD CAPS",
   "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6"],
   "mood": "dark|epic|mysterious|inspiring",
@@ -612,7 +614,7 @@ def generate_script(topic: str, language: str = "en", forced_format: str = None)
             "countdown": f"Write a countdown-style YouTube Shorts script about: {topic}. Give 3 shocking outcomes.",
             "storytelling": f"Write an immersive first-person YouTube Shorts script about: {topic}. Put the viewer IN the scene.",
             "mystery": f"Write a mystery/hidden truth YouTube Shorts script about: {topic}. What does mainstream history get wrong?",
-            "comparison": f"Write a historical comparison YouTube Shorts script about: {topic}. Find shocking parallels to today.",
+            "comparison": f"Write a modern military comparison YouTube Shorts script about: {topic}. Compare real countries, current weapons, and today's military stats. NO ancient history.",
             "mythbust": f"Write a myth-busting YouTube Shorts script about: {topic}. What does everyone believe that's actually wrong?",
             "news_analysis": f"Write a military analysis YouTube Shorts script about: {topic}. Break down what just happened, why it matters, and what happens next. Sound like a classified intelligence briefing.",
         },
