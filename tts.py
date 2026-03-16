@@ -21,9 +21,28 @@ async def _synthesize(text: str, audio_path: str, vtt_path: str, voice: str = DE
             if chunk["type"] == "audio":
                 audio_f.write(chunk["data"])
             elif chunk["type"] == "WordBoundary":
-                subs.create_sub((chunk["offset"], chunk["duration"]), chunk["text"])
+                subs.feed(chunk)
+    # get_srt() returns SRT format, convert to VTT
+    srt_content = subs.get_srt()
+    vtt_content = _srt_to_vtt(srt_content)
     with open(vtt_path, "w", encoding="utf-8") as vtt_f:
-        vtt_f.write(subs.generate_subs())
+        vtt_f.write(vtt_content)
+
+
+def _srt_to_vtt(srt: str) -> str:
+    """SRT formatını WebVTT'ye çevirir."""
+    vtt = "WEBVTT\n\n"
+    # SRT uses comma for milliseconds, VTT uses period
+    srt = srt.replace(",", ".")
+    # Remove sequence numbers (lines that are just digits)
+    lines = srt.strip().split("\n")
+    result_lines = []
+    for line in lines:
+        if line.strip().isdigit():
+            continue
+        result_lines.append(line)
+    vtt += "\n".join(result_lines)
+    return vtt
 
 
 def parse_vtt(vtt_path: str, words_per_chunk: int = 5) -> list:
