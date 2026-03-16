@@ -52,7 +52,6 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Setup YouTube cookies
-        if: ${{ secrets.YT_COOKIES != '' }}
         run: echo "$YT_COOKIES" > yt_cookies.txt
         env:
           YT_COOKIES: ${{ secrets.YT_COOKIES }}

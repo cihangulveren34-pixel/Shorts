@@ -5,6 +5,8 @@ output/
 token.json
 client_secret.json
 .env
+yt_cookies.txt
+*cookies*.txt
 
 # Python
 __pycache__/
