@@ -43,6 +43,7 @@ TARGET_W = 1080
 TARGET_H = 1920
 DVIDS_API = "https://api.dvidshub.net/search"
 ARCHIVE_API = "https://archive.org/advancedsearch.php"
+YT_COOKIES_PATH = os.environ.get("YT_COOKIES_PATH", "yt_cookies.txt")
 
 # ─── YouTube CC Askeri Keyword Havuzu ────────────────────────────────────────
 
@@ -455,6 +456,10 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "--no-progress",
                 "-o", tmp.name,
             ]
+
+            # Cookie dosyası varsa ekle (YouTube bot koruması için)
+            if os.path.exists(YT_COOKIES_PATH):
+                cmd.extend(["--cookies", YT_COOKIES_PATH])
 
             print(f"[video_builder] YouTube CC aranıyor: '{query}'...")
             result = subprocess.run(cmd, timeout=120, capture_output=True, text=True)

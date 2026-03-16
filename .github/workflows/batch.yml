@@ -37,8 +37,12 @@ jobs:
 
       - name: Download assets (SFX & music)
         run: python setup_assets.py
+
+      - name: Setup YouTube cookies
+        if: ${{ secrets.YT_COOKIES != '' }}
+        run: echo "$YT_COOKIES" > yt_cookies.txt
         env:
-          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
 
       - name: Run batch producer
         run: |
@@ -47,8 +51,6 @@ jobs:
             ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -60,7 +62,6 @@ jobs:
         env:
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
 
       - name: Upload batch videos as artifacts
         uses: actions/upload-artifact@v4
