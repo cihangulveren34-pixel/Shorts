@@ -481,7 +481,12 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 except OSError:
                     pass
                 if result.stderr:
-                    print(f"[video_builder] yt-dlp hata: {result.stderr[:200]}")
+                    # cookiejar warning'lerini filtrele, gerçek hatayı göster
+                    err_lines = [l for l in result.stderr.splitlines()
+                                 if 'UserWarning' not in l and 'cookiejar' not in l.lower()
+                                 and l.strip()]
+                    if err_lines:
+                        print(f"[video_builder] yt-dlp hata: {err_lines[0][:200]}")
                 continue
 
             # Video süresini al
