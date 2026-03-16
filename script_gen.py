@@ -160,11 +160,12 @@ def generate_script(topic: str, language: str = "en") -> dict:
     for attempt in range(3):
         try:
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-flash-lite",
                 contents=user_prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=system_prompt,
-                    max_output_tokens=4096,
+                    response_mime_type="application/json",
+                    max_output_tokens=1024,
                     temperature=0.9,
                 ),
             )
