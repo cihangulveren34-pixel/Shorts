@@ -14,6 +14,7 @@ video_builder.py — Pexels'ten footage indirir, MoviePy ile 1080×1920 Short ü
 
 import os
 import json
+import random
 import requests
 import tempfile
 import numpy as np
@@ -37,7 +38,22 @@ from moviepy.video.VideoClip import VideoClip
 TARGET_W = 1080
 TARGET_H = 1920
 PEXELS_API = "https://api.pexels.com/videos/search"
-MUSIC_PATH = "assets/music/epic_background.wav"
+# Müzik havuzu: (dosya, mood anahtar kelimeleri)
+MUSIC_POOL = [
+    ("assets/music/epic_01_strength_of_titans.mp3", ["epic", "battle", "war", "empire", "army"]),
+    ("assets/music/epic_02_ice_giants.mp3", ["epic", "cold", "north", "viking", "fall"]),
+    ("assets/music/epic_03_gothamlicious.mp3", ["epic", "dark", "power", "conquer", "reign"]),
+    ("assets/music/dark_04_burn_the_world.mp3", ["destroy", "nuclear", "bomb", "apocalypse", "invasion"]),
+    ("assets/music/action_05_adventures.mp3", ["adventure", "explore", "discover", "hero", "victory"]),
+    ("assets/music/dark_06_southern_gothic.mp3", ["dark", "mystery", "secret", "conspiracy", "betrayal"]),
+    ("assets/music/suspense_07_stay_the_course.mp3", ["suspense", "tension", "crisis", "standoff", "cold war"]),
+    ("assets/music/dark_08_tyrant.mp3", ["tyrant", "dictator", "regime", "oppression", "revolution"]),
+    ("assets/music/action_09_big_drumming.mp3", ["action", "military", "march", "troops", "combat"]),
+    ("assets/music/action_10_new_hero.mp3", ["hero", "rise", "triumph", "victory", "liberation"]),
+    ("assets/music/action_11_trouble_tribals.mp3", ["tribal", "ancient", "primitive", "clash", "territory"]),
+    ("assets/music/dark_12_feral_angel.mp3", ["dark", "somber", "tragedy", "loss", "aftermath"]),
+]
+MUSIC_FALLBACK = "assets/music/epic_01_strength_of_titans.mp3"
 FONT_PATH = "assets/fonts/Montserrat-Bold.ttf"
 LOGO_PATH = "assets/logo.png"
 INTRO_PATH = "assets/intro.mp4"     # 2 saniyelik branded intro (opsiyonel)
@@ -52,6 +68,36 @@ SFX = {
     "payoff":    "assets/sfx/explosion.wav",     # ~40. sn — payoff
     "cta":       "assets/sfx/trumpet.wav",       # CTA öncesi
 }
+
+
+# ─── Müzik seçimi ────────────────────────────────────────────────────────────
+
+def _pick_music(script: dict) -> str:
+    """Script içeriğine göre en uygun arka plan müziğini seçer."""
+    text = (script.get("title", "") + " " + script.get("narration", "")).lower()
+    keywords = [kw.lower() for kw in script.get("search_keywords", [])]
+
+    scores = []
+    for path, mood_words in MUSIC_POOL:
+        if not os.path.exists(path):
+            continue
+        score = sum(1 for mw in mood_words if mw in text or mw in " ".join(keywords))
+        scores.append((path, score))
+
+    if not scores:
+        return MUSIC_FALLBACK
+
+    max_score = max(s for _, s in scores)
+    if max_score > 0:
+        # En iyi eşleşenlerden rastgele
+        best = [p for p, s in scores if s == max_score]
+        pick = random.choice(best)
+    else:
+        # Hiç eşleşme yoksa rastgele
+        pick = random.choice([p for p, _ in scores])
+
+    print(f"[video_builder] Müzik seçildi: {os.path.basename(pick)}")
+    return pick
 
 
 # ─── Font yardımcısı ─────────────────────────────────────────────────────────
@@ -562,8 +608,9 @@ def build_video(
 
     # 6) Ses: TTS + müzik + sfx
     audio_tracks = [narration_audio]
-    if os.path.exists(MUSIC_PATH):
-        music = AudioFileClip(MUSIC_PATH).volumex(0.2)
+    music_path = _pick_music(script)
+    if music_path and os.path.exists(music_path):
+        music = AudioFileClip(music_path).volumex(0.18)
         if music.duration < total_duration:
             from moviepy.audio.fx.audio_loop import audio_loop
             music = audio_loop(music, nloops=int(total_duration / music.duration) + 1)
