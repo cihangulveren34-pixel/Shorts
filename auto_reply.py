@@ -184,7 +184,7 @@ def _generate_reply(comment_text: str, video_title: str) -> str:
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
+            model_name="gemini-2.5-flash",
             system_instruction=SYSTEM_PROMPT,
         )
         prompt = f'Video: "{video_title}"\nComment: "{comment_text}"\n\nReply:'
