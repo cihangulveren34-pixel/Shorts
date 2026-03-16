@@ -90,7 +90,7 @@ def _best_file_url(video: dict) -> str:
     return video["video_files"][0]["link"]
 
 
-def _fetch_multiple_clips(keywords: list, api_key: str, n: int = 6) -> list:
+def _fetch_multiple_clips(keywords: list, api_key: str, n: int = 8) -> list:
     """
     Farklı arama kombinasyonlarıyla Pexels'ten n adet video indirir.
     Her biri için ayrı geçici dosya yolu döndürür.
@@ -106,6 +106,8 @@ def _fetch_multiple_clips(keywords: list, api_key: str, n: int = 6) -> list:
         keywords[2] if len(keywords) > 2 else "military history",
         "ancient battle war cinematic",
         "dramatic history documentary",
+        "epic war soldiers cinematic",
+        "ancient ruins civilization",
     ]
 
     for query in queries:
@@ -507,7 +509,7 @@ def build_video(
     pexels_key = os.environ["PEXELS_API_KEY"]
 
     # 1) Çoklu klip indir
-    clip_paths = _fetch_multiple_clips(script["search_keywords"], pexels_key, n=6)
+    clip_paths = _fetch_multiple_clips(script["search_keywords"], pexels_key, n=8)
 
     # 2) Ses süresi
     narration_audio = AudioFileClip(audio_path)
