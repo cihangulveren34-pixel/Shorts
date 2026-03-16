@@ -9,6 +9,7 @@ Dil desteği: "en" (İngilizce) veya "tr" (Türkçe)
 import os
 import json
 import re
+import sys
 import time
 from google import genai
 from google.genai import types
@@ -109,10 +110,36 @@ def _parse_json_response(raw: str) -> dict:
     except json.JSONDecodeError:
         pass
 
-    # Last resort: fix single quotes, trailing commas
+    # Last resort: fix trailing commas
     fixed = re.sub(r",\s*}", "}", fixed)
     fixed = re.sub(r",\s*]", "]", fixed)
-    return json.loads(fixed)
+
+    try:
+        return json.loads(fixed)
+    except json.JSONDecodeError:
+        pass
+
+    # Nuclear option: extract fields with regex
+    def _extract(field):
+        m = re.search(rf'"{field}"\s*:\s*"((?:[^"\\]|\\.)*)"', fixed, re.DOTALL)
+        if m:
+            return m.group(1).replace('\n', ' ').strip()
+        return ""
+
+    def _extract_list(field):
+        m = re.search(rf'"{field}"\s*:\s*\[(.*?)\]', fixed, re.DOTALL)
+        if m:
+            return [s.strip().strip('"') for s in m.group(1).split(',') if s.strip().strip('"')]
+        return []
+
+    return {
+        "title": _extract("title"),
+        "hook": _extract("hook"),
+        "narration": _extract("narration"),
+        "tags": _extract_list("tags"),
+        "thumbnail_text": _extract("thumbnail_text"),
+        "search_keywords": _extract_list("search_keywords"),
+    }
 
 
 def generate_script(topic: str, language: str = "en") -> dict:
@@ -137,12 +164,16 @@ def generate_script(topic: str, language: str = "en") -> dict:
                 contents=user_prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=system_prompt,
-                    max_output_tokens=2048,
+                    max_output_tokens=4096,
                     temperature=0.9,
                 ),
             )
-            raw = response.text.strip()
-            print(f"[script_gen] Attempt {attempt+1} raw ({len(raw)} chars): {raw[:300]}...")
+            raw = response.text
+            if not raw or not raw.strip():
+                raise ValueError(f"Empty response from Gemini (finish_reason: {response.candidates[0].finish_reason if response.candidates else 'unknown'})")
+            raw = raw.strip()
+            print(f"[script_gen] Attempt {attempt+1} raw ({len(raw)} chars):", file=sys.stderr)
+            print(raw[:500], file=sys.stderr)
 
             script = _parse_json_response(raw)
             required = ["title", "hook", "narration", "tags", "thumbnail_text", "search_keywords"]
