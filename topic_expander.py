@@ -39,9 +39,10 @@ CATEGORIES = {
     "African History":  ["zulu", "mali", "ethiopia", "african", "shaka", "zimbabwe", "scramble"],
     "Americas":         ["maya", "aztec", "inca", "amazon", "revolution", "civil war", "confederate"],
     "Ancient Mystery":  ["atlantis", "pyramid", "lost civilization", "antikythera", "göbekli", "voynich"],
-    "Tech Mashup":      ["gunpowder", "machine gun", "nuclear", "ai ", "drone", "internet", "gps", "tank"],
+    "Tech Mashup":      ["gunpowder", "machine gun", "nuclear", "ai ", "internet", "gps"],
     "Cultural":         ["olympics", "music", "photography", "shakespeare", "printing press", "movie"],
-    "Modern Conflict":  ["nato", "russia", "china", "taiwan", "iran", "ukraine", "cyber", "hypersonic"],
+    "Modern Conflict":  ["nato", "russia", "china", "taiwan", "iran", "ukraine", "cyber", "israel", "turkey", "uae", "qatar", "saudi", "brics", "ww3"],
+    "Military Tech":    ["drone", "hypersonic", "stealth", "missile", "railgun", "laser", "swarm", "submarine", "fighter jet", "iron dome", "bayraktar", "carrier", "ai warfare", "kaan", "b-21"],
 }
 
 EXPANSION_PROMPT = """You are a VIRAL YouTube Shorts scriptwriter generating addictive alternate history topics.
@@ -51,26 +52,27 @@ Current topics in the pool (for reference — do NOT repeat these):
 
 Generate exactly {count} NEW topics that get MILLIONS of views. Mix these types:
 - Classic "What if": "What if [historical entity] had [alternate outcome]?"
-- Tech mashups: "What if [ancient civilization] had [modern technology]?"
-- Mystery: "The REAL reason [historical event] happened"
+- Modern geopolitics: "What if [country] [military action]?" (Turkey, Iran, Russia, China, Israel, USA, UAE)
+- Military tech: "[Weapon system]: Why It Changes Everything" (drones, hypersonics, stealth, AI warfare)
+- Country vs Country: "[Country A] vs [Country B]: Who Really Wins?"
+- Mystery: "The REAL reason [event] happened"
 - Myth-busting: "Everything you know about [topic] is WRONG"
-- Comparisons: "[Ancient Empire] vs [Modern Country]: Shocking Parallels"
 - Hidden stories: "The [person/event] that almost changed everything"
 
-CATEGORY BALANCE (spread topics across these):
-- Asian History (Japan, China, India, Korea, Southeast Asia)
-- African History (Zulu, Mali, Ethiopia, Egypt, Great Zimbabwe)
-- Ancient Mysteries (Atlantis, pyramids, lost civilizations)
-- Tech Mashups (ancient + modern tech combinations)
-- Cultural What-ifs (music, sports, art, science)
-- Classic War History (WW1, WW2, Cold War, Ancient battles)
-- Modern Geopolitics (NATO, China, AI warfare, cyber war)
+CATEGORY BALANCE (at least HALF should be modern/current):
+- Modern Geopolitics (Turkey, Iran, Russia, China, Israel, USA, UAE, Qatar, Saudi, NATO, BRICS) — HIGH PRIORITY
+- Military Technology (drones, hypersonic missiles, stealth jets, AI warfare, cyber weapons, railguns) — HIGH PRIORITY
+- Country Military Rankings & Comparisons
+- Asian History (Japan, China, India, Korea)
+- African History (Zulu, Mali, Ethiopia)
+- Classic War History (WW1, WW2, Cold War)
+- Ancient Mysteries & Tech Mashups
 
 VIRALITY RULES:
 - Topics must create CURIOSITY (make people click)
-- Use specific names, dates, civilizations (not generic)
-- Mix serious and mind-blowing topics
-- Include at least 3 non-Western civilization topics
+- Use specific weapon names, country names, military programs (not generic)
+- Mix geopolitics + military tech + historical what-ifs
+- At least 10 topics should be about CURRENT military/geopolitics (2024-2025)
 
 Return ONLY a JSON array of strings:
 ["What if ...", "The REAL reason ...", "Everything you know about ... is WRONG", ...]"""
@@ -151,7 +153,7 @@ def _generate_with_gemini(existing_sample: list[str], count: int) -> list[str]:
             # Temizle ve doğrula
             clean = []
             for t in topics:
-                if isinstance(t, str) and len(t) > 15 and "what if" in t.lower():
+                if isinstance(t, str) and len(t) > 15:
                     clean.append(t.strip())
             return clean[:count]
 
