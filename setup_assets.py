@@ -18,6 +18,7 @@ import requests
 
 SFX_DIR = "assets/sfx"
 MUSIC_DIR = "assets/music"
+MAP_DIR = "assets/maps"
 
 # Pixabay Audio API (ücretsiz, API key opsiyonel)
 PIXABAY_API = "https://pixabay.com/api/videos/sounds/"
@@ -49,7 +50,8 @@ FALLBACK_URLS = {
 def _download(url: str, dest: str, label: str) -> bool:
     """URL'den dosyayı indirir. Başarılı ise True döndürür."""
     try:
-        r = requests.get(url, timeout=30, stream=True)
+        headers = {"User-Agent": "WarShorts/1.0 (video asset downloader)"}
+        r = requests.get(url, timeout=30, stream=True, headers=headers)
         r.raise_for_status()
         with open(dest, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
@@ -102,6 +104,45 @@ def _freesound_search(query: str, api_key: str) -> str | None:
     except Exception as e:
         print(f"  [freesound] Arama hatası ({query}): {e}")
     return None
+
+
+def download_world_map() -> None:
+    """Wikimedia'dan 1280x720 dünya haritası indirir → assets/maps/world_base.png"""
+    os.makedirs(MAP_DIR, exist_ok=True)
+    dest = os.path.join(MAP_DIR, "world_base.png")
+
+    if os.path.exists(dest):
+        print(f"  ⏭️  world_base.png zaten mevcut, atlandı.")
+        return
+
+    print(f"\n🗺️  Dünya haritası indiriliyor ({MAP_DIR}/)...")
+
+    # Wikimedia Commons — Equirectangular dünya haritası (Public Domain)
+    map_urls = [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Equirectangular-projection.jpg/1280px-Equirectangular-projection.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Equirectangular_projection_SW.jpg/1280px-Equirectangular_projection_SW.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Gall%E2%80%93Peters_projection_SW.jpg/1280px-Gall%E2%80%93Peters_projection_SW.jpg",
+    ]
+
+    for url in map_urls:
+        if _download(url, dest, "world_base.png"):
+            # Boyutlandır ve koyu tema uygula
+            try:
+                from PIL import Image, ImageEnhance
+                img = Image.open(dest).convert("RGB")
+                img = img.resize((1280, 720), Image.LANCZOS)
+                # Karartma — video overlay olarak kullanılacak
+                enhancer = ImageEnhance.Brightness(img)
+                img = enhancer.enhance(0.5)
+                enhancer = ImageEnhance.Contrast(img)
+                img = enhancer.enhance(1.3)
+                img.save(dest)
+                print(f"  ✅ Harita işlendi: 1280x720, koyu tema")
+            except Exception as e:
+                print(f"  ⚠️  Harita işleme hatası: {e}")
+            return
+
+    print(f"  ⚠️  Harita indirilemedi. overlay_system haritasız çalışacak.")
 
 
 def download_sfx(pixabay_key: str = None, freesound_key: str = None) -> None:
@@ -168,6 +209,9 @@ if __name__ == "__main__":
 
     if not args.sfx_only:
         download_music(pixabay_key, freesound_key)
+
+    # Dünya haritası (overlay_system için)
+    download_world_map()
 
     print("\n✅ Tamamlandı!")
     print(f"   SFX:   {SFX_DIR}/")

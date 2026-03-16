@@ -39,6 +39,8 @@ from moviepy.video.VideoClip import VideoClip
 TARGET_W = 1080
 TARGET_H = 1920
 PEXELS_API = "https://api.pexels.com/videos/search"
+PEXELS_PHOTO_API = "https://api.pexels.com/v1/search"
+WIKIMEDIA_API = "https://commons.wikimedia.org/w/api.php"
 PIXABAY_VIDEO_API = "https://pixabay.com/api/videos/"
 FONT_PATH = "assets/fonts/Montserrat-Bold.ttf"
 LOGO_PATH = "assets/logo.png"
@@ -430,10 +432,195 @@ def _fetch_pixabay_clips(keywords: list, api_key: str, n: int, seen_ids: set) ->
     return downloaded
 
 
+def _fetch_pexels_photos(keywords: list, api_key: str, n: int = 3) -> list:
+    """Pexels'ten fotoğraf indirir."""
+    headers = {"Authorization": api_key}
+    downloaded = []
+
+    queries = []
+    if len(keywords) >= 2:
+        queries.append(" ".join(keywords[:2]))
+    for kw in keywords[:3]:
+        queries.append(kw)
+
+    # Askeri/sinematik suffix'ler
+    for kw in keywords[:2]:
+        queries.append(f"{kw} military")
+        queries.append(f"{kw} dramatic")
+
+    for query in queries:
+        if len(downloaded) >= n:
+            break
+        params = {"query": query, "per_page": 5, "page": random.randint(1, 3), "size": "large"}
+        try:
+            resp = requests.get(PEXELS_PHOTO_API, headers=headers, params=params, timeout=15)
+            resp.raise_for_status()
+            photos = resp.json().get("photos", [])
+            random.shuffle(photos)
+            for photo in photos:
+                if len(downloaded) >= n:
+                    break
+                # En iyi çözünürlüğü al
+                url = photo.get("src", {}).get("large2x") or photo.get("src", {}).get("large")
+                if not url:
+                    continue
+                try:
+                    tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+                    r = requests.get(url, timeout=30)
+                    r.raise_for_status()
+                    tmp.write(r.content)
+                    tmp.close()
+                    downloaded.append(tmp.name)
+                    print(f"[video_builder] Pexels fotoğraf {len(downloaded)}/{n}")
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[video_builder] Pexels foto hata ({query}): {e}")
+
+    return downloaded
+
+
+def _fetch_wikimedia_photos(keywords: list, limit: int = 3) -> list:
+    """Wikimedia Commons'tan fotoğraf indirir (askeri keyword'ler için öncelikli)."""
+    downloaded = []
+
+    queries = []
+    if len(keywords) >= 2:
+        queries.append(" ".join(keywords[:2]) + " military")
+    for kw in keywords[:3]:
+        queries.append(kw)
+
+    for query in queries:
+        if len(downloaded) >= limit:
+            break
+        params = {
+            "action": "query",
+            "format": "json",
+            "generator": "search",
+            "gsrnamespace": 6,  # File namespace
+            "gsrsearch": query,
+            "gsrlimit": 5,
+            "prop": "imageinfo",
+            "iiprop": "url",
+            "iiurlwidth": 1920,
+        }
+        try:
+            headers = {"User-Agent": "WarShorts/1.0 (video asset downloader)"}
+            resp = requests.get(WIKIMEDIA_API, params=params, timeout=15, headers=headers)
+            resp.raise_for_status()
+            pages = resp.json().get("query", {}).get("pages", {})
+            for page_id, page in pages.items():
+                if len(downloaded) >= limit:
+                    break
+                imageinfo = page.get("imageinfo", [{}])[0]
+                url = imageinfo.get("thumburl") or imageinfo.get("url")
+                if not url:
+                    continue
+                # Sadece resim dosyaları
+                if not any(url.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".webp"]):
+                    continue
+                try:
+                    tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+                    r = requests.get(url, timeout=30)
+                    r.raise_for_status()
+                    tmp.write(r.content)
+                    tmp.close()
+                    downloaded.append(tmp.name)
+                    print(f"[video_builder] Wikimedia foto {len(downloaded)}/{limit}")
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[video_builder] Wikimedia hata ({query}): {e}")
+
+    return downloaded
+
+
+def _photo_to_video(photo_path: str, duration: float, kb_effect: str = "zoom_in",
+                    intensity: float = 0.05) -> VideoFileClip:
+    """Fotoğrafı Ken Burns efektli video klibine çevirir."""
+    img = Image.open(photo_path).convert("RGB")
+
+    # 1080x1920 oranına crop + resize
+    target_ratio = TARGET_W / TARGET_H
+    w, h = img.size
+    current_ratio = w / h
+
+    if current_ratio > target_ratio:
+        new_w = int(h * target_ratio)
+        left = (w - new_w) // 2
+        img = img.crop((left, 0, left + new_w, h))
+    else:
+        new_h = int(w / target_ratio)
+        top = (h - new_h) // 2
+        img = img.crop((0, top, w, top + new_h))
+
+    # Biraz büyüt (Ken Burns için margin)
+    scale = 1 + intensity + 0.02
+    base_w = int(TARGET_W * scale)
+    base_h = int(TARGET_H * scale)
+    img = img.resize((base_w, base_h), Image.LANCZOS)
+    base_arr = np.array(img)
+
+    def make_frame(t):
+        progress = t / max(duration, 0.01)
+
+        if kb_effect == "zoom_in":
+            s = 1 + intensity * progress
+        elif kb_effect == "zoom_out":
+            s = 1 + intensity * (1 - progress)
+        elif kb_effect == "pan_right":
+            s = 1.0
+        elif kb_effect == "pan_left":
+            s = 1.0
+        else:
+            s = 1 + intensity * progress * 0.5
+
+        bh, bw = base_arr.shape[:2]
+        crop_w, crop_h = TARGET_W, TARGET_H
+
+        if kb_effect == "pan_right":
+            max_x = bw - crop_w
+            x = int(max_x * progress)
+            y = (bh - crop_h) // 2
+        elif kb_effect == "pan_left":
+            max_x = bw - crop_w
+            x = int(max_x * (1 - progress))
+            y = (bh - crop_h) // 2
+        elif kb_effect == "pan_down":
+            x = (bw - crop_w) // 2
+            max_y = bh - crop_h
+            y = int(max_y * progress)
+        else:
+            # Zoom — merkeze crop
+            cur_w = int(crop_w / s) if s > 0 else crop_w
+            cur_h = int(crop_h / s) if s > 0 else crop_h
+            cur_w = min(cur_w, bw)
+            cur_h = min(cur_h, bh)
+
+            resized = Image.fromarray(base_arr).resize(
+                (int(bw * s), int(bh * s)), Image.LANCZOS
+            )
+            rw, rh = resized.size
+            x = (rw - crop_w) // 2
+            y = (rh - crop_h) // 2
+            x = max(0, min(x, rw - crop_w))
+            y = max(0, min(y, rh - crop_h))
+            return np.array(resized.crop((x, y, x + crop_w, y + crop_h)))
+
+        x = max(0, min(x, bw - crop_w))
+        y = max(0, min(y, bh - crop_h))
+        return base_arr[y:y + crop_h, x:x + crop_w]
+
+    clip = VideoClip(make_frame, duration=duration)
+    clip = clip.set_fps(30)
+    return clip
+
+
 def _fetch_clips(keywords: list, n: int = 8) -> list:
     """
-    Pexels + Pixabay'dan klip indirip interleave eder.
-    Pixabay key yoksa sadece Pexels kullanır.
+    Pexels + Pixabay'dan klip + fotoğraf indirip karıştırır.
+    %60 video + %40 fotoğraf pattern: V, V, F, V, F, V, V, F
+    Returns: [("video", path), ("photo", path), ...] tuple listesi.
     """
     pexels_key = os.environ.get("PEXELS_API_KEY")
     pixabay_key = os.environ.get("PIXABAY_API_KEY")
@@ -443,36 +630,86 @@ def _fetch_clips(keywords: list, n: int = 8) -> list:
 
     seen_ids = set()
 
+    # Video klipleri (%60)
+    n_videos = max(1, int(n * 0.6))
+    n_photos = n - n_videos
+
+    # Video indirme (mevcut mantık)
+    video_paths = []
     if pixabay_key:
-        n_pexels = n // 2
-        n_pixabay = n - n_pexels
-        print(f"[video_builder] {n_pexels} Pexels + {n_pixabay} Pixabay klibi...")
-
-        pexels_clips = _fetch_pexels_clips(keywords, pexels_key, n_pexels, seen_ids)
-        pixabay_clips = _fetch_pixabay_clips(keywords, pixabay_key, n_pixabay, seen_ids)
-
-        # Interleave
-        mixed = []
+        n_pex = n_videos // 2
+        n_pix = n_videos - n_pex
+        print(f"[video_builder] {n_pex} Pexels + {n_pix} Pixabay video + {n_photos} fotoğraf...")
+        pexels_clips = _fetch_pexels_clips(keywords, pexels_key, n_pex, seen_ids)
+        pixabay_clips = _fetch_pixabay_clips(keywords, pixabay_key, n_pix, seen_ids)
         for i in range(max(len(pexels_clips), len(pixabay_clips))):
             if i < len(pexels_clips):
-                mixed.append(pexels_clips[i])
+                video_paths.append(pexels_clips[i])
             if i < len(pixabay_clips):
-                mixed.append(pixabay_clips[i])
-
-        # Yeterli klip yoksa Pexels'ten tamamla
-        if len(mixed) < n:
-            extra = _fetch_pexels_clips(keywords, pexels_key, n - len(mixed), seen_ids)
-            mixed.extend(extra)
-
-        if not mixed:
-            raise RuntimeError("Hiç klip indirilemedi.")
-        return mixed[:n]
+                video_paths.append(pixabay_clips[i])
     else:
-        print("[video_builder] PIXABAY_API_KEY yok, sadece Pexels")
-        clips = _fetch_pexels_clips(keywords, pexels_key, n, seen_ids)
-        if not clips:
-            raise RuntimeError("Hiç Pexels klibi indirilemedi.")
-        return clips
+        print(f"[video_builder] {n_videos} Pexels video + {n_photos} fotoğraf...")
+        video_paths = _fetch_pexels_clips(keywords, pexels_key, n_videos, seen_ids)
+
+    # Yeterli video yoksa Pexels'ten tamamla
+    if len(video_paths) < n_videos:
+        extra = _fetch_pexels_clips(keywords, pexels_key, n_videos - len(video_paths), seen_ids)
+        video_paths.extend(extra)
+
+    # Fotoğraf indirme — Wikimedia öncelikli, Pexels yedek
+    photo_paths = []
+    if n_photos > 0:
+        # Askeri keyword'ler için Wikimedia öncelikli
+        kw_lower = " ".join(k.lower() for k in keywords)
+        military_kw = ["military", "army", "navy", "air force", "weapon", "tank", "missile",
+                       "drone", "fighter", "war", "soldier", "submarine", "aircraft"]
+        is_military = any(w in kw_lower for w in military_kw)
+
+        if is_military:
+            wiki_photos = _fetch_wikimedia_photos(keywords, limit=n_photos)
+            photo_paths.extend(wiki_photos)
+
+        # Kalan fotoğrafları Pexels'ten al
+        remaining = n_photos - len(photo_paths)
+        if remaining > 0:
+            pexels_photos = _fetch_pexels_photos(keywords, pexels_key, remaining)
+            photo_paths.extend(pexels_photos)
+
+    if not video_paths and not photo_paths:
+        raise RuntimeError("Hiç klip veya fotoğraf indirilemedi.")
+
+    # Pattern: V, V, F, V, F, V, V, F (yaklaşık)
+    mixed = []
+    vi, pi = 0, 0
+    pattern = ["video", "video", "photo", "video", "photo", "video", "video", "photo"]
+    for slot in pattern[:n]:
+        if slot == "video" and vi < len(video_paths):
+            mixed.append(("video", video_paths[vi]))
+            vi += 1
+        elif slot == "photo" and pi < len(photo_paths):
+            mixed.append(("photo", photo_paths[pi]))
+            pi += 1
+        elif vi < len(video_paths):
+            mixed.append(("video", video_paths[vi]))
+            vi += 1
+        elif pi < len(photo_paths):
+            mixed.append(("photo", photo_paths[pi]))
+            pi += 1
+
+    # Kalan medyaları ekle
+    while vi < len(video_paths) and len(mixed) < n:
+        mixed.append(("video", video_paths[vi]))
+        vi += 1
+    while pi < len(photo_paths) and len(mixed) < n:
+        mixed.append(("photo", photo_paths[pi]))
+        pi += 1
+
+    if not mixed:
+        raise RuntimeError("Hiç medya birleştirilemedi.")
+
+    print(f"[video_builder] Toplam: {sum(1 for t,_ in mixed if t=='video')} video + "
+          f"{sum(1 for t,_ in mixed if t=='photo')} fotoğraf")
+    return mixed[:n]
 
 
 # ─── Resize / crop ───────────────────────────────────────────────────────────
@@ -633,26 +870,38 @@ def _build_background(clip_paths: list, total_duration: float,
                       style: StyleProfile) -> VideoFileClip:
     """
     Klipleri style profile'a göre işler ve birleştirir.
+    clip_paths: [("video", path), ("photo", path), ...] veya [path, ...] (geriye uyumlu)
     """
     processed = []
     per_clip = total_duration / len(clip_paths)
 
-    for i, path in enumerate(clip_paths):
-        c = VideoFileClip(path, audio=False)
-        c = _resize_to_shorts(c)
+    for i, item in enumerate(clip_paths):
+        # Geriye uyumluluk: tuple veya string
+        if isinstance(item, tuple):
+            media_type, path = item
+        else:
+            media_type, path = "video", item
 
-        # Renk tonu (video genelinde aynı)
-        c = _color_grade(c, style.color_grade)
-
-        # Ken Burns (pool'dan sırayla)
         kb = style.ken_burns_pool[i % len(style.ken_burns_pool)]
-        c = _apply_ken_burns(c, kb)
 
-        # Süre ayarı
-        if c.duration < per_clip:
-            repeats = int(per_clip / c.duration) + 1
-            c = concatenate_videoclips([c] * repeats)
-        c = c.subclip(0, per_clip)
+        if media_type == "photo":
+            try:
+                c = _photo_to_video(path, per_clip, kb_effect=kb)
+                c = _color_grade(c, style.color_grade)
+            except Exception as e:
+                print(f"[video_builder] Fotoğraf işleme hatası, atlaniyor: {e}")
+                continue
+        else:
+            c = VideoFileClip(path, audio=False)
+            c = _resize_to_shorts(c)
+            c = _color_grade(c, style.color_grade)
+            c = _apply_ken_burns(c, kb)
+
+            # Süre ayarı
+            if c.duration < per_clip:
+                repeats = int(per_clip / c.duration) + 1
+                c = concatenate_videoclips([c] * repeats)
+            c = c.subclip(0, per_clip)
 
         # Overlay efektleri
         if style.vignette_intensity > 0:
@@ -974,13 +1223,150 @@ def build_video(
     layers.append(_make_hook_clip(script["hook"], duration=min(3.0, total_duration)))
 
     # Altyazılar
+    vtt_chunks = []
     if vtt_path and os.path.exists(vtt_path):
         from tts import parse_vtt
-        chunks = parse_vtt(vtt_path)
-        layers.extend(_make_subtitle_clips(chunks, total_duration))
-        print(f"[video_builder] VTT: {len(chunks)} altyazı chunk'ı")
+        vtt_chunks = parse_vtt(vtt_path)
+        layers.extend(_make_subtitle_clips(vtt_chunks, total_duration))
+        print(f"[video_builder] VTT: {len(vtt_chunks)} altyazı chunk'ı")
     else:
         layers.extend(_make_fallback_subtitle_clips(script["narration"], narration_audio.duration))
+
+    # ─── Overlay System Entegrasyonu ──────────────────────────────────
+    try:
+        from overlay_system import (
+            extract_countries_with_timing,
+            extract_statistics_with_timing,
+            create_map_overlay,
+            create_stat_card,
+            download_flag,
+            create_flag_overlay,
+            create_format_overlays,
+            create_red_flash_data,
+            create_glitch_frame,
+        )
+
+        narration_text = script.get("narration", "")
+        video_format = script.get("format", "classic_whatif")
+
+        if vtt_chunks:
+            # 1) Harita overlay'leri (max 3 ülke)
+            try:
+                countries = extract_countries_with_timing(narration_text, vtt_chunks)
+                for entry in countries[:3]:
+                    map_arr = create_map_overlay(entry["country"])
+                    if map_arr is not None:
+                        h, w = map_arr.shape[:2]
+                        start = entry["start"]
+                        dur = min(3.5, entry["end"] - entry["start"] + 1.5)
+                        layers.append(
+                            ImageClip(map_arr, ismask=False)
+                            .set_duration(dur)
+                            .set_start(start)
+                            .set_position(("center", 200))
+                            .crossfadein(0.3)
+                            .crossfadeout(0.3)
+                        )
+                        print(f"[video_builder] Harita overlay: {entry['country']} @ {start:.1f}s")
+            except Exception as e:
+                print(f"[video_builder] Harita overlay hatası: {e}")
+
+            # 2) İstatistik kartları (max 4 stat)
+            try:
+                stats = extract_statistics_with_timing(narration_text, vtt_chunks)
+                for entry in stats[:4]:
+                    card_arr = create_stat_card(entry["value"], entry["label"])
+                    h, w = card_arr.shape[:2]
+                    start = entry["start"]
+                    dur = min(2.5, entry["end"] - entry["start"] + 1.0)
+                    layers.append(
+                        ImageClip(card_arr, ismask=False)
+                        .set_duration(dur)
+                        .set_start(start)
+                        .set_position(((TARGET_W - w) // 2, 350))
+                        .crossfadein(0.2)
+                        .crossfadeout(0.2)
+                    )
+                    print(f"[video_builder] Stat kart: {entry['value']} @ {start:.1f}s")
+            except Exception as e:
+                print(f"[video_builder] Stat kart hatası: {e}")
+
+            # 3) Bayrak overlay'leri (max 3 ülke)
+            try:
+                countries_for_flags = extract_countries_with_timing(narration_text, vtt_chunks)
+                for entry in countries_for_flags[:3]:
+                    flag_path = download_flag(entry["country"])
+                    if flag_path:
+                        flag_arr = create_flag_overlay(flag_path)
+                        if flag_arr is not None:
+                            h, w = flag_arr.shape[:2]
+                            start = entry["start"]
+                            dur = min(3.0, entry["end"] - entry["start"] + 1.0)
+                            layers.append(
+                                ImageClip(flag_arr, ismask=False)
+                                .set_duration(dur)
+                                .set_start(start)
+                                .set_position((TARGET_W - w - 30, TARGET_H - h - 350))
+                                .crossfadein(0.2)
+                                .crossfadeout(0.2)
+                            )
+                            print(f"[video_builder] Bayrak overlay: {entry['country']} @ {start:.1f}s")
+            except Exception as e:
+                print(f"[video_builder] Bayrak overlay hatası: {e}")
+
+        # 4) Format bazlı overlay'ler
+        try:
+            title = script.get("title", "")
+            format_overlays = create_format_overlays(video_format, total_duration, title)
+            for ov in format_overlays:
+                if ov["type"] == "glitch":
+                    # Glitch efekti — geçiş anlarında frame bazlı uygulanır
+                    # (bg klibine doğrudan uygulama yapılmaz, karmaşıklık nedeniyle atlat)
+                    continue
+                if ov["data"] is not None:
+                    h, w = ov["data"].shape[:2]
+                    dur = ov["end"] - ov["start"]
+                    if dur <= 0:
+                        continue
+                    pos = ov["position"]
+                    layers.append(
+                        ImageClip(ov["data"], ismask=False)
+                        .set_duration(dur)
+                        .set_start(ov["start"])
+                        .set_position(pos)
+                        .crossfadein(0.2)
+                        .crossfadeout(0.2)
+                    )
+            if format_overlays:
+                print(f"[video_builder] Format overlay'ler ({video_format}): {len(format_overlays)} adet")
+        except Exception as e:
+            print(f"[video_builder] Format overlay hatası: {e}")
+
+        # 5) Kırmızı alarm flash'ları (15sn twist + 40sn payoff)
+        try:
+            flash_times = [15.0, 40.0]
+            flash_dur = 0.3
+            for ft in flash_times:
+                if ft + flash_dur > total_duration:
+                    continue
+                flash_arr = create_red_flash_data()
+                layers.append(
+                    ImageClip(flash_arr, ismask=False)
+                    .set_duration(flash_dur)
+                    .set_start(ft)
+                    .set_position((0, 0))
+                    .crossfadein(0.1)
+                    .crossfadeout(0.15)
+                )
+            print(f"[video_builder] Kırmızı flash @ {[t for t in flash_times if t + flash_dur <= total_duration]}")
+        except Exception as e:
+            print(f"[video_builder] Kırmızı flash hatası: {e}")
+
+    except ImportError:
+        print("[video_builder] overlay_system.py bulunamadı, overlay'ler atlanıyor.")
+    except Exception as e:
+        print(f"[video_builder] Overlay system genel hatası: {e}")
+    # ─── Overlay System Sonu ──────────────────────────────────────────
 
     # CTA bitiş ekranı
     layers.extend(_make_cta_clip(total_duration))
@@ -1054,7 +1440,8 @@ def build_video(
 
     # Cleanup
     narration_audio.close()
-    for path in clip_paths:
+    for item in clip_paths:
+        path = item[1] if isinstance(item, tuple) else item
         try:
             os.unlink(path)
         except OSError:
