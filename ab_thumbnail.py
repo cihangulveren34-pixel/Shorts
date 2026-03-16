@@ -23,6 +23,10 @@ from pathlib import Path
 from typing import Optional
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
+if not hasattr(Image, "ANTIALIAS"):
+    Image.ANTIALIAS = Image.LANCZOS
+
 import numpy as np
 
 try:

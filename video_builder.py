@@ -18,6 +18,11 @@ import requests
 import tempfile
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+
+# Pillow 10+ uyumluluğu: ANTIALIAS kaldırıldı, LANCZOS kullanılmalı
+if not hasattr(Image, "ANTIALIAS"):
+    Image.ANTIALIAS = Image.LANCZOS
+
 from moviepy.editor import (
     VideoFileClip,
     AudioFileClip,

@@ -5,6 +5,9 @@ thumbnail.py — Pillow ile YouTube thumbnail (1280×720 PNG) üretir.
 import os
 from PIL import Image, ImageDraw, ImageFont
 
+if not hasattr(Image, "ANTIALIAS"):
+    Image.ANTIALIAS = Image.LANCZOS
+
 THUMB_W = 1280
 THUMB_H = 720
 FONT_PATH = "assets/fonts/Montserrat-Bold.ttf"
