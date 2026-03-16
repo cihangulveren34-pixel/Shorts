@@ -9,7 +9,7 @@ import re
 import edge_tts
 
 DEFAULT_VOICE = "en-US-GuyNeural"
-RATE = "+25%"
+RATE = "+40%"
 PITCH = "-5Hz"
 
 
