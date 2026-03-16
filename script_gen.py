@@ -67,6 +67,8 @@ TTS_VOICES = {
 
 def _parse_json_response(raw: str) -> dict:
     """Gemini'nin döndürdüğü metinden JSON objesini çıkarır ve parse eder."""
+    print(f"[script_gen] _parse_json_response called, input length: {len(raw)}", file=sys.stderr)
+
     # Remove markdown code fences
     if "```json" in raw:
         raw = raw.split("```json")[1].split("```")[0].strip()
@@ -75,17 +77,43 @@ def _parse_json_response(raw: str) -> dict:
 
     # Extract the JSON object
     match = re.search(r'\{.*\}', raw, re.DOTALL)
-    if not match:
-        raise json.JSONDecodeError("No JSON object found", raw, 0)
-    raw = match.group(0)
+    if match:
+        raw = match.group(0)
 
-    # First try direct parse
+    # Stage 1: direct parse
     try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        pass
+        result = json.loads(raw)
+        print("[script_gen] Stage 1 (direct) OK", file=sys.stderr)
+        return _normalize_script(result)
+    except Exception as e:
+        print(f"[script_gen] Stage 1 failed: {e}", file=sys.stderr)
 
-    # Fix common issues: unescaped newlines/tabs/quotes inside strings
+    # Stage 2: fix newlines/tabs inside strings
+    fixed = _fix_json_strings(raw)
+    try:
+        result = json.loads(fixed)
+        print("[script_gen] Stage 2 (fix strings) OK", file=sys.stderr)
+        return _normalize_script(result)
+    except Exception as e:
+        print(f"[script_gen] Stage 2 failed: {e}", file=sys.stderr)
+
+    # Stage 3: fix trailing commas
+    fixed = re.sub(r",\s*}", "}", fixed)
+    fixed = re.sub(r",\s*]", "]", fixed)
+    try:
+        result = json.loads(fixed)
+        print("[script_gen] Stage 3 (trailing commas) OK", file=sys.stderr)
+        return _normalize_script(result)
+    except Exception as e:
+        print(f"[script_gen] Stage 3 failed: {e}", file=sys.stderr)
+
+    # Stage 4: regex extraction (nuclear)
+    print("[script_gen] Stage 4 (regex nuclear) ...", file=sys.stderr)
+    return _extract_with_regex(raw)
+
+
+def _fix_json_strings(raw: str) -> str:
+    """JSON string'leri içindeki escape edilmemiş karakterleri düzeltir."""
     fixed = ""
     in_string = False
     escape = False
@@ -104,35 +132,36 @@ def _parse_json_response(raw: str) -> dict:
             fixed += ' '
         else:
             fixed += ch
+    return fixed
 
-    try:
-        return json.loads(fixed)
-    except json.JSONDecodeError:
-        pass
 
-    # Last resort: fix trailing commas
-    fixed = re.sub(r",\s*}", "}", fixed)
-    fixed = re.sub(r",\s*]", "]", fixed)
+def _normalize_script(data: dict) -> dict:
+    """narration array ise string'e çevirir."""
+    if isinstance(data.get("narration"), list):
+        data["narration"] = " ".join(data["narration"])
+    return data
 
-    try:
-        return json.loads(fixed)
-    except json.JSONDecodeError:
-        pass
 
-    # Nuclear option: extract fields with regex
+def _extract_with_regex(raw: str) -> dict:
+    """Son çare: regex ile alanları tek tek çıkarır."""
     def _extract(field):
-        m = re.search(rf'"{field}"\s*:\s*"((?:[^"\\]|\\.)*)"', fixed, re.DOTALL)
+        # Try quoted string value
+        m = re.search(rf'"{field}"\s*:\s*"((?:[^"\\]|\\.)*)"', raw, re.DOTALL)
+        if m:
+            return m.group(1).replace('\n', ' ').strip()
+        # Try unquoted (for truncated strings)
+        m = re.search(rf'"{field}"\s*:\s*"([^"]*)', raw, re.DOTALL)
         if m:
             return m.group(1).replace('\n', ' ').strip()
         return ""
 
     def _extract_list(field):
-        m = re.search(rf'"{field}"\s*:\s*\[(.*?)\]', fixed, re.DOTALL)
+        m = re.search(rf'"{field}"\s*:\s*\[(.*?)\]', raw, re.DOTALL)
         if m:
             return [s.strip().strip('"') for s in m.group(1).split(',') if s.strip().strip('"')]
         return []
 
-    return {
+    result = {
         "title": _extract("title"),
         "hook": _extract("hook"),
         "narration": _extract("narration"),
@@ -140,6 +169,8 @@ def _parse_json_response(raw: str) -> dict:
         "thumbnail_text": _extract("thumbnail_text"),
         "search_keywords": _extract_list("search_keywords"),
     }
+    print(f"[script_gen] Regex extracted: title={result['title'][:50]}", file=sys.stderr)
+    return result
 
 
 def generate_script(topic: str, language: str = "en") -> dict:
@@ -188,16 +219,12 @@ def generate_script(topic: str, language: str = "en") -> dict:
 
             return script
 
-        except (json.JSONDecodeError, ValueError) as e:
+        except Exception as e:
+            print(f"[script_gen] Attempt {attempt+1} error: {type(e).__name__}: {e}", file=sys.stderr)
             if attempt < 2:
                 time.sleep(2 ** attempt)
                 continue
             raise RuntimeError(f"Script generation failed after 3 attempts: {e}")
-        except Exception as e:
-            if attempt < 2:
-                time.sleep(2 ** attempt)
-                continue
-            raise
 
 
 def save_script(script: dict, path: str = "output/script.json") -> None:
