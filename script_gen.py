@@ -64,6 +64,57 @@ TTS_VOICES = {
 }
 
 
+def _parse_json_response(raw: str) -> dict:
+    """Gemini'nin döndürdüğü metinden JSON objesini çıkarır ve parse eder."""
+    # Remove markdown code fences
+    if "```json" in raw:
+        raw = raw.split("```json")[1].split("```")[0].strip()
+    elif "```" in raw:
+        raw = raw.split("```")[1].split("```")[0].strip()
+
+    # Extract the JSON object
+    match = re.search(r'\{.*\}', raw, re.DOTALL)
+    if not match:
+        raise json.JSONDecodeError("No JSON object found", raw, 0)
+    raw = match.group(0)
+
+    # First try direct parse
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+
+    # Fix common issues: unescaped newlines/tabs/quotes inside strings
+    fixed = ""
+    in_string = False
+    escape = False
+    for ch in raw:
+        if escape:
+            fixed += ch
+            escape = False
+            continue
+        if ch == '\\':
+            fixed += ch
+            escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+        if in_string and ch in ('\n', '\r', '\t'):
+            fixed += ' '
+        else:
+            fixed += ch
+
+    try:
+        return json.loads(fixed)
+    except json.JSONDecodeError:
+        pass
+
+    # Last resort: fix single quotes, trailing commas
+    fixed = re.sub(r",\s*}", "}", fixed)
+    fixed = re.sub(r",\s*]", "]", fixed)
+    return json.loads(fixed)
+
+
 def generate_script(topic: str, language: str = "en") -> dict:
     """
     Verilen konu için Gemini 2.5 Flash ile script üretir.
@@ -86,46 +137,14 @@ def generate_script(topic: str, language: str = "en") -> dict:
                 contents=user_prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=system_prompt,
-                    response_mime_type="application/json",
-                    max_output_tokens=1024,
+                    max_output_tokens=2048,
                     temperature=0.9,
-                    thinking_config=types.ThinkingConfig(thinking_budget=0),
                 ),
             )
             raw = response.text.strip()
-            print(f"[script_gen] Attempt {attempt+1} raw response ({len(raw)} chars): {raw[:200]}...")
+            print(f"[script_gen] Attempt {attempt+1} raw ({len(raw)} chars): {raw[:300]}...")
 
-            if "```json" in raw:
-                raw = raw.split("```json")[1].split("```")[0].strip()
-            elif "```" in raw:
-                raw = raw.split("```")[1].split("```")[0].strip()
-
-            # Extract JSON object if there's extra text around it
-            json_match = re.search(r'\{.*\}', raw, re.DOTALL)
-            if json_match:
-                raw = json_match.group(0)
-
-            # Fix unescaped newlines/tabs inside JSON string values
-            fixed = ""
-            in_string = False
-            escape = False
-            for ch in raw:
-                if escape:
-                    fixed += ch
-                    escape = False
-                    continue
-                if ch == '\\':
-                    fixed += ch
-                    escape = True
-                    continue
-                if ch == '"':
-                    in_string = not in_string
-                if in_string and ch in ('\n', '\r', '\t'):
-                    fixed += ' '
-                else:
-                    fixed += ch
-
-            script = json.loads(fixed)
+            script = _parse_json_response(raw)
             required = ["title", "hook", "narration", "tags", "thumbnail_text", "search_keywords"]
             for field in required:
                 if field not in script:
