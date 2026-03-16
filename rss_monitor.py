@@ -48,6 +48,21 @@ RSS_FEEDS = [
         "url": "https://news.google.com/rss/search?q=ancient+history+discovery&hl=en-US&gl=US&ceid=US:en",
         "keywords": ["ancient", "discovery", "archaeolog"],
     },
+    {
+        "name": "Google News — Current Conflicts",
+        "url": "https://news.google.com/rss/search?q=war+conflict+military+operation&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["war", "conflict", "military", "invasion", "attack", "troops", "missile", "drone", "ceasefire", "NATO"],
+    },
+    {
+        "name": "Google News — Geopolitics",
+        "url": "https://news.google.com/rss/search?q=geopolitics+military+tension+what+if&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["tension", "military", "nuclear", "alliance", "sanctions", "escalat"],
+    },
+    {
+        "name": "Reuters — World Conflicts",
+        "url": "https://news.google.com/rss/search?q=site:reuters.com+war+conflict&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["war", "conflict", "military", "crisis"],
+    },
 ]
 
 # "What if" konu üretim kalıpları
@@ -133,10 +148,13 @@ def _is_history_relevant(title: str, desc: str, keywords: list[str]) -> bool:
     if keywords:
         return any(kw.lower() in combined for kw in keywords)
 
-    # Genel tarih/savaş tespiti
+    # Genel tarih/savaş/güncel çatışma tespiti
     history_kws = ["war", "battle", "empire", "ancient", "history", "king", "queen",
                    "army", "conquest", "invasion", "revolution", "dynasty", "medieval",
-                   "roman", "greek", "egypt", "ottoman", "mongol", "napoleon"]
+                   "roman", "greek", "egypt", "ottoman", "mongol", "napoleon",
+                   "conflict", "military", "troops", "missile", "drone", "nuclear",
+                   "nato", "sanctions", "ceasefire", "escalat", "tension", "geopolit",
+                   "ukraine", "russia", "china", "taiwan", "iran", "israel", "korea"]
     return any(kw in combined for kw in history_kws)
 
 
@@ -169,6 +187,15 @@ def _extract_topic_from_headline(title: str) -> Optional[str]:
     if empire_match:
         empire = empire_match.group(0).title()
         return f"What if the {empire} Never Fell?"
+
+    # Güncel çatışma/geopolitik olaylar
+    conflict_match = re.search(
+        r"(ukraine|russia|china|taiwan|iran|israel|nato|north korea|syria|yemen)",
+        title_clean, re.IGNORECASE,
+    )
+    if conflict_match:
+        subject = conflict_match.group(0).title()
+        return f"What if {subject} scenario escalates? {title_clean[:60]}"
 
     # Genel dönüştürme
     if len(title_clean) > 20:

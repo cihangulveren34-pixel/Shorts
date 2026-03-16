@@ -15,8 +15,9 @@ import requests
 
 
 SYSTEM_PROMPTS = {
-    "en": """You are an expert YouTube Shorts scriptwriter specializing in history and war "what if" scenarios.
+    "en": """You are an expert YouTube Shorts scriptwriter specializing in history, war, and geopolitics "what if" scenarios.
 Your job is to write engaging, fast-paced scripts for 50-55 second vertical videos.
+Topics can be historical alternate history OR current geopolitical/military scenarios.
 
 Output ONLY a valid JSON object with this exact structure:
 {
