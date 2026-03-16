@@ -254,8 +254,12 @@ def _headlines_to_topics_fallback(headlines: list[str], count: int = 8) -> list[
     return topics
 
 
+# RSS konuları bu prefix ile işaretlenir → script_gen news_analysis formatı kullanır
+NEWS_TOPIC_PREFIX = "[NEWS] "
+
+
 def _update_topic_pool(new_topics: list[str]) -> int:
-    """Yeni konuları topic_pool.json'a ekler."""
+    """Yeni konuları [NEWS] prefix'i ile topic_pool.json'a ekler."""
     pool_path = "topic_pool.json"
     try:
         with open(pool_path, encoding="utf-8") as f:
@@ -266,8 +270,9 @@ def _update_topic_pool(new_topics: list[str]) -> int:
     existing = {t.lower() for t in pool}
     added = 0
     for topic in new_topics:
+        tagged = f"{NEWS_TOPIC_PREFIX}{topic}"
         if topic.lower() not in existing and len(topic) > 15:
-            pool.append(topic)
+            pool.append(tagged)
             existing.add(topic.lower())
             added += 1
 

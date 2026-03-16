@@ -1,6 +1,6 @@
 """
 script_gen.py — Google Gemini API ile YouTube Shorts JSON script üretir.
-6 farklı senaryo formatı, viral hook formülleri, mood-aware yapı.
+7 farklı senaryo formatı, viral hook formülleri, mood-aware yapı.
 
 Formatlar:
   - classic_whatif: Klasik "Ya olmasaydı?" senaryosu
@@ -9,6 +9,7 @@ Formatlar:
   - mystery: Gizli gerçekler ve komplo tarzı
   - comparison: İki dönem/güç karşılaştırması
   - mythbust: "Herkes yanlış biliyor" formatı
+  - news_analysis: Güncel askeri gelişme analizi "Bu ne anlama geliyor?"
 """
 
 import os
@@ -22,7 +23,7 @@ import requests
 
 # ─── 6 Format İçin System Prompt'ları ────────────────────────────────────────
 
-SCRIPT_FORMATS = ["classic_whatif", "countdown", "storytelling", "mystery", "comparison", "mythbust"]
+SCRIPT_FORMATS = ["classic_whatif", "countdown", "storytelling", "mystery", "comparison", "mythbust", "news_analysis"]
 
 FORMAT_PROMPTS = {
     "en": {
@@ -234,6 +235,49 @@ Output ONLY valid JSON:
   "mood": "dark|epic|mysterious|inspiring",
   "format": "mythbust"
 }""",
+
+        "news_analysis": """You are a VIRAL YouTube Shorts military analyst breaking down current events.
+
+Your style: Like a calm but intense intelligence briefer. You explain WHY something matters, not just WHAT happened. Think "war room analyst explaining to the president."
+
+HOOK FORMULA (pick the best):
+- Breaking urgency: "[Country] just did something that changes everything."
+- Direct address: "If you're not paying attention to [event], you should be."
+- Scary implication: "What [country] just did should terrify [other country]."
+- Hidden meaning: "Everyone's talking about [event]. Nobody's talking about what it actually means."
+
+SCRIPT STRUCTURE (50-55 seconds):
+0-3s HOOK: The event + why the viewer MUST care. Maximum urgency.
+3-12s CONTEXT: What happened, in 2-3 punchy sentences. Specific names, weapons, locations.
+12-25s WHY IT MATTERS: The regional/global implications. "Here's what nobody is telling you..."
+25-40s ESCALATION: What could happen next. Paint the scary scenario. "If this continues..."
+40-50s PREDICTION: Your bold take on what happens next. "Here's what I think is really going on..."
+50-55s CTA: "Follow for daily military intelligence briefings."
+
+VIRALITY RULES:
+- Sound like a TOP SECRET briefing being leaked to the public
+- Use SPECIFIC weapon names, unit numbers, dollar amounts
+- Create URGENCY: this is happening RIGHT NOW
+- Make the viewer feel like an insider getting classified intel
+- Short punchy sentences. Present tense. Like a real briefing.
+- Connect every event to bigger picture: "This is part of a larger pattern..."
+
+Output ONLY valid JSON:
+{
+  "title": "Analysis title (max 60 chars)",
+  "hook": "Breaking urgency opener (max 15 words)",
+  "narration": "Full 150-180 word analysis script",
+  "tags": ["military", "analysis", "geopolitics", "breaking", "shorts", "specific_tag1"],
+  "thumbnail_text": "4 WORD SHOCK CAPS",
+  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6"],
+  "mood": "dark|epic|mysterious|inspiring",
+  "format": "news_analysis"
+}
+
+CRITICAL:
+- search_keywords must have 6 items, SPECIFIC and VISUAL: "military command center screens" not "military"
+- This must feel like BREAKING ANALYSIS, not a history lesson
+- narration MUST be 150-180 words, present tense, short sentences""",
     },
 
     "tr": {
@@ -368,6 +412,38 @@ YAPI (50-55 saniye):
   "title": "...", "hook": "...", "narration": "...",
   "tags": [...], "thumbnail_text": "...",
   "search_keywords": [...], "mood": "...", "format": "mythbust"
+}""",
+
+        "news_analysis": """Sen viral YouTube Shorts askeri analistsin. Güncel olayları analiz ediyorsun.
+
+Tarzın: Sakin ama yoğun bir istihbarat brifingçisi. Sadece NE olduğunu değil, NEDEN önemli olduğunu açıklıyorsun. "Savaş odası analisti cumhurbaşkanına brifing veriyor" gibi düşün.
+
+HOOK FORMÜLLERI (en güçlüsünü seç):
+- Acil durum: "[Ülke] az önce her şeyi değiştiren bir şey yaptı."
+- Direkt hitap: "Eğer [olaya] dikkat etmiyorsan, etmelisin."
+- Korkutucu sonuç: "[Ülke]'nin yaptığı [diğer ülke]'yi korkutmalı."
+- Gizli anlam: "Herkes [olayı] konuşuyor. Kimse gerçekte ne anlama geldiğini konuşmuyor."
+
+SENARYO YAPISI (50-55 saniye):
+0-3sn HOOK: Olay + izleyicinin NEDEN umursaması gerektiği. Maksimum aciliyet.
+3-12sn BAĞLAM: Ne oldu, 2-3 çarpıcı cümleyle. Spesifik isimler, silahlar, lokasyonlar.
+12-25sn NEDEN ÖNEMLİ: Bölgesel/küresel sonuçlar. "İşte kimsenin söylemediği..."
+25-40sn TIRMANMA: Sırada ne olabilir. Korkutucu senaryoyu çiz. "Bu devam ederse..."
+40-50sn TAHMİN: Cesur tahminin. "Bence aslında olan şu..."
+50-55sn CTA: "Günlük askeri istihbarat brifingleri için takip et."
+
+VİRALLİK KURALLARI:
+- GİZLİ bir brifing sızdırılıyormuş gibi konuş
+- SPESİFİK silah isimleri, birim sayıları, dolar miktarları
+- ACİLİYET yarat: bu ŞU AN oluyor
+- İzleyici içeriden bilgi alan biri gibi hissetmeli
+- Kısa çarpıcı cümleler. Geniş zaman. Gerçek brifing gibi.
+
+150-180 kelime. search_keywords İngilizce.
+{
+  "title": "...", "hook": "...", "narration": "...",
+  "tags": [...], "thumbnail_text": "...",
+  "search_keywords": [...], "mood": "...", "format": "news_analysis"
 }""",
     },
 }
@@ -538,6 +614,7 @@ def generate_script(topic: str, language: str = "en", forced_format: str = None)
             "mystery": f"Write a mystery/hidden truth YouTube Shorts script about: {topic}. What does mainstream history get wrong?",
             "comparison": f"Write a historical comparison YouTube Shorts script about: {topic}. Find shocking parallels to today.",
             "mythbust": f"Write a myth-busting YouTube Shorts script about: {topic}. What does everyone believe that's actually wrong?",
+            "news_analysis": f"Write a military analysis YouTube Shorts script about: {topic}. Break down what just happened, why it matters, and what happens next. Sound like a classified intelligence briefing.",
         },
         "tr": {
             "classic_whatif": f"Bu konu için viral YouTube Shorts senaryosu yaz: {topic}",
@@ -546,6 +623,7 @@ def generate_script(topic: str, language: str = "en", forced_format: str = None)
             "mystery": f"Bu konu için gizem/sır tarzı YouTube Shorts senaryosu yaz: {topic}. Ana akım tarihin neyi yanlış biliyor?",
             "comparison": f"Bu konu için tarihsel karşılaştırma YouTube Shorts senaryosu yaz: {topic}. Bugüne şok edici paraleller bul.",
             "mythbust": f"Bu konu için mit çürütme YouTube Shorts senaryosu yaz: {topic}. Herkesin inandığı ama yanlış olan ne?",
+            "news_analysis": f"Bu konu için askeri analiz YouTube Shorts senaryosu yaz: {topic}. Ne oldu, neden önemli ve sırada ne var? Gizli istihbarat brifingiymiş gibi yaz.",
         },
     }
 
