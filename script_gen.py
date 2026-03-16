@@ -97,7 +97,33 @@ def generate_script(topic: str, language: str = "en") -> dict:
             elif "```" in raw:
                 raw = raw.split("```")[1].split("```")[0].strip()
 
-            script = json.loads(raw)
+            # Fix unescaped newlines inside JSON string values
+            import re
+            raw = re.sub(r'(?<=": ")(.*?)(?="[,\s*}])', lambda m: m.group(0).replace('\n', ' '), raw, flags=re.DOTALL)
+
+            try:
+                script = json.loads(raw)
+            except json.JSONDecodeError:
+                # Fallback: replace all literal newlines between quotes
+                fixed = ""
+                in_string = False
+                escape = False
+                for ch in raw:
+                    if escape:
+                        fixed += ch
+                        escape = False
+                        continue
+                    if ch == '\\':
+                        fixed += ch
+                        escape = True
+                        continue
+                    if ch == '"':
+                        in_string = not in_string
+                    if ch == '\n' and in_string:
+                        fixed += ' '
+                    else:
+                        fixed += ch
+                script = json.loads(fixed)
             required = ["title", "hook", "narration", "tags", "thumbnail_text", "search_keywords"]
             for field in required:
                 if field not in script:
