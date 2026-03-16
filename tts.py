@@ -20,7 +20,7 @@ async def _synthesize(text: str, audio_path: str, vtt_path: str, voice: str = DE
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
                 audio_f.write(chunk["data"])
-            elif chunk["type"] == "WordBoundary":
+            elif chunk["type"] in ("WordBoundary", "SentenceBoundary"):
                 subs.feed(chunk)
     # get_srt() returns SRT format, convert to VTT
     srt_content = subs.get_srt()
@@ -48,7 +48,7 @@ def _srt_to_vtt(srt: str) -> str:
 def parse_vtt(vtt_path: str, words_per_chunk: int = 5) -> list:
     """
     VTT dosyasını okuyarak [{start, end, text}] listesi döndürür.
-    Kelimeler words_per_chunk gruplara bölünür.
+    Cümle bazlı altyazıları kelime gruplarına böler.
     """
     with open(vtt_path, encoding="utf-8") as f:
         content = f.read()
@@ -61,18 +61,30 @@ def parse_vtt(vtt_path: str, words_per_chunk: int = 5) -> list:
         h, m, s = ts.split(":")
         return int(h) * 3600 + int(m) * 60 + float(s)
 
-    # Tek tek kelime cue'larını birleştir
-    words = [(to_sec(s), to_sec(e), t.strip()) for s, e, t in cues if t.strip()]
-    if not words:
+    if not cues:
         return []
 
+    # Cümle bazlı cue'ları kelime gruplarına böl
     chunks = []
-    for i in range(0, len(words), words_per_chunk):
-        group = words[i:i + words_per_chunk]
-        start = group[0][0]
-        end = group[-1][1]
-        text = " ".join(w[2] for w in group)
-        chunks.append({"start": start, "end": end, "text": text})
+    for start_ts, end_ts, text in cues:
+        text = text.strip()
+        if not text:
+            continue
+        start = to_sec(start_ts)
+        end = to_sec(end_ts)
+        words = text.split()
+        duration = end - start
+        secs_per_word = duration / max(len(words), 1)
+
+        for i in range(0, len(words), words_per_chunk):
+            group = words[i:i + words_per_chunk]
+            chunk_start = start + i * secs_per_word
+            chunk_end = start + min(i + words_per_chunk, len(words)) * secs_per_word
+            chunks.append({
+                "start": chunk_start,
+                "end": chunk_end,
+                "text": " ".join(group),
+            })
 
     return chunks
 
