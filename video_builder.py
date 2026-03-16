@@ -726,7 +726,7 @@ def _make_subtitle_clips(chunks: list, total_duration: float) -> list:
             ImageClip(img_arr, ismask=False)
             .set_duration(dur)
             .set_start(start)
-            .set_position(((TARGET_W - w) // 2, TARGET_H - h - 140))
+            .set_position(((TARGET_W - w) // 2, TARGET_H - h - 320))
         )
     return clips
 
