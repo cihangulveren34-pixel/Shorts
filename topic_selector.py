@@ -13,6 +13,7 @@ Strateji:
 
 import json
 import os
+import random
 import time
 
 
@@ -145,14 +146,16 @@ def pick_trending_topic(override: str = None) -> tuple[str, dict]:
         scores = _score_with_trends(available)
 
         if scores:
-            # En yüksek skorlu konuyu seç
-            topic = max(scores, key=scores.get)
+            # Top-5 trending'den rastgele seç (çeşitlilik için)
+            sorted_topics = sorted(scores, key=scores.get, reverse=True)
+            top_n = sorted_topics[:min(5, len(sorted_topics))]
+            topic = random.choice(top_n)
             top_score = scores[topic]
-            print(f"[topic_selector] Trending konu: '{topic}' (skor: {top_score:.1f})")
+            print(f"[topic_selector] Top-5'ten rastgele seçildi: '{topic}' (skor: {top_score:.1f})")
         else:
-            # Fallback: sıradan ilk konu
-            topic = available[0]
-            print(f"[topic_selector] Trends kullanılamadı, fallback: '{topic}'")
+            # Fallback: rastgele konu seç
+            topic = random.choice(available)
+            print(f"[topic_selector] Trends kullanılamadı, rastgele: '{topic}'")
 
     used_data.setdefault("used", []).append(topic)
     used_data["last_run"] = str(date.today())

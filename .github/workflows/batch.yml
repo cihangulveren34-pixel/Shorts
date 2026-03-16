@@ -22,16 +22,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore caches
-        uses: actions/cache@v4
-        with:
-          path: |
-            used_topics.json
-            scheduled_queue.json
-          key: batch-state-${{ github.run_id }}
-          restore-keys: |
-            batch-state-
-
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -77,11 +67,11 @@ jobs:
           path: batch_output/
           retention-days: 10
 
-      - name: Save state caches
+      - name: Commit used topics state
         if: always()
-        uses: actions/cache@v4
-        with:
-          path: |
-            used_topics.json
-            scheduled_queue.json
-          key: batch-state-${{ github.run_id }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add used_topics.json scheduled_queue.json || true
+          git diff --cached --quiet || git commit -m "Update used topics and queue state [skip ci]"
+          git push || true
