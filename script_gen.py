@@ -56,13 +56,13 @@ Output ONLY valid JSON:
   "narration": "Full script 150-180 words following structure above",
   "tags": ["history", "whatif", "war", "shorts", "specific_tag1", "specific_tag2"],
   "thumbnail_text": "4 WORD SHOCK CAPS",
-  "search_keywords": ["specific visual keyword 1", "specific visual keyword 2", "specific visual keyword 3"],
+  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6"],
   "mood": "dark|epic|mysterious|inspiring",
   "format": "classic_whatif"
 }
 
 CRITICAL:
-- search_keywords must be SPECIFIC and VISUAL: "Roman legions marching" not "Rome"
+- search_keywords must have 6 items, each SPECIFIC and VISUAL for stock footage search: "Roman legions battle formation" not "Rome", "ancient stone ruins aerial" not "ruins"
 - mood must match the script's emotional tone
 - narration MUST be 150-180 words, present tense, short sentences""",
 
@@ -93,7 +93,7 @@ Output ONLY valid JSON:
   "narration": "Full 150-180 word countdown script",
   "tags": ["history", "whatif", "countdown", "shorts", "specific_tag1", "specific_tag2"],
   "thumbnail_text": "4 WORD CAPS",
-  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3"],
+  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6"],
   "mood": "dark|epic|mysterious|inspiring",
   "format": "countdown"
 }""",
@@ -126,7 +126,7 @@ Output ONLY valid JSON:
   "narration": "Full 150-180 word immersive story",
   "tags": ["history", "storytelling", "immersive", "shorts", "specific_tag1", "specific_tag2"],
   "thumbnail_text": "4 WORD CAPS",
-  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3"],
+  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6"],
   "mood": "dark|epic|mysterious|inspiring",
   "format": "storytelling"
 }""",
@@ -161,7 +161,7 @@ Output ONLY valid JSON:
   "narration": "Full 150-180 word mystery reveal",
   "tags": ["history", "mystery", "hidden", "shorts", "specific_tag1", "specific_tag2"],
   "thumbnail_text": "4 WORD CAPS",
-  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3"],
+  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6"],
   "mood": "dark|epic|mysterious|inspiring",
   "format": "mystery"
 }""",
@@ -195,7 +195,7 @@ Output ONLY valid JSON:
   "narration": "Full 150-180 word comparison script",
   "tags": ["history", "comparison", "parallels", "shorts", "specific_tag1", "specific_tag2"],
   "thumbnail_text": "4 WORD CAPS",
-  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3"],
+  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6"],
   "mood": "dark|epic|mysterious|inspiring",
   "format": "comparison"
 }""",
@@ -229,7 +229,7 @@ Output ONLY valid JSON:
   "narration": "Full 150-180 word myth-busting script",
   "tags": ["history", "mythbusted", "facts", "shorts", "specific_tag1", "specific_tag2"],
   "thumbnail_text": "4 WORD CAPS",
-  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3"],
+  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6"],
   "mood": "dark|epic|mysterious|inspiring",
   "format": "mythbust"
 }""",
@@ -265,13 +265,13 @@ SADECE geçerli JSON çıkar:
   "narration": "150-180 kelime tam senaryo",
   "tags": ["tarih", "yasaolmasaydi", "savas", "shorts", "spesifik_tag1"],
   "thumbnail_text": "4 KELİME BÜYÜK HARF",
-  "search_keywords": ["spesifik görsel 1", "spesifik görsel 2", "spesifik görsel 3"],
+  "search_keywords": ["spesifik görsel 1", "spesifik görsel 2", "spesifik görsel 3", "spesifik görsel 4", "spesifik görsel 5", "spesifik görsel 6"],
   "mood": "dark|epic|mysterious|inspiring",
   "format": "classic_whatif"
 }
 
 KRİTİK:
-- search_keywords İngilizce ve SPESİFİK olmalı: "Roman legions marching" ("Rome" DEĞİL)
+- search_keywords 6 adet, İngilizce ve SPESİFİK görsel: "Roman legions battle formation" ("Rome" DEĞİL), "ancient stone ruins aerial" ("ruins" DEĞİL)
 - narration 150-180 kelime, geniş zaman, kısa cümleler""",
 
         "countdown": """Sen viral YouTube Shorts senaryo yazarısın. Geri sayım/liste formatında uzmanlaşmışsın.

@@ -138,6 +138,23 @@ class StyleProfile:
     film_grain_intensity: float
 
 
+# Stop words — title'dan keyword çıkarırken filtrele
+_STOP_WORDS = {"what", "if", "the", "a", "an", "is", "was", "were", "had", "have", "has",
+               "did", "do", "does", "not", "never", "ever", "in", "on", "at", "to", "for",
+               "of", "and", "or", "but", "vs", "how", "why", "who", "that", "this", "it",
+               "be", "been", "being", "are", "am", "with", "from", "by", "about", "into",
+               "ya", "olmasaydı", "eğer", "ve", "bir", "bu", "neden", "nasıl"}
+
+
+def _extract_title_keywords(title: str) -> list[str]:
+    """Title'dan arama için anlamlı keyword'ler çıkarır."""
+    import re
+    words = re.findall(r"[a-zA-ZğüşöçıİĞÜŞÖÇ]{3,}", title.lower())
+    meaningful = [w for w in words if w not in _STOP_WORDS]
+    # İlk 4 anlamlı kelimeyi döndür
+    return meaningful[:4]
+
+
 def _infer_mood(script: dict) -> str:
     """Script içeriğinden mood çıkarır."""
     text = (script.get("title", "") + " " + script.get("narration", "")).lower()
@@ -275,18 +292,35 @@ def _fetch_pexels_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> 
     for kw in keywords:
         queries.append(kw)
 
-    suffixes = ["cinematic", "dramatic", "aerial", "dark", "fire", "smoke"]
-    for kw in keywords[:2]:
+    suffixes = ["cinematic", "dramatic", "aerial", "dark", "historical", "ancient"]
+    for kw in keywords[:3]:
         queries.append(f"{kw} {random.choice(suffixes)}")
 
-    fallbacks = [
-        "military dramatic cinematic", "dramatic aerial landscape",
-        "fire explosion smoke", "dark clouds storm",
-        "old map history", "soldiers marching",
-        "city destruction ruins", "ocean waves dramatic",
+    # Konuya bağlı tematik fallback'ler
+    topic_fallbacks = []
+    kw_lower = " ".join(k.lower() for k in keywords)
+    if any(w in kw_lower for w in ["rome", "roman", "greek", "ancient", "egypt", "persia", "sparta"]):
+        topic_fallbacks = ["ancient ruins columns", "roman architecture aerial", "ancient civilization artifacts", "marble statue closeup"]
+    elif any(w in kw_lower for w in ["war", "ww", "battle", "military", "army", "soldier", "trench"]):
+        topic_fallbacks = ["soldiers marching formation", "military tanks battlefield", "war memorial dramatic", "battlefield smoke dramatic"]
+    elif any(w in kw_lower for w in ["medieval", "knight", "viking", "crusade", "castle"]):
+        topic_fallbacks = ["medieval castle aerial", "knight armor closeup", "old fortress dramatic", "sword shield medieval"]
+    elif any(w in kw_lower for w in ["japan", "samurai", "china", "india", "mongol", "silk"]):
+        topic_fallbacks = ["asian temple dramatic", "ancient eastern architecture", "samurai warrior cinematic", "silk road landscape"]
+    elif any(w in kw_lower for w in ["africa", "zulu", "mali", "ethiopia", "pyramid"]):
+        topic_fallbacks = ["african landscape dramatic", "ancient pyramid aerial", "desert sand dunes cinematic", "tribal warriors dramatic"]
+    elif any(w in kw_lower for w in ["nuclear", "cold war", "soviet", "space", "missile"]):
+        topic_fallbacks = ["nuclear explosion dramatic", "cold war bunker", "rocket launch cinematic", "missile silo dramatic"]
+
+    # Genel fallback (son çare)
+    general_fallbacks = [
+        "old map history dramatic", "dramatic aerial landscape",
+        "dark clouds storm cinematic", "ancient ruins dramatic",
     ]
-    random.shuffle(fallbacks)
-    queries.extend(fallbacks)
+    random.shuffle(topic_fallbacks)
+    random.shuffle(general_fallbacks)
+    queries.extend(topic_fallbacks)
+    queries.extend(general_fallbacks)
 
     for query in queries:
         if len(downloaded) >= n:
@@ -324,13 +358,26 @@ def _fetch_pixabay_clips(keywords: list, api_key: str, n: int, seen_ids: set) ->
     for kw in keywords[:3]:
         queries.append(kw)
 
-    pixabay_fallbacks = [
-        "war+cinematic", "military+dramatic", "storm+clouds",
-        "fire+smoke", "aerial+landscape", "ancient+ruins",
-        "explosion+dramatic", "flag+waving", "army+soldiers",
+    # Konuya bağlı Pixabay fallback'ler
+    kw_lower = " ".join(k.lower() for k in keywords)
+    pixabay_topic = []
+    if any(w in kw_lower for w in ["rome", "roman", "greek", "ancient", "egypt"]):
+        pixabay_topic = ["ancient+ruins", "roman+columns", "ancient+temple"]
+    elif any(w in kw_lower for w in ["war", "battle", "military", "soldier"]):
+        pixabay_topic = ["military+tanks", "soldiers+march", "war+memorial"]
+    elif any(w in kw_lower for w in ["japan", "samurai", "china", "asia"]):
+        pixabay_topic = ["asian+temple", "japanese+garden", "eastern+architecture"]
+    elif any(w in kw_lower for w in ["medieval", "knight", "viking", "castle"]):
+        pixabay_topic = ["medieval+castle", "knight+armor", "old+fortress"]
+
+    pixabay_general = [
+        "ancient+ruins", "aerial+landscape", "dramatic+sky",
+        "old+map", "historical+monument",
     ]
-    random.shuffle(pixabay_fallbacks)
-    queries.extend(pixabay_fallbacks)
+    random.shuffle(pixabay_topic)
+    random.shuffle(pixabay_general)
+    queries.extend(pixabay_topic)
+    queries.extend(pixabay_general)
 
     for query in queries:
         if len(downloaded) >= n:
@@ -891,7 +938,13 @@ def build_video(
     style = _generate_style_profile(script)
 
     # 1) Çoklu klip indir (Pexels + Pixabay)
-    clip_paths = _fetch_clips(script["search_keywords"], n=8)
+    # search_keywords + title'dan ek keyword'ler çıkar
+    keywords = list(script.get("search_keywords", []))
+    title_words = _extract_title_keywords(script.get("title", ""))
+    for tw in title_words:
+        if tw not in " ".join(keywords).lower():
+            keywords.append(tw)
+    clip_paths = _fetch_clips(keywords, n=8)
 
     # 2) Ses süresi
     narration_audio = AudioFileClip(audio_path)
