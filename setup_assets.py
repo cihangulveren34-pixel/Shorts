@@ -30,11 +30,9 @@ SFX_TARGETS = [
     ("trumpet.wav",     "epic trumpet fanfare"),
 ]
 
-# İndirilecek müzik listesi: (dosya adı, arama terimi)
-MUSIC_TARGETS = [
-    ("epic_background.wav", "epic orchestral battle"),
-    ("dramatic_background.wav", "dramatic cinematic tension"),
-]
+# Müzik artık repo'da mevcut (assets/music/*.mp3 — Incompetech CC BY 4.0)
+# setup_assets.py sadece SFX indirir, müzik kontrolü yapar.
+MUSIC_TARGETS = []
 
 # Alternatif: Freesound.org API
 FREESOUND_API = "https://freesound.org/apiv2/search/text/"
@@ -45,8 +43,6 @@ FALLBACK_URLS = {
     "sword_clash.wav":          "https://cdn.pixabay.com/audio/2022/01/18/audio_d0c6ff1cbf.mp3",
     "explosion.wav":            "https://cdn.pixabay.com/audio/2022/01/13/audio_6d5e8a5a11.mp3",
     "trumpet.wav":              "https://cdn.pixabay.com/audio/2022/11/22/audio_febc508520.mp3",
-    "epic_background.wav":      "https://cdn.pixabay.com/audio/2023/04/13/audio_6ac0a5d5a5.mp3",
-    "dramatic_background.wav":  "https://cdn.pixabay.com/audio/2022/08/04/audio_2dde668d05.mp3",
 }
 
 
@@ -144,28 +140,14 @@ def download_sfx(pixabay_key: str = None, freesound_key: str = None) -> None:
 
 def download_music(pixabay_key: str = None, freesound_key: str = None) -> None:
     os.makedirs(MUSIC_DIR, exist_ok=True)
-    print(f"\n🎵 Müzik indiriliyor ({MUSIC_DIR}/)...")
+    print(f"\n🎵 Müzik kontrolü ({MUSIC_DIR}/)...")
 
-    for filename, query in MUSIC_TARGETS:
-        dest = os.path.join(MUSIC_DIR, filename)
-        if os.path.exists(dest):
-            print(f"  ⏭️  {filename} zaten mevcut, atlandı.")
-            continue
-
-        url = _pixabay_search(query, pixabay_key)
-        if not url and freesound_key:
-            url = _freesound_search(query, freesound_key)
-        if not url:
-            url = FALLBACK_URLS.get(filename)
-            if url:
-                print(f"  ⚠️  {filename}: fallback URL kullanılıyor.")
-
-        if url:
-            _download(url, dest, filename)
-        else:
-            print(f"  ⚠️  {filename}: URL bulunamadı, manuel ekleyin.")
-
-        time.sleep(0.5)
+    # Müzik dosyaları repo'da mevcut (Incompetech CC BY 4.0)
+    music_files = [f for f in os.listdir(MUSIC_DIR) if f.endswith((".mp3", ".wav"))]
+    if music_files:
+        print(f"  ✅ {len(music_files)} müzik dosyası mevcut.")
+    else:
+        print(f"  ⚠️  Müzik dosyası bulunamadı! assets/music/ klasörüne mp3 ekleyin.")
 
 
 if __name__ == "__main__":
