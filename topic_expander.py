@@ -33,26 +33,47 @@ CATEGORIES = {
     "Ancient World":    ["rome", "greek", "persia", "egypt", "babylon", "carthage", "sparta"],
     "Medieval":         ["mongol", "crusade", "viking", "feudal", "plague", "byzantine"],
     "Early Modern":     ["napoleon", "ottoman", "colonial", "aztec", "inca", "ming"],
-    "World War I":      ["ww1", "great war", "trench", "western front"],
-    "World War II":     ["ww2", "nazi", "d-day", "pacific", "stalingrad", "hiroshima"],
+    "World War I/II":   ["ww1", "ww2", "nazi", "d-day", "pacific", "stalingrad", "trench"],
     "Cold War":         ["cold war", "soviet", "nuclear", "vietnam", "korea", "space race"],
-    "American History": ["civil war", "revolution", "confederate", "manifest destiny"],
+    "Asian History":    ["samurai", "shogun", "china", "japan", "india", "mughal", "silk road", "khmer", "qing", "korea"],
+    "African History":  ["zulu", "mali", "ethiopia", "african", "shaka", "zimbabwe", "scramble"],
+    "Americas":         ["maya", "aztec", "inca", "amazon", "revolution", "civil war", "confederate"],
+    "Ancient Mystery":  ["atlantis", "pyramid", "lost civilization", "antikythera", "göbekli", "voynich"],
+    "Tech Mashup":      ["gunpowder", "machine gun", "nuclear", "ai ", "drone", "internet", "gps", "tank"],
+    "Cultural":         ["olympics", "music", "photography", "shakespeare", "printing press", "movie"],
+    "Modern Conflict":  ["nato", "russia", "china", "taiwan", "iran", "ukraine", "cyber", "hypersonic"],
 }
 
-EXPANSION_PROMPT = """You are a creative history writer specializing in alternate history "What if" scenarios.
+EXPANSION_PROMPT = """You are a VIRAL YouTube Shorts scriptwriter generating addictive alternate history topics.
 
-Current topics in the pool (for reference):
+Current topics in the pool (for reference — do NOT repeat these):
 {existing_sample}
 
-Generate exactly {count} NEW alternate history "What if" questions that:
-1. Are NOT similar to the existing ones above
-2. Cover diverse time periods and civilizations
-3. Are dramatic, thought-provoking, and suitable for 60-second YouTube Shorts
-4. Follow this format: "What if [historical entity] had [alternate action/outcome]?"
-5. Cover these categories proportionally: Ancient World, Medieval, WW2, Cold War, American History, Asian History
+Generate exactly {count} NEW topics that get MILLIONS of views. Mix these types:
+- Classic "What if": "What if [historical entity] had [alternate outcome]?"
+- Tech mashups: "What if [ancient civilization] had [modern technology]?"
+- Mystery: "The REAL reason [historical event] happened"
+- Myth-busting: "Everything you know about [topic] is WRONG"
+- Comparisons: "[Ancient Empire] vs [Modern Country]: Shocking Parallels"
+- Hidden stories: "The [person/event] that almost changed everything"
 
-Return ONLY a JSON array of strings, no explanation:
-["What if ...", "What if ...", ...]"""
+CATEGORY BALANCE (spread topics across these):
+- Asian History (Japan, China, India, Korea, Southeast Asia)
+- African History (Zulu, Mali, Ethiopia, Egypt, Great Zimbabwe)
+- Ancient Mysteries (Atlantis, pyramids, lost civilizations)
+- Tech Mashups (ancient + modern tech combinations)
+- Cultural What-ifs (music, sports, art, science)
+- Classic War History (WW1, WW2, Cold War, Ancient battles)
+- Modern Geopolitics (NATO, China, AI warfare, cyber war)
+
+VIRALITY RULES:
+- Topics must create CURIOSITY (make people click)
+- Use specific names, dates, civilizations (not generic)
+- Mix serious and mind-blowing topics
+- Include at least 3 non-Western civilization topics
+
+Return ONLY a JSON array of strings:
+["What if ...", "The REAL reason ...", "Everything you know about ... is WRONG", ...]"""
 
 
 def _load_pool() -> list[str]:

@@ -31,14 +31,17 @@ except ImportError:
 
 
 # Puan eşikleri
-SCORE_PASS = 80
-SCORE_WARN = 60
+SCORE_PASS = 85
+SCORE_WARN = 65
 
 # Hook güç kelimeleri
 HOOK_POWER_WORDS = [
     "imagine", "what if", "never", "secret", "truth", "shocking", "actually",
     "nobody", "nobody knows", "hidden", "real reason", "dark", "untold",
     "changed everything", "almost", "could have", "would have",
+    "terrifying", "insane", "mind-blowing", "wrong", "lie", "everything you know",
+    "stop scrolling", "this changes", "don't want you to know", "real story",
+    "here's why", "proof", "destroyed", "exposed", "forgotten",
 ]
 
 # Zayıf hook göstergeleri
@@ -146,9 +149,14 @@ def _score_narrative(narration: str) -> tuple[int, list[str]]:
     lower = narration.lower()
 
     # Yapısal belirteçler: zaman geçişi, kontrast, sonuç
-    has_contrast = any(w in lower for w in ["but", "however", "instead", "yet", "although"])
-    has_progression = any(w in lower for w in ["then", "next", "eventually", "finally", "ultimately", "as a result"])
-    has_hook_payoff = any(w in lower for w in ["this means", "which means", "the result", "today", "now imagine"])
+    has_contrast = any(w in lower for w in ["but", "however", "instead", "yet", "although", "but here's", "but wait", "here's the twist"])
+    has_progression = any(w in lower for w in ["then", "next", "eventually", "finally", "ultimately", "as a result", "it gets worse", "and then"])
+    has_hook_payoff = any(w in lower for w in ["this means", "which means", "the result", "today", "now imagine", "still today", "right now", "in 2025"])
+    has_tension = any(w in lower for w in ["but it gets worse", "here's where it gets dark", "the scariest part", "nobody expected", "that's not even the worst part"])
+
+    if has_tension:
+        score += 5
+        notes.append("Gerilim ifadesi mevcut (+5)")
 
     if has_contrast:
         score += 5

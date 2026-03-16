@@ -111,10 +111,12 @@ COLOR_GRADES = {
 
 # Mood → uygun renk tonları eşleşmesi
 MOOD_COLOR_MAP = {
-    "dark":    ["dark_cinematic", "high_contrast_bw", "war_blue"],
-    "epic":    ["vivid_saturated", "war_blue", "vintage_sepia"],
-    "cold":    ["cold_winter", "war_blue", "faded_washed"],
-    "neutral": list(COLOR_GRADES.keys()),
+    "dark":       ["dark_cinematic", "high_contrast_bw", "war_blue"],
+    "epic":       ["vivid_saturated", "war_blue", "vintage_sepia"],
+    "cold":       ["cold_winter", "war_blue", "faded_washed"],
+    "mysterious": ["dark_cinematic", "faded_washed", "vintage_sepia"],
+    "inspiring":  ["vivid_saturated", "vintage_sepia", "neutral"],
+    "neutral":    list(COLOR_GRADES.keys()),
 }
 
 # Ken Burns efekt tipleri
@@ -161,7 +163,8 @@ def _infer_mood(script: dict) -> str:
 
 def _generate_style_profile(script: dict) -> StyleProfile:
     """Video için rastgele ama mood-aware stil profili üretir."""
-    mood = _infer_mood(script)
+    # Script'ten gelen mood alanını kullan, yoksa text'ten çıkar
+    mood = script.get("mood") if script.get("mood") in MOOD_COLOR_MAP else _infer_mood(script)
 
     # Renk tonu: %70 mood'a uygun, %30 tamamen rastgele
     if random.random() < 0.7:
