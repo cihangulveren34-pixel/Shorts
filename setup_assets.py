@@ -24,16 +24,16 @@ PIXABAY_API = "https://pixabay.com/api/videos/sounds/"
 
 # İndirilecek SFX listesi: (dosya adı, arama terimi)
 SFX_TARGETS = [
-    ("drum_hit.mp3",    "dramatic drum hit"),
-    ("sword_clash.mp3", "sword clash metal"),
-    ("explosion.mp3",   "explosion boom"),
-    ("trumpet.mp3",     "epic trumpet fanfare"),
+    ("drum_hit.wav",    "dramatic drum hit"),
+    ("sword_clash.wav", "sword clash metal"),
+    ("explosion.wav",   "explosion boom"),
+    ("trumpet.wav",     "epic trumpet fanfare"),
 ]
 
 # İndirilecek müzik listesi: (dosya adı, arama terimi)
 MUSIC_TARGETS = [
-    ("epic_background.mp3", "epic orchestral battle"),
-    ("dramatic_background.mp3", "dramatic cinematic tension"),
+    ("epic_background.wav", "epic orchestral battle"),
+    ("dramatic_background.wav", "dramatic cinematic tension"),
 ]
 
 # Alternatif: Freesound.org API
@@ -41,12 +41,12 @@ FREESOUND_API = "https://freesound.org/apiv2/search/text/"
 
 # Hardcoded CC0 fallback URL'ler (Pixabay başarısız olursa)
 FALLBACK_URLS = {
-    "drum_hit.mp3":             "https://cdn.pixabay.com/audio/2022/03/24/audio_8073b04b93.mp3",
-    "sword_clash.mp3":          "https://cdn.pixabay.com/audio/2022/01/18/audio_d0c6ff1cbf.mp3",
-    "explosion.mp3":            "https://cdn.pixabay.com/audio/2022/01/13/audio_6d5e8a5a11.mp3",
-    "trumpet.mp3":              "https://cdn.pixabay.com/audio/2022/11/22/audio_febc508520.mp3",
-    "epic_background.mp3":      "https://cdn.pixabay.com/audio/2023/04/13/audio_6ac0a5d5a5.mp3",
-    "dramatic_background.mp3":  "https://cdn.pixabay.com/audio/2022/08/04/audio_2dde668d05.mp3",
+    "drum_hit.wav":             "https://cdn.pixabay.com/audio/2022/03/24/audio_8073b04b93.mp3",
+    "sword_clash.wav":          "https://cdn.pixabay.com/audio/2022/01/18/audio_d0c6ff1cbf.mp3",
+    "explosion.wav":            "https://cdn.pixabay.com/audio/2022/01/13/audio_6d5e8a5a11.mp3",
+    "trumpet.wav":              "https://cdn.pixabay.com/audio/2022/11/22/audio_febc508520.mp3",
+    "epic_background.wav":      "https://cdn.pixabay.com/audio/2023/04/13/audio_6ac0a5d5a5.mp3",
+    "dramatic_background.wav":  "https://cdn.pixabay.com/audio/2022/08/04/audio_2dde668d05.mp3",
 }
 
 
