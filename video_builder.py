@@ -611,7 +611,9 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
                     tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="dvids_")
                     tmp.close()
                     cmd = [
-                        "ffmpeg", "-y", "-i", hls_url,
+                        "ffmpeg", "-y",
+                        "-ss", "5",        # ilk 5sn atla (DVIDS slate/tag ekranı)
+                        "-i", hls_url,
                         "-c", "copy", "-t", "30",  # max 30 saniye
                         "-loglevel", "error",
                         tmp.name,
