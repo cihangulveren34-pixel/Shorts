@@ -45,15 +45,6 @@ DVIDS_API = "https://api.dvidshub.net/search"
 ARCHIVE_API = "https://archive.org/advancedsearch.php"
 YT_COOKIES_PATH = os.environ.get("YT_COOKIES_PATH", "yt_cookies.txt")
 
-# ─── Invidious instances (YouTube proxy) ──────────────────────────────────────
-INVIDIOUS_INSTANCES = [
-    "https://vid.puffyan.us",
-    "https://invidious.fdn.fr",
-    "https://inv.tux.pizza",
-    "https://invidious.privacyredirect.com",
-    "https://invidious.protokolla.fi",
-]
-
 # ─── YouTube CC Askeri Keyword Havuzu ────────────────────────────────────────
 
 YT_MILITARY_KEYWORDS = {
@@ -404,119 +395,47 @@ def _pick_yt_category(keywords: list) -> str:
     return random.choice(list(YT_MILITARY_KEYWORDS.keys()))
 
 
-def _download_via_invidious(video_id: str, out_path: str) -> bool:
-    """Invidious proxy üzerinden YouTube videosu indir."""
-    instances = list(INVIDIOUS_INSTANCES)
-    random.shuffle(instances)
-    for base in instances:
-        try:
-            # Video bilgisi al
-            api_url = f"{base}/api/v1/videos/{video_id}"
-            resp = requests.get(api_url, timeout=15)
-            if resp.status_code != 200:
-                continue
-            data = resp.json()
-            # En iyi mp4 formatı bul (720p+)
-            stream_url = None
-            for fmt in data.get("formatStreams", []) + data.get("adaptiveFormats", []):
-                if fmt.get("container") == "mp4" and fmt.get("type", "").startswith("video/"):
-                    quality = fmt.get("qualityLabel", "")
-                    if any(q in quality for q in ["720p", "1080p", "480p"]):
-                        stream_url = fmt.get("url")
-                        break
-            if not stream_url:
-                # Herhangi bir mp4 stream al
-                for fmt in data.get("formatStreams", []):
-                    if fmt.get("container") == "mp4":
-                        stream_url = fmt.get("url")
-                        break
-            if not stream_url:
-                continue
-            # İndir
-            vid_resp = requests.get(stream_url, timeout=60, stream=True)
-            if vid_resp.status_code != 200:
-                continue
-            with open(out_path, "wb") as f:
-                for chunk in vid_resp.iter_content(chunk_size=1024 * 256):
-                    f.write(chunk)
-            if os.path.getsize(out_path) > 10000:
-                return True
-        except Exception:
-            continue
-    return False
-
-
-def _search_invidious(query: str, max_results: int = 5) -> list[dict]:
-    """Invidious API ile YouTube'da arama yap. [{videoId, title, lengthSeconds}, ...]"""
-    instances = list(INVIDIOUS_INSTANCES)
-    random.shuffle(instances)
-    for base in instances:
-        try:
-            params = {"q": query, "type": "video", "sort_by": "relevance"}
-            resp = requests.get(f"{base}/api/v1/search", params=params, timeout=15)
-            if resp.status_code != 200:
-                continue
-            results = []
-            for item in resp.json()[:max_results]:
-                if item.get("type") == "video":
-                    results.append({
-                        "videoId": item["videoId"],
-                        "title": item.get("title", ""),
-                        "lengthSeconds": item.get("lengthSeconds", 0),
-                    })
-            if results:
-                return results
-        except Exception:
-            continue
-    return []
-
-
-def _download_via_cobalt(video_id: str, out_path: str) -> bool:
-    """cobalt.tools API ile YouTube videosu indir."""
+def _search_youtube_pytubefix(query: str, max_results: int = 5) -> list[dict]:
+    """pytubefix ile YouTube'da arama yap."""
     try:
-        url = f"https://www.youtube.com/watch?v={video_id}"
-        resp = requests.post(
-            "https://api.cobalt.tools/",
-            json={"url": url, "videoQuality": "720"},
-            headers={"Accept": "application/json", "Content-Type": "application/json"},
-            timeout=30,
-        )
-        if resp.status_code != 200:
-            return False
-        data = resp.json()
-        download_url = data.get("url")
-        if not download_url:
-            return False
-        vid_resp = requests.get(download_url, timeout=60, stream=True)
-        if vid_resp.status_code != 200:
-            return False
-        with open(out_path, "wb") as f:
-            for chunk in vid_resp.iter_content(chunk_size=1024 * 256):
-                f.write(chunk)
-        return os.path.getsize(out_path) > 10000
-    except Exception:
-        return False
+        from pytubefix import Search
+        s = Search(query)
+        results = []
+        for v in s.videos[:max_results]:
+            results.append({
+                "videoId": v.video_id,
+                "title": v.title or "",
+                "lengthSeconds": v.length or 0,
+            })
+        return results
+    except Exception as e:
+        print(f"[video_builder] pytubefix arama hatası: {e}")
+        return []
 
 
-def _download_via_pytubefix(video_id: str, out_path: str) -> bool:
-    """pytubefix kütüphanesi ile YouTube videosu indir."""
+def _download_via_pytubefix(video_id: str, out_dir: str, filename: str) -> str | None:
+    """pytubefix ile YouTube videosu indir. Başarılı olursa dosya yolunu döner."""
     try:
         from pytubefix import YouTube as PYT
         yt = PYT(f"https://www.youtube.com/watch?v={video_id}")
+        # Önce progressive (ses+video birlikte) dene
         stream = (yt.streams.filter(progressive=True, file_extension="mp4")
                   .order_by("resolution").desc().first())
         if not stream:
             stream = yt.streams.filter(file_extension="mp4").order_by("resolution").desc().first()
         if not stream:
-            return False
-        stream.download(filename=out_path)
-        return os.path.exists(out_path) and os.path.getsize(out_path) > 10000
-    except Exception:
-        return False
+            return None
+        out_path = stream.download(output_path=out_dir, filename=filename)
+        if out_path and os.path.exists(out_path) and os.path.getsize(out_path) > 10000:
+            return out_path
+        return None
+    except Exception as e:
+        print(f"[video_builder] pytubefix indirme hatası ({video_id}): {e}")
+        return None
 
 
 def _download_via_ytdlp(video_id: str, out_path: str) -> bool:
-    """yt-dlp ile YouTube videosu indir (son çare)."""
+    """yt-dlp ile YouTube videosu indir (fallback)."""
     if not shutil.which("yt-dlp"):
         return False
     cmd = [
@@ -532,42 +451,34 @@ def _download_via_ytdlp(video_id: str, out_path: str) -> bool:
     if os.path.exists(YT_COOKIES_PATH):
         cmd.extend(["--cookies", YT_COOKIES_PATH])
     try:
-        result = subprocess.run(cmd, timeout=120, capture_output=True, text=True)
+        subprocess.run(cmd, timeout=120, capture_output=True, text=True)
         return os.path.exists(out_path) and os.path.getsize(out_path) > 10000
     except Exception:
         return False
 
 
-def _download_youtube_video(video_id: str, out_path: str) -> bool:
-    """YouTube videosu indir — fallback zinciri: Invidious → pytubefix → cobalt → yt-dlp"""
-    methods = [
-        ("Invidious", lambda: _download_via_invidious(video_id, out_path)),
-        ("pytubefix", lambda: _download_via_pytubefix(video_id, out_path)),
-        ("cobalt", lambda: _download_via_cobalt(video_id, out_path)),
-        ("yt-dlp", lambda: _download_via_ytdlp(video_id, out_path)),
-    ]
-    for name, fn in methods:
-        try:
-            if fn():
-                print(f"[video_builder] YouTube indirme OK ({name}): {video_id}")
-                return True
-        except Exception:
-            pass
-        # Başarısız olursa dosyayı temizle
-        try:
-            if os.path.exists(out_path):
-                os.unlink(out_path)
-        except OSError:
-            pass
-    return False
+def _download_youtube_video(video_id: str, out_dir: str, filename: str) -> str | None:
+    """YouTube videosu indir — fallback: pytubefix → yt-dlp. Dosya yolunu döner."""
+    # 1) pytubefix
+    path = _download_via_pytubefix(video_id, out_dir, filename)
+    if path:
+        print(f"[video_builder] İndirme OK (pytubefix): {video_id}")
+        return path
+
+    # 2) yt-dlp fallback
+    out_path = os.path.join(out_dir, filename)
+    if _download_via_ytdlp(video_id, out_path):
+        print(f"[video_builder] İndirme OK (yt-dlp): {video_id}")
+        return out_path
+
+    return None
 
 
 def _cut_segment(full_path: str, seen_ids: set, query: str, idx: int) -> str | None:
-    """Tam videodan rastgele 5-10sn segment keser. Başarılı olursa segment path döner."""
+    """Tam videodan rastgele 5-10sn segment keser."""
     if not shutil.which("ffmpeg"):
-        return full_path  # ffmpeg yoksa tam videoyu döndür
+        return full_path
 
-    # Video süresini al
     probe_cmd = [
         "ffprobe", "-v", "error",
         "-show_entries", "format=duration",
@@ -609,7 +520,6 @@ def _cut_segment(full_path: str, seen_ids: set, query: str, idx: int) -> str | N
             pass
         return None
 
-    # Orijinal tam videoyu sil
     try:
         os.unlink(full_path)
     except OSError:
@@ -628,7 +538,7 @@ def _cut_segment(full_path: str, seen_ids: set, query: str, idx: int) -> str | N
 
 
 def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
-    """YouTube'dan video indirir — Invidious arama + çoklu indirme yöntemi.
+    """YouTube'dan video indirir — pytubefix arama + indirme, yt-dlp fallback.
     Returns: list of file paths.
     """
     downloaded = []
@@ -638,14 +548,12 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
     yt_pool = list(YT_MILITARY_KEYWORDS.get(category, []))
     random.shuffle(yt_pool)
 
-    # Script keyword'lerinden de sorgu ekle
     script_queries = []
     for kw in keywords[:3]:
         script_queries.append(f"{kw} footage")
     if len(keywords) >= 2:
         script_queries.append(f"{keywords[0]} {keywords[1]} footage")
 
-    # Karışık sorgu listesi: script keywords + havuz keywords
     all_queries = script_queries + yt_pool
     seen_queries = set()
     unique_queries = []
@@ -655,6 +563,8 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
             seen_queries.add(ql)
             unique_queries.append(q)
 
+    tmp_dir = tempfile.mkdtemp(prefix="ytdl_")
+
     for query in unique_queries:
         if len(downloaded) >= n:
             break
@@ -662,13 +572,11 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
         try:
             print(f"[video_builder] YouTube aranıyor: '{query}'...")
 
-            # Invidious ile arama yap
-            results = _search_invidious(query, max_results=5)
+            results = _search_youtube_pytubefix(query, max_results=5)
             if not results:
                 print(f"[video_builder] YouTube arama sonuç yok: '{query}'")
                 continue
 
-            # Bulunan videolardan birini indir
             for video in results:
                 if len(downloaded) >= n:
                     break
@@ -676,26 +584,27 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 if vid_id in seen_ids:
                     continue
 
-                # Geçici dosya
-                tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="ytcc_full_")
-                tmp.close()
+                filename = f"ytcc_{vid_id}.mp4"
+                full_path = _download_youtube_video(vid_id, tmp_dir, filename)
 
-                if _download_youtube_video(vid_id, tmp.name):
-                    segment = _cut_segment(tmp.name, seen_ids, query, len(downloaded))
+                if full_path:
+                    segment = _cut_segment(full_path, seen_ids, query, len(downloaded))
                     if segment:
                         downloaded.append(segment)
                         print(f"[video_builder] YouTube klip {len(downloaded)}/{n}: "
                               f"'{video.get('title', vid_id)[:60]}'")
                         break
                 else:
-                    try:
-                        os.unlink(tmp.name)
-                    except OSError:
-                        pass
                     print(f"[video_builder] YouTube indirilemedi: {vid_id}")
 
         except Exception as e:
             print(f"[video_builder] YouTube hata ({query}): {e}")
+
+    # Geçici dizini temizle
+    try:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+    except Exception:
+        pass
 
     return downloaded
 
