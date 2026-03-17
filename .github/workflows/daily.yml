@@ -9,6 +9,9 @@ jobs:
   run-pipeline:
     runs-on: self-hosted
     timeout-minutes: 30
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: 1
 
     steps:
       - name: Checkout
@@ -45,14 +48,17 @@ jobs:
 
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
+        shell: bash
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg imagemagick fonts-liberation
 
       - name: Install Python dependencies
+        shell: bash
         run: pip install -r requirements.txt
 
       - name: Run pipeline
+        shell: bash
         run: python main.py
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
