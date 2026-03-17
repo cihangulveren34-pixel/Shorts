@@ -566,20 +566,26 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
     for kw in keywords[:4]:
         queries.append(kw)
 
-    # Askeri fallback sorguları
+    # Askeri fallback sorguları (geniş havuz — 10 klip bulmak için)
     military_fallbacks = [
         "military exercise", "fighter jet", "aircraft carrier",
         "special operations", "drone strike", "naval operations",
+        "air force training", "army combat", "marine corps",
+        "helicopter operation", "missile launch", "tank training",
+        "navy seal", "airborne operation", "military convoy",
+        "artillery fire", "warship", "military parade",
+        "combat footage", "defense exercise", "bombing range",
     ]
     random.shuffle(military_fallbacks)
-    queries.extend(military_fallbacks[:3])
+    queries.extend(military_fallbacks)
 
     for query in queries:
         if len(downloaded) >= n:
             break
         params = {
             "q": query,
-            "max_results": 10,
+            "max_results": 25,
+            "type": "video",
             "api_key": api_key,
         }
         try:
@@ -715,32 +721,26 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
 
 def _fetch_clips(keywords: list, n: int = 10) -> list[str]:
     """
-    YouTube CC + DVIDS + Archive'dan video klip indirir.
+    DVIDS'ten (Public Domain) video klip indirir.
+    Yeterli bulunamazsa Archive fallback kullanır.
     Returns: list of file paths (sadece video, tuple yok).
     """
     dvids_key = os.environ.get("DVIDS_API_KEY")
     seen_ids = set()
     video_paths = []
 
-    # ─── 1) YouTube CC — ana kaynak ──────────────────────────────────
-    try:
-        yt_clips = _fetch_youtube_cc_clips(keywords, n, seen_ids)
-        video_paths.extend(yt_clips)
-        print(f"[video_builder] YouTube CC: {len(yt_clips)} klip")
-    except Exception as e:
-        print(f"[video_builder] YouTube CC hatası: {e}")
-
-    # ─── 2) DVIDS — ek klipler (Public Domain) ──────────────────────
-    if len(video_paths) < n and dvids_key:
-        n_dvids = min(2, n - len(video_paths))
+    # ─── 1) DVIDS — ana kaynak (Public Domain) ────────────────────────
+    if dvids_key:
         try:
-            dvids_clips = _fetch_dvids_clips(keywords, dvids_key, n_dvids, seen_ids)
+            dvids_clips = _fetch_dvids_clips(keywords, dvids_key, n, seen_ids)
             video_paths.extend(dvids_clips)
             print(f"[video_builder] DVIDS: {len(dvids_clips)} klip")
         except Exception as e:
             print(f"[video_builder] DVIDS hatası: {e}")
+    else:
+        print("[video_builder] DVIDS_API_KEY bulunamadı!")
 
-    # ─── 3) Internet Archive — son çare fallback ─────────────────────
+    # ─── 2) Internet Archive — fallback ───────────────────────────────
     if len(video_paths) < n:
         n_archive = n - len(video_paths)
         try:
