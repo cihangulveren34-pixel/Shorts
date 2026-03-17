@@ -719,10 +719,217 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
     return downloaded
 
 
+def _fetch_pexels_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
+    """Pexels'ten ücretsiz stock video indirir."""
+    api_key = os.environ.get("PEXELS_API_KEY", "")
+    if not api_key:
+        return []
+    downloaded = []
+    queries = keywords[:3] + ["military", "war", "explosion", "soldier"]
+    random.shuffle(queries)
+
+    for query in queries:
+        if len(downloaded) >= n:
+            break
+        try:
+            resp = requests.get(
+                "https://api.pexels.com/videos/search",
+                params={"query": query, "per_page": 15, "orientation": "portrait"},
+                headers={"Authorization": api_key},
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                continue
+            for video in resp.json().get("videos", []):
+                if len(downloaded) >= n:
+                    break
+                vid = f"pexels_{video['id']}"
+                if vid in seen_ids:
+                    continue
+                seen_ids.add(vid)
+                # En iyi mp4 dosyasını bul (720p+)
+                best_file = None
+                for vf in video.get("video_files", []):
+                    if vf.get("file_type") == "video/mp4" and (vf.get("height", 0) >= 720 or not best_file):
+                        best_file = vf
+                if not best_file:
+                    continue
+                try:
+                    tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="pexels_")
+                    tmp.close()
+                    r = requests.get(best_file["link"], timeout=60, stream=True)
+                    r.raise_for_status()
+                    with open(tmp.name, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=1024 * 256):
+                            f.write(chunk)
+                    if os.path.getsize(tmp.name) > 10000:
+                        downloaded.append(tmp.name)
+                        print(f"[video_builder] Pexels klip {len(downloaded)}/{n} (id:{vid})")
+                    else:
+                        os.unlink(tmp.name)
+                except Exception:
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError:
+                        pass
+        except Exception as e:
+            print(f"[video_builder] Pexels arama hatası ({query}): {e}")
+    return downloaded
+
+
+def _fetch_pixabay_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
+    """Pixabay'dan ücretsiz stock video indirir."""
+    api_key = os.environ.get("PIXABAY_API_KEY", "")
+    if not api_key:
+        return []
+    downloaded = []
+    queries = keywords[:3] + ["military", "war", "army", "navy"]
+    random.shuffle(queries)
+
+    for query in queries:
+        if len(downloaded) >= n:
+            break
+        try:
+            resp = requests.get(
+                "https://pixabay.com/api/videos/",
+                params={"key": api_key, "q": query, "per_page": 15},
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                continue
+            for hit in resp.json().get("hits", []):
+                if len(downloaded) >= n:
+                    break
+                vid = f"pixabay_{hit['id']}"
+                if vid in seen_ids:
+                    continue
+                seen_ids.add(vid)
+                # medium veya large video URL
+                video_url = None
+                for size in ["medium", "large", "small"]:
+                    vdata = hit.get("videos", {}).get(size, {})
+                    if vdata.get("url"):
+                        video_url = vdata["url"]
+                        break
+                if not video_url:
+                    continue
+                try:
+                    tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="pixabay_")
+                    tmp.close()
+                    r = requests.get(video_url, timeout=60, stream=True)
+                    r.raise_for_status()
+                    with open(tmp.name, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=1024 * 256):
+                            f.write(chunk)
+                    if os.path.getsize(tmp.name) > 10000:
+                        downloaded.append(tmp.name)
+                        print(f"[video_builder] Pixabay klip {len(downloaded)}/{n} (id:{vid})")
+                    else:
+                        os.unlink(tmp.name)
+                except Exception:
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError:
+                        pass
+        except Exception as e:
+            print(f"[video_builder] Pixabay arama hatası ({query}): {e}")
+    return downloaded
+
+
+def _fetch_wikimedia_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
+    """Wikimedia Commons'tan video indirir. Klip süresi 3sn ile sınırlı."""
+    downloaded = []
+    queries = keywords[:3] + ["military", "missile", "tank", "aircraft"]
+    random.shuffle(queries)
+
+    for query in queries:
+        if len(downloaded) >= n:
+            break
+        try:
+            params = {
+                "action": "query",
+                "format": "json",
+                "generator": "search",
+                "gsrsearch": f"{query} filetype:video",
+                "gsrlimit": 10,
+                "prop": "imageinfo",
+                "iiprop": "url|size|mime",
+                "iiurlwidth": 1280,
+            }
+            resp = requests.get("https://commons.wikimedia.org/w/api.php", params=params, timeout=15)
+            if resp.status_code != 200:
+                continue
+            pages = resp.json().get("query", {}).get("pages", {})
+            for page_id, page in pages.items():
+                if len(downloaded) >= n:
+                    break
+                imageinfo = page.get("imageinfo", [{}])[0]
+                mime = imageinfo.get("mime", "")
+                if "video" not in mime:
+                    continue
+                url = imageinfo.get("url", "")
+                if not url:
+                    continue
+                vid = f"wikimedia_{page_id}"
+                if vid in seen_ids:
+                    continue
+                seen_ids.add(vid)
+                try:
+                    tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="wiki_full_")
+                    tmp.close()
+                    r = requests.get(url, timeout=60, stream=True, headers={"User-Agent": "WarShorts/1.0"})
+                    r.raise_for_status()
+                    with open(tmp.name, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=1024 * 256):
+                            f.write(chunk)
+                    if os.path.getsize(tmp.name) < 10000:
+                        os.unlink(tmp.name)
+                        continue
+                    # Wikimedia kliplerini 3sn ile sınırla
+                    if shutil.which("ffmpeg"):
+                        seg = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="wiki_seg_")
+                        seg.close()
+                        # Rastgele başlangıç noktası için süre al
+                        probe = subprocess.run(
+                            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                             "-of", "default=noprint_wrappers=1:nokey=1", tmp.name],
+                            capture_output=True, text=True, timeout=10,
+                        )
+                        try:
+                            dur = float(probe.stdout.strip())
+                        except Exception:
+                            dur = 10.0
+                        start = random.uniform(0, max(0, dur - 3.0))
+                        subprocess.run(
+                            ["ffmpeg", "-y", "-ss", str(start), "-i", tmp.name,
+                             "-t", "3", "-c", "copy", "-loglevel", "error", seg.name],
+                            timeout=15, capture_output=True,
+                        )
+                        os.unlink(tmp.name)
+                        if os.path.exists(seg.name) and os.path.getsize(seg.name) > 5000:
+                            downloaded.append(seg.name)
+                            print(f"[video_builder] Wikimedia klip {len(downloaded)}/{n} (3sn, id:{vid})")
+                        else:
+                            try:
+                                os.unlink(seg.name)
+                            except OSError:
+                                pass
+                    else:
+                        downloaded.append(tmp.name)
+                        print(f"[video_builder] Wikimedia klip {len(downloaded)}/{n} (id:{vid})")
+                except Exception:
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError:
+                        pass
+        except Exception as e:
+            print(f"[video_builder] Wikimedia arama hatası ({query}): {e}")
+    return downloaded
+
+
 def _fetch_clips(keywords: list, n: int = 10) -> list[str]:
     """
-    DVIDS'ten (Public Domain) video klip indirir.
-    Yeterli bulunamazsa Archive fallback kullanır.
+    DVIDS + Pexels + Pixabay + Wikimedia + Archive'dan video klip indirir.
     Returns: list of file paths (sadece video, tuple yok).
     """
     dvids_key = os.environ.get("DVIDS_API_KEY")
@@ -740,11 +947,44 @@ def _fetch_clips(keywords: list, n: int = 10) -> list[str]:
     else:
         print("[video_builder] DVIDS_API_KEY bulunamadı!")
 
-    # ─── 2) Internet Archive — fallback ───────────────────────────────
-    if len(video_paths) < n:
-        n_archive = n - len(video_paths)
+    # ─── 2) Pexels — stock video ────────────────────────────────────────
+    if len(video_paths) < n and os.environ.get("PEXELS_API_KEY"):
+        remaining = n - len(video_paths)
         try:
-            archive_clips = _fetch_archive_clips(keywords, n_archive, seen_ids)
+            pexels_clips = _fetch_pexels_clips(keywords, remaining, seen_ids)
+            video_paths.extend(pexels_clips)
+            if pexels_clips:
+                print(f"[video_builder] Pexels: {len(pexels_clips)} klip")
+        except Exception as e:
+            print(f"[video_builder] Pexels hatası: {e}")
+
+    # ─── 3) Pixabay — stock video ────────────────────────────────────────
+    if len(video_paths) < n and os.environ.get("PIXABAY_API_KEY"):
+        remaining = n - len(video_paths)
+        try:
+            pixabay_clips = _fetch_pixabay_clips(keywords, remaining, seen_ids)
+            video_paths.extend(pixabay_clips)
+            if pixabay_clips:
+                print(f"[video_builder] Pixabay: {len(pixabay_clips)} klip")
+        except Exception as e:
+            print(f"[video_builder] Pixabay hatası: {e}")
+
+    # ─── 4) Wikimedia Commons — 3sn klip ─────────────────────────────────
+    if len(video_paths) < n:
+        remaining = n - len(video_paths)
+        try:
+            wiki_clips = _fetch_wikimedia_clips(keywords, remaining, seen_ids)
+            video_paths.extend(wiki_clips)
+            if wiki_clips:
+                print(f"[video_builder] Wikimedia: {len(wiki_clips)} klip (3sn)")
+        except Exception as e:
+            print(f"[video_builder] Wikimedia hatası: {e}")
+
+    # ─── 5) Internet Archive — son fallback ───────────────────────────────
+    if len(video_paths) < n:
+        remaining = n - len(video_paths)
+        try:
+            archive_clips = _fetch_archive_clips(keywords, remaining, seen_ids)
             video_paths.extend(archive_clips)
             if archive_clips:
                 print(f"[video_builder] Archive fallback: {len(archive_clips)} klip")
