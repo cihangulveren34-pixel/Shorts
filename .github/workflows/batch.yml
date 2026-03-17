@@ -15,7 +15,7 @@ on:
 
 jobs:
   batch-produce:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 120   # 7 video için ~90 dk
 
     steps:
@@ -27,7 +27,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install system dependencies
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg fonts-liberation
@@ -37,11 +38,6 @@ jobs:
 
       - name: Download assets (SFX & music)
         run: python setup_assets.py
-
-      - name: Setup YouTube cookies
-        run: echo "$YT_COOKIES_B64" | base64 -d > yt_cookies.txt
-        env:
-          YT_COOKIES_B64: ${{ secrets.YT_COOKIES_B64 }}
 
       - name: Run batch producer
         run: |

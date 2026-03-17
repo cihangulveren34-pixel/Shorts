@@ -7,7 +7,7 @@ on:
 
 jobs:
   run-pipeline:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 30
 
     steps:
@@ -43,18 +43,14 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install system dependencies
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg imagemagick fonts-liberation
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
-
-      - name: Setup YouTube cookies
-        run: echo "$YT_COOKIES_B64" | base64 -d > yt_cookies.txt
-        env:
-          YT_COOKIES_B64: ${{ secrets.YT_COOKIES_B64 }}
 
       - name: Run pipeline
         run: python main.py

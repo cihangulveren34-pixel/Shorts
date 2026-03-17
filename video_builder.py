@@ -395,155 +395,20 @@ def _pick_yt_category(keywords: list) -> str:
     return random.choice(list(YT_MILITARY_KEYWORDS.keys()))
 
 
-def _search_youtube_pytubefix(query: str, max_results: int = 5) -> list[dict]:
-    """pytubefix ile YouTube'da arama yap."""
-    try:
-        from pytubefix import Search
-        s = Search(query)
-        results = []
-        for v in s.videos[:max_results]:
-            results.append({
-                "videoId": v.video_id,
-                "title": v.title or "",
-                "lengthSeconds": v.length or 0,
-            })
-        return results
-    except Exception as e:
-        print(f"[video_builder] pytubefix arama hatası: {e}")
-        return []
-
-
-def _download_via_pytubefix(video_id: str, out_dir: str, filename: str) -> str | None:
-    """pytubefix ile YouTube videosu indir. Başarılı olursa dosya yolunu döner."""
-    try:
-        from pytubefix import YouTube as PYT
-        yt = PYT(f"https://www.youtube.com/watch?v={video_id}")
-        # Önce progressive (ses+video birlikte) dene
-        stream = (yt.streams.filter(progressive=True, file_extension="mp4")
-                  .order_by("resolution").desc().first())
-        if not stream:
-            stream = yt.streams.filter(file_extension="mp4").order_by("resolution").desc().first()
-        if not stream:
-            return None
-        out_path = stream.download(output_path=out_dir, filename=filename)
-        if out_path and os.path.exists(out_path) and os.path.getsize(out_path) > 10000:
-            return out_path
-        return None
-    except Exception as e:
-        print(f"[video_builder] pytubefix indirme hatası ({video_id}): {e}")
-        return None
-
-
-def _download_via_ytdlp(video_id: str, out_path: str) -> bool:
-    """yt-dlp ile YouTube videosu indir (fallback)."""
-    if not shutil.which("yt-dlp"):
-        return False
-    cmd = [
-        "yt-dlp",
-        f"https://www.youtube.com/watch?v={video_id}",
-        "--format", "bestvideo[height>=720][ext=mp4]+bestaudio[ext=m4a]/best[height>=720][ext=mp4]/best",
-        "--merge-output-format", "mp4",
-        "--max-filesize", "100M",
-        "--no-playlist", "--no-warnings", "--quiet", "--no-progress",
-        "--geo-bypass",
-        "-o", out_path,
-    ]
-    if os.path.exists(YT_COOKIES_PATH):
-        cmd.extend(["--cookies", YT_COOKIES_PATH])
-    try:
-        subprocess.run(cmd, timeout=120, capture_output=True, text=True)
-        return os.path.exists(out_path) and os.path.getsize(out_path) > 10000
-    except Exception:
-        return False
-
-
-def _download_youtube_video(video_id: str, out_dir: str, filename: str) -> str | None:
-    """YouTube videosu indir — fallback: pytubefix → yt-dlp. Dosya yolunu döner."""
-    # 1) pytubefix
-    path = _download_via_pytubefix(video_id, out_dir, filename)
-    if path:
-        print(f"[video_builder] İndirme OK (pytubefix): {video_id}")
-        return path
-
-    # 2) yt-dlp fallback
-    out_path = os.path.join(out_dir, filename)
-    if _download_via_ytdlp(video_id, out_path):
-        print(f"[video_builder] İndirme OK (yt-dlp): {video_id}")
-        return out_path
-
-    return None
-
-
-def _cut_segment(full_path: str, seen_ids: set, query: str, idx: int) -> str | None:
-    """Tam videodan rastgele 5-10sn segment keser."""
-    if not shutil.which("ffmpeg"):
-        return full_path
-
-    probe_cmd = [
-        "ffprobe", "-v", "error",
-        "-show_entries", "format=duration",
-        "-of", "default=noprint_wrappers=1:nokey=1",
-        full_path,
-    ]
-    try:
-        probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=15)
-        video_duration = float(probe_result.stdout.strip())
-    except Exception:
-        video_duration = 30.0
-
-    segment_dur = random.uniform(5.0, 10.0)
-    if video_duration <= segment_dur + 1:
-        segment_start = 0
-        segment_dur = min(segment_dur, video_duration)
-    else:
-        max_start = max(0, video_duration - segment_dur - 1)
-        segment_start = random.uniform(0, max_start)
-
-    segment_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="ytcc_seg_")
-    segment_file.close()
-
-    cut_cmd = [
-        "ffmpeg", "-y",
-        "-ss", str(segment_start),
-        "-i", full_path,
-        "-t", str(segment_dur),
-        "-c", "copy",
-        "-loglevel", "error",
-        segment_file.name,
-    ]
-    try:
-        cut_result = subprocess.run(cut_cmd, timeout=30, capture_output=True)
-    except Exception:
-        try:
-            os.unlink(segment_file.name)
-        except OSError:
-            pass
-        return None
-
-    try:
-        os.unlink(full_path)
-    except OSError:
-        pass
-
-    if cut_result.returncode == 0 and os.path.exists(segment_file.name) and os.path.getsize(segment_file.name) > 5000:
-        vid_id = f"ytcc_{hash(query)}_{idx}"
-        if vid_id not in seen_ids:
-            seen_ids.add(vid_id)
-            return segment_file.name
-    try:
-        os.unlink(segment_file.name)
-    except OSError:
-        pass
-    return None
-
-
 def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
-    """YouTube'dan video indirir — pytubefix arama + indirme, yt-dlp fallback.
+    """YouTube'dan Creative Commons lisanslı askeri video indirir (yt-dlp).
+    Self-hosted runner'da çalışır — --cookies-from-browser firefox kullanır.
     Returns: list of file paths.
     """
+    if not shutil.which("yt-dlp"):
+        print("[video_builder] yt-dlp bulunamadı, YouTube CC atlanıyor.")
+        return []
+    if not shutil.which("ffmpeg"):
+        print("[video_builder] ffmpeg bulunamadı, YouTube CC atlanıyor.")
+        return []
+
     downloaded = []
 
-    # Keyword havuzundan sorgu listesi oluştur
     category = _pick_yt_category(keywords)
     yt_pool = list(YT_MILITARY_KEYWORDS.get(category, []))
     random.shuffle(yt_pool)
@@ -563,48 +428,127 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
             seen_queries.add(ql)
             unique_queries.append(q)
 
-    tmp_dir = tempfile.mkdtemp(prefix="ytdl_")
-
     for query in unique_queries:
         if len(downloaded) >= n:
             break
 
         try:
-            print(f"[video_builder] YouTube aranıyor: '{query}'...")
+            tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="ytcc_full_")
+            tmp.close()
 
-            results = _search_youtube_pytubefix(query, max_results=5)
-            if not results:
-                print(f"[video_builder] YouTube arama sonuç yok: '{query}'")
+            cmd = [
+                "yt-dlp",
+                f"ytsearch5:{query}",
+                "--match-filter", "license=Creative Commons",
+                "--format", "bestvideo[height>=720][ext=mp4]+bestaudio[ext=m4a]/best[height>=720][ext=mp4]/best",
+                "--merge-output-format", "mp4",
+                "--max-downloads", "1",
+                "--max-filesize", "100M",
+                "--no-playlist",
+                "--no-warnings",
+                "--quiet",
+                "--no-progress",
+                "-o", tmp.name,
+            ]
+
+            # Kimlik doğrulama: cookie dosyası > browser cookies
+            if os.path.exists(YT_COOKIES_PATH):
+                cmd.extend(["--cookies", YT_COOKIES_PATH])
+            else:
+                cmd.extend(["--cookies-from-browser", "firefox"])
+
+            print(f"[video_builder] YouTube CC aranıyor: '{query}'...")
+            result = subprocess.run(cmd, timeout=120, capture_output=True, text=True)
+
+            actual_file = tmp.name
+            if not os.path.exists(actual_file) or os.path.getsize(actual_file) < 10000:
+                for ext in [".mp4", ".webm", ".mkv"]:
+                    alt = tmp.name + ext
+                    if os.path.exists(alt) and os.path.getsize(alt) > 10000:
+                        actual_file = alt
+                        break
+
+            if not os.path.exists(actual_file) or os.path.getsize(actual_file) < 10000:
+                try:
+                    os.unlink(tmp.name)
+                except OSError:
+                    pass
+                if result.stderr:
+                    err_lines = [l for l in result.stderr.splitlines()
+                                 if 'UserWarning' not in l and 'cookiejar' not in l.lower()
+                                 and 'warnings.warn' not in l and l.strip()]
+                    if err_lines:
+                        err_msg = '\n'.join(err_lines[-3:])
+                        print(f"[video_builder] yt-dlp hata: {err_msg[:500]}")
                 continue
 
-            for video in results:
-                if len(downloaded) >= n:
-                    break
-                vid_id = video["videoId"]
-                if vid_id in seen_ids:
-                    continue
+            # Video süresini al
+            probe_cmd = [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                actual_file,
+            ]
+            probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=15)
+            try:
+                video_duration = float(probe_result.stdout.strip())
+            except (ValueError, AttributeError):
+                video_duration = 30.0
 
-                filename = f"ytcc_{vid_id}.mp4"
-                full_path = _download_youtube_video(vid_id, tmp_dir, filename)
+            segment_dur = random.uniform(5.0, 10.0)
+            if video_duration <= segment_dur + 1:
+                segment_start = 0
+                segment_dur = min(segment_dur, video_duration)
+            else:
+                max_start = max(0, video_duration - segment_dur - 1)
+                segment_start = random.uniform(0, max_start)
 
-                if full_path:
-                    segment = _cut_segment(full_path, seen_ids, query, len(downloaded))
-                    if segment:
-                        downloaded.append(segment)
-                        print(f"[video_builder] YouTube klip {len(downloaded)}/{n}: "
-                              f"'{video.get('title', vid_id)[:60]}'")
-                        break
+            segment_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="ytcc_seg_")
+            segment_file.close()
+
+            cut_cmd = [
+                "ffmpeg", "-y",
+                "-ss", str(segment_start),
+                "-i", actual_file,
+                "-t", str(segment_dur),
+                "-c", "copy",
+                "-loglevel", "error",
+                segment_file.name,
+            ]
+            cut_result = subprocess.run(cut_cmd, timeout=30, capture_output=True)
+
+            try:
+                os.unlink(actual_file)
+            except OSError:
+                pass
+
+            if cut_result.returncode == 0 and os.path.exists(segment_file.name) and os.path.getsize(segment_file.name) > 5000:
+                vid_id = f"ytcc_{hash(query)}_{len(downloaded)}"
+                if vid_id not in seen_ids:
+                    seen_ids.add(vid_id)
+                    downloaded.append(segment_file.name)
+                    print(f"[video_builder] YouTube CC klip {len(downloaded)}/{n}: "
+                          f"'{query}' [{segment_start:.1f}s-{segment_start+segment_dur:.1f}s]")
                 else:
-                    print(f"[video_builder] YouTube indirilemedi: {vid_id}")
+                    os.unlink(segment_file.name)
+            else:
+                try:
+                    os.unlink(segment_file.name)
+                except OSError:
+                    pass
 
+        except subprocess.TimeoutExpired:
+            print(f"[video_builder] YouTube CC timeout: '{query}'")
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass
         except Exception as e:
-            print(f"[video_builder] YouTube hata ({query}): {e}")
-
-    # Geçici dizini temizle
-    try:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-    except Exception:
-        pass
+            print(f"[video_builder] YouTube CC hata ({query}): {e}")
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass
 
     return downloaded
 
