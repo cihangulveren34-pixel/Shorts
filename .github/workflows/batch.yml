@@ -15,11 +15,8 @@ on:
 
 jobs:
   batch-produce:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 120
-    env:
-      PYTHONIOENCODING: utf-8
-      PYTHONUTF8: 1
 
     steps:
       - name: Checkout
@@ -30,6 +27,11 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-liberation
+
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
@@ -38,7 +40,9 @@ jobs:
 
       - name: Run batch producer
         run: |
-          python batch_producer.py --count ${{ inputs.count || '7' }} ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}
+          python batch_producer.py \
+            --count ${{ inputs.count || '7' }} \
+            ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
@@ -65,6 +69,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add used_topics.json scheduled_queue.json 2>$null
-          $changes = git diff --cached --name-only
-          if ($changes) { git commit -m "Update used topics and queue state [skip ci]"; git push }
+          git add used_topics.json scheduled_queue.json || true
+          git diff --cached --quiet || git commit -m "Update used topics and queue state [skip ci]"
+          git push || true
