@@ -49,10 +49,17 @@ def _load_available_topics() -> tuple[list, dict]:
     available = [t for t in all_topics if _normalize(t) not in used_normalized]
 
     if not available:
-        # Tümü kullanılmış → sıfırla
-        print("[topic_selector] Tüm konular kullanıldı, liste sıfırlanıyor.")
-        available = all_topics
-        used_data["used"] = []
+        # Tümü kullanılmış → sliding window ile kısmi sıfırlama
+        # Son 30 konuyu koru, gerisini temizle (yakın tekrar önlenir)
+        recent = used_data.get("used", [])[-30:]
+        print(f"[topic_selector] Tüm konular kullanıldı, son {len(recent)} konu korunarak liste sıfırlanıyor.")
+        used_data["used"] = recent
+        recent_normalized = {_normalize(t) for t in recent}
+        available = [t for t in all_topics if _normalize(t) not in recent_normalized]
+        if not available:
+            # Hâlâ boşsa tam sıfırla
+            available = all_topics
+            used_data["used"] = []
 
     return available, used_data
 

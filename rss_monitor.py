@@ -310,8 +310,29 @@ def _headlines_to_topics_fallback(headlines: list[str], count: int = 8) -> list[
 NEWS_TOPIC_PREFIX = "[NEWS] "
 
 
+def _load_used_topics_normalized() -> set:
+    """used_topics.json'daki konuları normalize edilmiş set olarak döndürür."""
+    path = "used_topics.json"
+    if not os.path.exists(path):
+        return set()
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        used = data.get("used", [])
+        result = set()
+        for t in used:
+            t_norm = t.lower().strip()
+            if t_norm.startswith("[news] "):
+                t_norm = t_norm[7:]
+            result.add(t_norm)
+        return result
+    except Exception:
+        return set()
+
+
 def _update_topic_pool(new_topics: list[str]) -> int:
-    """Yeni konuları [NEWS] prefix'i ile topic_pool.json'a ekler."""
+    """Yeni konuları [NEWS] prefix'i ile topic_pool.json'a ekler.
+    used_topics.json'daki konularla çakışanları atlar."""
     pool_path = "topic_pool.json"
     try:
         with open(pool_path, encoding="utf-8") as f:
@@ -320,12 +341,15 @@ def _update_topic_pool(new_topics: list[str]) -> int:
         pool = []
 
     existing = {t.lower() for t in pool}
+    used_normalized = _load_used_topics_normalized()
     added = 0
     for topic in new_topics:
         tagged = f"{NEWS_TOPIC_PREFIX}{topic}"
-        if topic.lower() not in existing and len(topic) > 15:
+        topic_norm = topic.lower().strip()
+        # Hem havuzda hem kullanılmış listesinde yoksa ekle
+        if topic_norm not in existing and topic_norm not in used_normalized and len(topic) > 15:
             pool.append(tagged)
-            existing.add(topic.lower())
+            existing.add(topic_norm)
             added += 1
 
     with open(pool_path, "w", encoding="utf-8") as f:
