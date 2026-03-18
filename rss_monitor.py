@@ -18,8 +18,10 @@ Konu formatları:
 import json
 import os
 import re
+import unicodedata
 import xml.etree.ElementTree as ET
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timezone, timedelta
+from email.utils import parsedate_to_datetime
 from typing import Optional
 
 import requests
@@ -33,6 +35,8 @@ except ImportError:
 
 TIMEOUT = 15
 MONITOR_STATE_PATH = "rss_state.json"
+# Kaç saatlik haberler işlensin (varsayılan: son 48 saat)
+NEWS_MAX_AGE_HOURS = int(os.environ.get("NEWS_MAX_AGE_HOURS", "48"))
 
 RSS_FEEDS = [
     {
@@ -132,8 +136,52 @@ def _save_state(state: dict) -> None:
         json.dump(state, f, indent=2, ensure_ascii=False)
 
 
+def _normalize_title(title: str) -> str:
+    """Başlığı karşılaştırma için normalize eder: küçük harf, özel karakter yok."""
+    title = title.lower().strip()
+    # Unicode normalizasyonu
+    title = unicodedata.normalize("NFKD", title)
+    # Özel karakterleri kaldır, boşluklara dönüştür
+    title = re.sub(r"[^\w\s]", " ", title)
+    # Çoklu boşlukları tek boşluğa indir
+    title = re.sub(r"\s+", " ", title).strip()
+    return title
+
+
+def _parse_pub_date(date_str: str) -> Optional[datetime]:
+    """RSS pubDate string'ini datetime nesnesine çevirir."""
+    if not date_str:
+        return None
+    try:
+        return parsedate_to_datetime(date_str.strip())
+    except Exception:
+        pass
+    # Bazı feed'ler ISO 8601 kullanır
+    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d"):
+        try:
+            dt = datetime.strptime(date_str.strip()[:19], fmt)
+            return dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    return None
+
+
+def _is_recent(pub_date_str: str, max_hours: int = NEWS_MAX_AGE_HOURS) -> bool:
+    """Haberin son max_hours saat içinde yayınlanıp yayınlanmadığını kontrol eder."""
+    if not pub_date_str:
+        # Tarih yoksa dahil et (dışlamak yerine güvenli taraf)
+        return True
+    dt = _parse_pub_date(pub_date_str)
+    if dt is None:
+        return True
+    now = datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return (now - dt) <= timedelta(hours=max_hours)
+
+
 def _fetch_rss(url: str) -> list[dict]:
-    """RSS URL'sini fetch edip item listesi döndürür."""
+    """RSS URL'sini fetch edip item listesi döndürür (pubDate dahil)."""
     try:
         resp = requests.get(url, timeout=TIMEOUT, headers={
             "User-Agent": "Mozilla/5.0 (compatible; WAR-SHORTS-Bot/1.0)"
@@ -147,10 +195,12 @@ def _fetch_rss(url: str) -> list[dict]:
         for item in root.findall(".//item"):
             title_el = item.find("title")
             desc_el = item.find("description")
+            pub_el = item.find("pubDate")
             if title_el is not None and title_el.text:
                 items.append({
                     "title": title_el.text.strip(),
                     "description": desc_el.text.strip() if desc_el is not None and desc_el.text else "",
+                    "pub_date": pub_el.text.strip() if pub_el is not None and pub_el.text else "",
                 })
 
         # Atom feed desteği
@@ -158,10 +208,12 @@ def _fetch_rss(url: str) -> list[dict]:
         for entry in root.findall(".//atom:entry", ns):
             title_el = entry.find("atom:title", ns)
             summary_el = entry.find("atom:summary", ns)
+            updated_el = entry.find("atom:updated", ns)
             if title_el is not None and title_el.text:
                 items.append({
                     "title": title_el.text.strip(),
                     "description": summary_el.text.strip() if summary_el is not None and summary_el.text else "",
+                    "pub_date": updated_el.text.strip() if updated_el is not None and updated_el.text else "",
                 })
 
         return items
@@ -290,23 +342,41 @@ def monitor_and_update(max_topics: int = 10) -> dict:
         {"topics_found": int, "topics_added": int, "sources_checked": int}
     """
     state = _load_state()
-    seen = set(state.get("seen_titles", []))
+    # Hem orijinal başlıkları hem normalize edilmiş hallerini tut
+    seen_raw = set(state.get("seen_titles", []))
+    seen_normalized = {_normalize_title(t) for t in seen_raw}
 
     all_headlines = []
+    skipped_old = 0
+    skipped_dup = 0
 
     for feed in RSS_FEEDS:
         print(f"[rss] Taranıyor: {feed['name']}")
         items = _fetch_rss(feed["url"])
         for item in items:
             title = item["title"]
-            if title in seen:
+            pub_date = item.get("pub_date", "")
+
+            # Tarih filtresi: sadece son 48 saat
+            if not _is_recent(pub_date):
+                skipped_old += 1
                 continue
+
+            # Dedup: normalize edilmiş başlıkla karşılaştır
+            norm = _normalize_title(title)
+            if norm in seen_normalized:
+                skipped_dup += 1
+                continue
+
             if not _is_relevant(title, item["description"], feed["keywords"]):
                 continue
-            all_headlines.append(title)
-            seen.add(title)
 
-    print(f"[rss] {len(all_headlines)} alakalı haber bulundu")
+            all_headlines.append(title)
+            seen_raw.add(title)
+            seen_normalized.add(norm)
+
+    print(f"[rss] {len(all_headlines)} alakalı haber bulundu "
+          f"({skipped_old} eski, {skipped_dup} tekrar atlandı)")
 
     if not all_headlines:
         state["last_run"] = datetime.now(timezone.utc).isoformat()
@@ -321,7 +391,7 @@ def monitor_and_update(max_topics: int = 10) -> dict:
     added = _update_topic_pool(topics)
 
     # State güncelle
-    state["seen_titles"] = list(seen)[-500:]
+    state["seen_titles"] = list(seen_raw)[-500:]
     state["last_run"] = datetime.now(timezone.utc).isoformat()
     _save_state(state)
 

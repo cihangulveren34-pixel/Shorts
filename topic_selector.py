@@ -14,11 +14,25 @@ Strateji:
 import json
 import os
 import random
+import re
 import time
+import unicodedata
 
 
 TOPIC_POOL_PATH = "topic_pool.json"
 USED_TOPICS_PATH = "used_topics.json"
+
+
+def _normalize(text: str) -> str:
+    """Karşılaştırma için normalize eder: küçük harf, özel karakter yok."""
+    text = text.lower().strip()
+    # [NEWS] prefix varsa kaldır
+    if text.startswith("[news] "):
+        text = text[7:]
+    text = unicodedata.normalize("NFKD", text)
+    text = re.sub(r"[^\w\s]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 
 def _load_available_topics() -> tuple[list, dict]:
@@ -30,11 +44,13 @@ def _load_available_topics() -> tuple[list, dict]:
         with open(USED_TOPICS_PATH, encoding="utf-8") as f:
             used_data = json.load(f)
 
-    used_set = set(used_data.get("used", []))
-    available = [t for t in all_topics if t not in used_set]
+    # Normalize edilmiş set ile karşılaştır — büyük/küçük harf ve [NEWS] prefix farkı gözetme
+    used_normalized = {_normalize(t) for t in used_data.get("used", [])}
+    available = [t for t in all_topics if _normalize(t) not in used_normalized]
 
     if not available:
         # Tümü kullanılmış → sıfırla
+        print("[topic_selector] Tüm konular kullanıldı, liste sıfırlanıyor.")
         available = all_topics
         used_data["used"] = []
 
