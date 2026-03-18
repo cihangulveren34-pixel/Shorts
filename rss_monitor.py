@@ -55,9 +55,24 @@ RSS_FEEDS = [
         "keywords": ["iran", "missile", "nuclear", "drone", "hormuz", "irgc"],
     },
     {
-        "name": "Google News — Russia Ukraine",
+        "name": "Google News — Russia Ukraine War",
         "url": "https://news.google.com/rss/search?q=Russia+Ukraine+war+military+weapon&hl=en-US&gl=US&ceid=US:en",
         "keywords": ["russia", "ukraine", "war", "missile", "drone", "front", "offensive"],
+    },
+    {
+        "name": "Google News — Ukraine Latest News",
+        "url": "https://news.google.com/rss/search?q=ukraine+war+latest+news+today&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["ukraine", "war", "latest", "frontline", "attack", "counterattack", "ceasefire", "peace"],
+    },
+    {
+        "name": "Google News — Russia Ukraine Update",
+        "url": "https://news.google.com/rss/search?q=russia+ukraine+war+update+ceasefire+peace+talks&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["ukraine", "russia", "ceasefire", "peace", "negotiations", "offensive", "troops", "frontline"],
+    },
+    {
+        "name": "Google News — Ukraine Battlefield",
+        "url": "https://news.google.com/rss/search?q=ukraine+battlefield+frontline+russian+troops+advance&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["battlefield", "frontline", "troops", "advance", "retreat", "capture", "ukraine", "russia"],
     },
     {
         "name": "Google News — China Taiwan",

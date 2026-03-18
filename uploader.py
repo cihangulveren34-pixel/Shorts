@@ -138,13 +138,20 @@ def post_pinned_comment(youtube, video_id: str, text: str) -> str | None:
 
 
 def build_description(script: dict) -> str:
-    tags_str = " ".join(f"#{t}" for t in script.get("tags", []))
+    tags_str = " ".join(f"#{t.replace(' ', '')}" for t in script.get("tags", []))
+    ukraine_hashtags = (
+        "#UkraineWar #RussiaUkraineWar #UkraineWarNews #WarInUkraine "
+        "#RussiaUkraine #UkraineLatestNews #WarNewsToday #UkraineWarUpdate "
+        "#RussiaUkraineWarUpdate #UkraineRussiaConflict"
+    )
     return (
         f"{script['title']}\n\n"
         f"{script['hook']}\n\n"
-        f"Follow for daily history what-ifs!\n\n"
+        f"Follow for daily military intelligence briefings!\n\n"
+        f"ukraine war | russia ukraine war | war in ukraine latest news | "
+        f"ukraine war update today | russia ukraine latest news\n\n"
         f"{tags_str}\n"
-        f"#Shorts #History #WhatIf #War #WarHistory"
+        f"#Shorts #Military #Geopolitics #War #WarNews {ukraine_hashtags}"
     )
 
 

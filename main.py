@@ -210,6 +210,15 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         print("=" * 52)
         return
 
+    # Ukraine war trending SEO tags (YouTube'da yüksek arama hacmi)
+    UKRAINE_WAR_SEO_TAGS = [
+        "ukraine war", "russia ukraine war", "war in ukraine latest news",
+        "russia ukraine war update today", "russian war ukraine latest news",
+        "war in ukraine latest news today", "ukraine war news",
+        "what is happening in ukraine", "ukraine russia conflict",
+        "ukraine war update", "war news today", "ukraine latest news",
+    ]
+
     # 6) YouTube upload
     print("\n[main] YouTube'a yükleniyor...")
     video_id = _step(
@@ -218,7 +227,7 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
             video_path=video_path,
             title=script["title"],
             description=build_description(script),
-            tags=script["tags"] + ["Shorts", "Military", "Geopolitics", "Defense", "War"],
+            tags=script["tags"] + ["Shorts", "Military", "Geopolitics", "Defense", "War"] + UKRAINE_WAR_SEO_TAGS,
             thumbnail_path=thumb_path,
         ),
         topic,
