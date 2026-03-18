@@ -241,6 +241,36 @@ def _extract_with_regex(raw: str) -> dict:
     }
 
 
+def _load_recent_titles(n: int = 20) -> list[str]:
+    """Son üretilmiş başlıkları döndürür (tekrar önlemek için Gemini'ye iletilir)."""
+    titles = []
+    # scheduled_queue.json'dan başlıkları al
+    try:
+        with open("scheduled_queue.json", encoding="utf-8") as f:
+            queue = json.load(f)
+        titles += [item["title"] for item in queue if item.get("title") and item["title"] != "?"]
+    except Exception:
+        pass
+    # output/last_video.json'dan da al
+    try:
+        with open("output/last_video.json", encoding="utf-8") as f:
+            last = json.load(f)
+        if last.get("title"):
+            titles.append(last["title"])
+    except Exception:
+        pass
+    # Tekrarsız son n başlık
+    seen = set()
+    result = []
+    for t in reversed(titles):
+        if t not in seen:
+            seen.add(t)
+            result.append(t)
+        if len(result) >= n:
+            break
+    return list(reversed(result))
+
+
 def generate_script(topic: str, language: str = "en", forced_format: str = None) -> dict:
     """
     Verilen konu için Gemini ile script üretir.
@@ -255,12 +285,22 @@ def generate_script(topic: str, language: str = "en", forced_format: str = None)
 
     print(f"[script_gen] Format: {script_format} | Dil: {lang}", file=sys.stderr)
 
+    # Son başlıkları yükle — Gemini bu konuları tekrarlamamalı
+    recent_titles = _load_recent_titles(20)
+    avoid_note = ""
+    if recent_titles:
+        titles_str = "\n".join(f"- {t}" for t in recent_titles[-10:])
+        if lang == "tr":
+            avoid_note = f"\n\nÖNEMLİ: Aşağıdaki başlıklar daha önce üretildi, bunlarla aynı veya çok benzer bir konu/başlık ÜRETME:\n{titles_str}"
+        else:
+            avoid_note = f"\n\nIMPORTANT: The following titles were already produced. Do NOT generate a title or topic that is the same or very similar to these:\n{titles_str}"
+
     user_prompts = {
         "en": {
-            "news_analysis": f"Write a military analysis YouTube Shorts script about: {topic}. Break down what just happened, why it matters, and what happens next. Sound like a classified intelligence briefing.",
+            "news_analysis": f"Write a military analysis YouTube Shorts script about: {topic}. Break down what just happened, why it matters, and what happens next. Sound like a classified intelligence briefing.{avoid_note}",
         },
         "tr": {
-            "news_analysis": f"Bu konu için askeri analiz YouTube Shorts senaryosu yaz: {topic}. Ne oldu, neden önemli ve sırada ne var? Gizli istihbarat brifingiymiş gibi yaz.",
+            "news_analysis": f"Bu konu için askeri analiz YouTube Shorts senaryosu yaz: {topic}. Ne oldu, neden önemli ve sırada ne var? Gizli istihbarat brifingiymiş gibi yaz.{avoid_note}",
         },
     }
 
