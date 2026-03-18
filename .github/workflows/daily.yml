@@ -2,7 +2,9 @@ name: WAR SHORTS — Daily Pipeline
 
 on:
   schedule:
-    - cron: '0 9 * * *'   # Her gün 09:00 UTC
+    - cron: '0  9 * * *'   # Her gün 09:00 UTC
+    - cron: '0 18 * * *'   # Her gün 18:00 UTC
+    - cron: '0  0 * * *'   # Her gün 00:00 UTC (gece yarısı)
   workflow_dispatch:        # Manuel tetikleme
 
 jobs:

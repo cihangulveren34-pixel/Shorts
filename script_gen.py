@@ -10,6 +10,7 @@ import re
 import sys
 import time
 import requests
+from datetime import date
 
 
 # ─── 6 Format İçin System Prompt'ları ────────────────────────────────────────
@@ -295,12 +296,13 @@ def generate_script(topic: str, language: str = "en", forced_format: str = None)
         else:
             avoid_note = f"\n\nIMPORTANT: The following titles were already produced. Do NOT generate a title or topic that is the same or very similar to these:\n{titles_str}"
 
+    today_str = date.today().strftime("%B %d, %Y")  # e.g. "March 18, 2026"
     user_prompts = {
         "en": {
-            "news_analysis": f"Write a military analysis YouTube Shorts script about: {topic}. Break down what just happened, why it matters, and what happens next. Sound like a classified intelligence briefing.{avoid_note}",
+            "news_analysis": f"Today is {today_str}. Write a military analysis YouTube Shorts script about: {topic}. Include today's date naturally in the narration (e.g. 'As of {today_str}...' or 'Today, {today_str}...'). The title must also include the date (e.g. 'March 18 — ...'). Break down what just happened, why it matters, and what happens next. Sound like a classified intelligence briefing.{avoid_note}",
         },
         "tr": {
-            "news_analysis": f"Bu konu için askeri analiz YouTube Shorts senaryosu yaz: {topic}. Ne oldu, neden önemli ve sırada ne var? Gizli istihbarat brifingiymiş gibi yaz.{avoid_note}",
+            "news_analysis": f"Bugünün tarihi: {today_str}. Bu konu için askeri analiz YouTube Shorts senaryosu yaz: {topic}. Tarih narrasyona doğal şekilde dahil edilsin (örn. '{today_str} itibarıyla...'). Başlık da tarihi içermeli (örn. '18 Mart — ...'). Ne oldu, neden önemli ve sırada ne var? Gizli istihbarat brifingiymiş gibi yaz.{avoid_note}",
         },
     }
 
