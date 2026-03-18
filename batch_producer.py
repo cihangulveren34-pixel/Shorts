@@ -160,18 +160,22 @@ def produce_batch(count: int = 7, dry_run: bool = False, language: str = "en") -
     queue.extend(produced)
     save_queue(queue)
 
+    success = sum(1 for p in produced if not p.get("error"))
+
     # used_topics.json'u git'e commit et (batch sonrası kalıcı dedup)
     try:
         subprocess.run(["git", "add", "used_topics.json"], check=True)
-        subprocess.run(
-            ["git", "commit", "-m", f"chore: batch sonrası used_topics güncelle ({success}/{count} video)"],
-            check=True,
-        )
-        print("  ✅ used_topics.json git'e commit edildi")
+        diff_result = subprocess.run(["git", "diff", "--cached", "--quiet"])
+        if diff_result.returncode != 0:  # Staged değişiklik varsa commit et
+            subprocess.run(
+                ["git", "commit", "-m", f"chore: batch sonrası used_topics güncelle ({success}/{count} video)"],
+                check=True,
+            )
+            print("  ✅ used_topics.json git'e commit edildi")
+        else:
+            print("  ℹ️ used_topics.json değişmedi, commit atlandı")
     except subprocess.CalledProcessError as e:
         print(f"  ⚠️ Git commit başarısız (devam ediliyor): {e}", file=sys.stderr)
-
-    success = sum(1 for p in produced if not p.get("error"))
     print(f"\n{'='*52}")
     print(f"✅ Batch tamamlandı: {success}/{count} video üretildi")
     print(f"   Kuyruk: {QUEUE_PATH}")
