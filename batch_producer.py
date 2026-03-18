@@ -12,6 +12,7 @@ Kullanım:
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from datetime import date, timedelta
@@ -158,6 +159,17 @@ def produce_batch(count: int = 7, dry_run: bool = False, language: str = "en") -
     # Kuyruğa ekle
     queue.extend(produced)
     save_queue(queue)
+
+    # used_topics.json'u git'e commit et (batch sonrası kalıcı dedup)
+    try:
+        subprocess.run(["git", "add", "used_topics.json"], check=True)
+        subprocess.run(
+            ["git", "commit", "-m", f"chore: batch sonrası used_topics güncelle ({success}/{count} video)"],
+            check=True,
+        )
+        print("  ✅ used_topics.json git'e commit edildi")
+    except subprocess.CalledProcessError as e:
+        print(f"  ⚠️ Git commit başarısız (devam ediliyor): {e}", file=sys.stderr)
 
     success = sum(1 for p in produced if not p.get("error"))
     print(f"\n{'='*52}")
