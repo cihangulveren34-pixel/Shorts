@@ -226,6 +226,10 @@ KB_EFFECTS = ["zoom_in", "zoom_out", "pan_right", "pan_left", "pan_down", "diago
 # Geçiş tipleri
 TRANSITION_TYPES = ["crossfade", "fade_black", "hard_cut", "slide"]
 
+# Klip ve resim süreleri
+VIDEO_CLIP_DURATION = 4.0   # Her video klip süresi (saniye)
+IMAGE_CLIP_DURATION = 2.0   # Araya eklenen resim süresi (saniye)
+
 
 # ─── Style Profile ───────────────────────────────────────────────────────────
 
@@ -1093,6 +1097,147 @@ def _fetch_wikimedia_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
     return downloaded
 
 
+def _fetch_wikimedia_images(keywords: list, n: int, seen_ids: set) -> list[str]:
+    """Wikimedia Commons'tan resim (JPG/PNG) indirir."""
+    downloaded = []
+    queries = keywords[:3] + ["military", "missile", "tank", "aircraft"]
+    random.shuffle(queries)
+
+    for query in queries:
+        if len(downloaded) >= n:
+            break
+        try:
+            params = {
+                "action": "query",
+                "format": "json",
+                "generator": "search",
+                "gsrsearch": f"{query} filetype:bitmap",
+                "gsrlimit": 15,
+                "prop": "imageinfo",
+                "iiprop": "url|size|mime",
+                "iiurlwidth": 1280,
+            }
+            resp = requests.get("https://commons.wikimedia.org/w/api.php", params=params, timeout=15)
+            if resp.status_code != 200:
+                continue
+            pages = resp.json().get("query", {}).get("pages", {})
+            for page_id, page in pages.items():
+                if len(downloaded) >= n:
+                    break
+                imageinfo = page.get("imageinfo", [{}])[0]
+                mime = imageinfo.get("mime", "")
+                if not any(t in mime for t in ("image/jpeg", "image/png", "image/webp")):
+                    continue
+                url = imageinfo.get("url", "")
+                if not url:
+                    continue
+                img_id = f"wiki_img_{page_id}"
+                if img_id in seen_ids:
+                    continue
+                seen_ids.add(img_id)
+                ext = ".jpg" if "jpeg" in mime else ".png"
+                try:
+                    tmp = tempfile.NamedTemporaryFile(suffix=ext, delete=False, prefix="wiki_img_")
+                    tmp.close()
+                    r = requests.get(url, timeout=30, stream=True, headers={"User-Agent": "WarShorts/1.0"})
+                    r.raise_for_status()
+                    with open(tmp.name, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=1024 * 256):
+                            f.write(chunk)
+                    if os.path.getsize(tmp.name) > 5000:
+                        downloaded.append(tmp.name)
+                        print(f"[video_builder] Wikimedia resim {len(downloaded)}/{n} (id:{img_id})")
+                    else:
+                        os.unlink(tmp.name)
+                except Exception:
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError:
+                        pass
+        except Exception as e:
+            print(f"[video_builder] Wikimedia resim arama hatası ({query}): {e}")
+    return downloaded
+
+
+def _fetch_pexels_images(keywords: list, n: int, seen_ids: set) -> list[str]:
+    """Pexels'ten ücretsiz fotoğraf indirir."""
+    api_key = os.environ.get("PEXELS_API_KEY", "")
+    if not api_key:
+        return []
+    downloaded = []
+    queries = keywords[:3] + ["military", "war", "soldier", "explosion"]
+    random.shuffle(queries)
+
+    for query in queries:
+        if len(downloaded) >= n:
+            break
+        try:
+            resp = requests.get(
+                "https://api.pexels.com/v1/search",
+                params={"query": query, "per_page": 15, "orientation": "portrait"},
+                headers={"Authorization": api_key},
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                continue
+            for photo in resp.json().get("photos", []):
+                if len(downloaded) >= n:
+                    break
+                img_id = f"pexels_img_{photo['id']}"
+                if img_id in seen_ids:
+                    continue
+                seen_ids.add(img_id)
+                url = photo.get("src", {}).get("large2x") or photo.get("src", {}).get("large", "")
+                if not url:
+                    continue
+                try:
+                    tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False, prefix="pexels_img_")
+                    tmp.close()
+                    r = requests.get(url, timeout=30, stream=True)
+                    r.raise_for_status()
+                    with open(tmp.name, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=1024 * 256):
+                            f.write(chunk)
+                    if os.path.getsize(tmp.name) > 5000:
+                        downloaded.append(tmp.name)
+                        print(f"[video_builder] Pexels resim {len(downloaded)}/{n} (id:{img_id})")
+                    else:
+                        os.unlink(tmp.name)
+                except Exception:
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError:
+                        pass
+        except Exception as e:
+            print(f"[video_builder] Pexels resim arama hatası ({query}): {e}")
+    return downloaded
+
+
+def _fetch_images(keywords: list) -> list[str]:
+    """5 Wikimedia + 5 Pexels resim indirir."""
+    seen_ids: set = set()
+    images: list[str] = []
+
+    # 5 Wikimedia
+    try:
+        wiki_imgs = _fetch_wikimedia_images(keywords, 5, seen_ids)
+        images.extend(wiki_imgs)
+        print(f"[video_builder] Wikimedia resim: {len(wiki_imgs)}")
+    except Exception as e:
+        print(f"[video_builder] Wikimedia resim hatası: {e}")
+
+    # 5 Pexels
+    try:
+        pexels_imgs = _fetch_pexels_images(keywords, 5, seen_ids)
+        images.extend(pexels_imgs)
+        print(f"[video_builder] Pexels resim: {len(pexels_imgs)}")
+    except Exception as e:
+        print(f"[video_builder] Pexels resim hatası: {e}")
+
+    print(f"[video_builder] Toplam resim: {len(images)}")
+    return images
+
+
 def _fetch_clips(keywords: list, n: int = 10) -> list[str]:
     """
     DVIDS + Pexels + Pixabay + Wikimedia + Archive'dan video klip indirir.
@@ -1319,13 +1464,16 @@ def _add_film_grain(clip: VideoFileClip, intensity: float) -> VideoFileClip:
 # ─── Çoklu klip montajı + geçişler ───────────────────────────────────────────
 
 def _build_background(clip_paths: list, total_duration: float,
-                      style: StyleProfile) -> VideoFileClip:
+                      style: StyleProfile,
+                      image_paths: list = None) -> VideoFileClip:
     """
     Video klipleri style profile'a göre işler ve birleştirir.
-    clip_paths: list[str] — video dosya yolları.
+    clip_paths: list[str] — video dosya yolları (her biri VIDEO_CLIP_DURATION sn).
+    image_paths: list[str] — araya eklenecek resim dosya yolları (IMAGE_CLIP_DURATION sn).
     """
     processed = []
-    per_clip = total_duration / len(clip_paths)
+    img_pool = list(image_paths) if image_paths else []
+    random.shuffle(img_pool)
 
     for i, path in enumerate(clip_paths):
         kb = style.ken_burns_pool[i % len(style.ken_burns_pool)]
@@ -1336,11 +1484,11 @@ def _build_background(clip_paths: list, total_duration: float,
             c = _color_grade(c, style.color_grade)
             c = _apply_ken_burns(c, kb)
 
-            # Süre ayarı
-            if c.duration < per_clip:
-                repeats = int(per_clip / c.duration) + 1
+            # Video klip süresini VIDEO_CLIP_DURATION'a sabitle
+            if c.duration < VIDEO_CLIP_DURATION:
+                repeats = int(VIDEO_CLIP_DURATION / c.duration) + 1
                 c = concatenate_videoclips([c] * repeats)
-            c = c.subclip(0, per_clip)
+            c = c.subclip(0, VIDEO_CLIP_DURATION)
         except Exception as e:
             print(f"[video_builder] Klip işleme hatası, atlanıyor: {e}")
             continue
@@ -1352,6 +1500,24 @@ def _build_background(clip_paths: list, total_duration: float,
             c = _add_film_grain(c, style.film_grain_intensity)
 
         processed.append(c)
+
+        # Video klibinin ardına resim ekle (son klipten sonra da eklenir)
+        if img_pool:
+            img_path = img_pool[i % len(img_pool)]
+            kb_img = style.ken_burns_pool[(i + 1) % len(style.ken_burns_pool)]
+            try:
+                img = Image.open(img_path).convert("RGB")
+                img_arr = np.array(img)
+                img_clip = ImageClip(img_arr).set_duration(IMAGE_CLIP_DURATION)
+                img_clip = _resize_to_shorts(img_clip)
+                img_clip = _color_grade(img_clip, style.color_grade)
+                img_clip = _apply_ken_burns(img_clip, kb_img, intensity=0.05)
+                if style.vignette_intensity > 0:
+                    img_clip = _add_vignette(img_clip, style.vignette_intensity)
+                processed.append(img_clip)
+                print(f"[video_builder] Resim eklendi ({i+1}. video sonrası): {os.path.basename(img_path)}")
+            except Exception as e:
+                print(f"[video_builder] Resim işleme hatası, atlanıyor: {e}")
 
     if len(processed) == 1:
         return processed[0]
@@ -1651,12 +1817,15 @@ def build_video(
             keywords.append(tw)
     clip_paths = _fetch_clips(keywords, n=10)
 
+    # 1b) Araya eklenecek resimler (5 Wikimedia + 5 Pexels)
+    image_paths = _fetch_images(keywords)
+
     # 2) Ses süresi
     narration_audio = AudioFileClip(audio_path)
     total_duration = narration_audio.duration + CTA_DURATION + 0.3
 
-    # 3) Arka plan: çoklu klip + efektler + geçişler
-    bg = _build_background(clip_paths, total_duration, style)
+    # 3) Arka plan: çoklu klip + araya resimler + efektler + geçişler
+    bg = _build_background(clip_paths, total_duration, style, image_paths=image_paths)
 
     # 4) Overlay katmanları
     layers = [bg]
