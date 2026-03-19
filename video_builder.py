@@ -1374,41 +1374,16 @@ def _fetch_unsplash_images(keywords: list, n: int, seen_ids: set) -> list[str]:
 
 
 def _fetch_images(keywords: list) -> list[str]:
-    """2 Wikimedia + 2 Pexels + 2 Al Jazeera + 2 Unsplash = 8 resim indirir."""
+    """Al Jazeera Creative Commons'tan 8 resim indirir."""
     seen_ids: set = set()
     images: list[str] = []
 
-    # 2 Wikimedia
     try:
-        imgs = _fetch_wikimedia_images(keywords, 2, seen_ids)
-        images.extend(imgs)
-        print(f"[video_builder] Wikimedia resim: {len(imgs)}")
-    except Exception as e:
-        print(f"[video_builder] Wikimedia resim hatası: {e}")
-
-    # 2 Pexels
-    try:
-        imgs = _fetch_pexels_images(keywords, 2, seen_ids)
-        images.extend(imgs)
-        print(f"[video_builder] Pexels resim: {len(imgs)}")
-    except Exception as e:
-        print(f"[video_builder] Pexels resim hatası: {e}")
-
-    # 2 Al Jazeera
-    try:
-        imgs = _fetch_aljazeera_images(keywords, 2, seen_ids)
+        imgs = _fetch_aljazeera_images(keywords, 8, seen_ids)
         images.extend(imgs)
         print(f"[video_builder] Al Jazeera resim: {len(imgs)}")
     except Exception as e:
         print(f"[video_builder] Al Jazeera resim hatası: {e}")
-
-    # 2 Unsplash
-    try:
-        imgs = _fetch_unsplash_images(keywords, 2, seen_ids)
-        images.extend(imgs)
-        print(f"[video_builder] Unsplash resim: {len(imgs)}")
-    except Exception as e:
-        print(f"[video_builder] Unsplash resim hatası: {e}")
 
     print(f"[video_builder] Toplam resim: {len(images)}")
     return images
