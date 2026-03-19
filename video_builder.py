@@ -21,6 +21,7 @@ import tempfile
 import shutil
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
@@ -659,6 +660,7 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
         print("[video_builder] ffmpeg bulunamadı, DVIDS atlanıyor.")
         return []
 
+    date_from = (datetime.now() - timedelta(days=3 * 365)).strftime("%Y-%m-%d")
     queries = _build_dvids_queries(keywords)
     downloaded = []
 
@@ -670,6 +672,8 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
             "q": query,
             "max_results": 50,
             "type": "video",
+            "sort": "date",
+            "date_from": date_from,
             "api_key": api_key,
         }
 
