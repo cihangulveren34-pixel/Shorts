@@ -655,14 +655,7 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
         print("[video_builder] ffmpeg bulunamadı, DVIDS atlanıyor.")
         return []
 
-    from datetime import timedelta
-    date_from = (datetime.now() - timedelta(days=3 * 365)).strftime("%Y-%m-%d")
-    branch = _detect_dvids_branch(keywords)
     queries = _build_dvids_queries(keywords)
-
-    if branch:
-        print(f"[video_builder] DVIDS branch tespiti: {branch}")
-
     downloaded = []
 
     for query in queries:
@@ -673,12 +666,8 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
             "q": query,
             "max_results": 50,
             "type": "video",
-            "sort": "date",          # En yeni önce
-            "date_from": date_from,  # Son 3 yıl
             "api_key": api_key,
         }
-        if branch:
-            params["branch"] = branch
 
         try:
             resp = requests.get(DVIDS_API, params=params, timeout=20)
