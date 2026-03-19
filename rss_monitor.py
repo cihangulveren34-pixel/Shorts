@@ -35,13 +35,47 @@ except ImportError:
 
 TIMEOUT = 15
 MONITOR_STATE_PATH = "rss_state.json"
-# Kaç saatlik haberler işlensin (varsayılan: son 48 saat)
-NEWS_MAX_AGE_HOURS = int(os.environ.get("NEWS_MAX_AGE_HOURS", "48"))
+# Kaç saatlik haberler işlensin (varsayılan: son 8 saat — son dakika odaklı)
+NEWS_MAX_AGE_HOURS = int(os.environ.get("NEWS_MAX_AGE_HOURS", "8"))
+
+_YEAR = str(datetime.now().year)
 
 RSS_FEEDS = [
+    # --- Doğrudan wire service / haber ajansı RSS'leri (en güncel, en hızlı) ---
+    {
+        "name": "Reuters — World News",
+        "url": "https://feeds.reuters.com/reuters/topNews",
+        "keywords": ["military", "war", "missile", "troops", "attack", "strike", "conflict", "ceasefire", "sanctions", "nuclear"],
+    },
+    {
+        "name": "BBC — World",
+        "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+        "keywords": ["military", "war", "conflict", "missile", "troops", "attack", "nato", "ukraine", "russia", "china", "iran"],
+    },
+    {
+        "name": "Al Jazeera — News",
+        "url": "https://www.aljazeera.com/xml/rss/all.xml",
+        "keywords": ["military", "war", "missile", "troops", "conflict", "attack", "israel", "iran", "ukraine", "russia"],
+    },
+    {
+        "name": "Kyiv Independent — War Updates",
+        "url": "https://kyivindependent.com/feed/",
+        "keywords": ["ukraine", "russia", "war", "frontline", "attack", "drone", "missile", "ceasefire", "troops", "offensive"],
+    },
+    {
+        "name": "Defense News",
+        "url": "https://www.defensenews.com/arc/outboundfeeds/rss/",
+        "keywords": ["military", "weapon", "missile", "drone", "navy", "army", "air force", "defense", "pentagon", "nato"],
+    },
+    {
+        "name": "Military Times",
+        "url": "https://www.militarytimes.com/arc/outboundfeeds/rss/",
+        "keywords": ["military", "weapon", "troops", "army", "navy", "marine", "air force", "pentagon", "defense"],
+    },
+    # --- Google News arama RSS'leri (geniş kapsam) ---
     {
         "name": "Google News — Military",
-        "url": "https://news.google.com/rss/search?q=military+weapon+defense+2025&hl=en-US&gl=US&ceid=US:en",
+        "url": f"https://news.google.com/rss/search?q=military+weapon+defense+{_YEAR}&hl=en-US&gl=US&ceid=US:en",
         "keywords": ["military", "weapon", "missile", "drone", "fighter", "tank", "navy", "army", "defense"],
     },
     {
