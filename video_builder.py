@@ -553,50 +553,142 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
     return downloaded
 
 
+# DVIDS branch tespiti: keyword → askeri kol eşleşmesi
+_DVIDS_BRANCH_MAP = {
+    "Navy":         ["navy", "ship", "carrier", "destroyer", "submarine", "fleet", "frigate",
+                     "cruiser", "amphibious", "naval", "seals", "seal", "maritime"],
+    "Air Force":    ["air force", "fighter jet", "f-35", "f-22", "f-16", "f-15", "b-2", "b-21",
+                     "stealth", "bomber", "aircraft", "airbase", "pilot", "cockpit", "drone",
+                     "uav", "reaper", "predator", "refueling"],
+    "Army":         ["army", "tank", "abrams", "infantry", "soldier", "troops", "artillery",
+                     "howitzer", "ranger", "green beret", "airborne", "convoy", "combat",
+                     "armored", "bradley", "stryker", "humvee"],
+    "Marine Corps": ["marine", "marines", "usmc", "amphibious assault", "expeditionary"],
+    "Space Force":  ["space force", "satellite", "gps", "orbital", "space"],
+}
+
+# DVIDS topic-aware query şablonları: kategori → spesifik DVIDS arama terimleri
+_DVIDS_TOPIC_QUERIES = {
+    "jets":          ["fighter aircraft operations", "close air support", "combat air patrol",
+                      "aerial refueling", "carrier launch recovery", "air superiority"],
+    "helicopter":    ["rotary wing operations", "helicopter assault", "medevac operations",
+                      "attack helicopter gunnery", "helo fast rope", "air assault"],
+    "tanks":         ["combined arms exercise", "armor operations", "tank gunnery",
+                      "mechanized infantry", "armored brigade combat team", "live fire armor"],
+    "drone":         ["unmanned aerial system", "UAS operations", "surveillance drone",
+                      "remotely piloted aircraft", "drone exercise"],
+    "navy":          ["fleet exercise", "carrier strike group", "amphibious operations",
+                      "naval gunfire support", "submarine operations", "surface warfare"],
+    "special_forces":["special operations", "joint special operations", "counterterrorism exercise",
+                      "unconventional warfare", "direct action", "personnel recovery"],
+    "missiles":      ["missile defense", "patriot battery", "missile exercise",
+                      "air defense artillery", "ballistic missile defense"],
+    "explosions":    ["live fire exercise", "demolition operations", "air strike",
+                      "close air support exercise", "artillery live fire", "bomb drop"],
+    "training":      ["combat training", "joint exercise", "multinational exercise",
+                      "readiness exercise", "military training"],
+    "misc":          ["military readiness", "joint operation", "deployment exercise",
+                      "expeditionary operations", "force projection"],
+}
+
+
+def _detect_dvids_branch(keywords: list) -> str | None:
+    """Keyword listesinden en uygun DVIDS askeri kolunu tespit eder."""
+    kw_text = " ".join(keywords).lower()
+    branch_scores = {}
+    for branch, hints in _DVIDS_BRANCH_MAP.items():
+        score = sum(1 for h in hints if h in kw_text)
+        if score > 0:
+            branch_scores[branch] = score
+    if not branch_scores:
+        return None
+    return max(branch_scores, key=branch_scores.get)
+
+
+def _build_dvids_queries(keywords: list) -> list[str]:
+    """Script keyword'lerinden öncelikli DVIDS sorgu listesi üretir."""
+    queries = []
+
+    # 1) Spesifik: keyword'leri birleştir (en alakalı)
+    if len(keywords) >= 2:
+        queries.append(" ".join(keywords[:2]))
+    if len(keywords) >= 3:
+        queries.append(" ".join(keywords[:3]))
+
+    # 2) Kategori bazlı topic query'ler
+    category = _pick_yt_category(keywords)
+    topic_queries = list(_DVIDS_TOPIC_QUERIES.get(category, _DVIDS_TOPIC_QUERIES["misc"]))
+    random.shuffle(topic_queries)
+    queries.extend(topic_queries[:4])
+
+    # 3) Tek tek keyword'ler
+    for kw in keywords[:5]:
+        if kw not in queries:
+            queries.append(kw)
+
+    # 4) Genel fallback havuzu (geniş kapsam)
+    fallbacks = [
+        "joint military exercise", "combat operations", "live fire training",
+        "special operations forces", "expeditionary operations",
+        "multinational exercise", "force readiness", "military deployment",
+        "combined arms training", "close air support", "naval exercise",
+        "airborne operation", "artillery training", "armor operations",
+        "counterterrorism exercise", "medevac training",
+    ]
+    random.shuffle(fallbacks)
+    queries.extend(fallbacks[:6])
+
+    return queries
+
+
 def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> list:
-    """DVIDS'ten (ABD Savunma Bakanlığı) gerçek askeri video indirir. Public Domain."""
+    """DVIDS'ten (ABD Savunma Bakanlığı) gerçek askeri video indirir. Public Domain.
+
+    İyileştirmeler:
+    - sort=date (en yeni önce)
+    - date_from = 3 yıl öncesi (eski arşiv videoları hariç)
+    - branch otomatik tespiti (Navy / Army / Air Force vb.)
+    - Konu-bağlı akıllı query üretimi
+    - max_results 25 → 50
+    """
     if not shutil.which("ffmpeg"):
         print("[video_builder] ffmpeg bulunamadı, DVIDS atlanıyor.")
         return []
 
-    downloaded = []
-    queries = []
-    if len(keywords) >= 2:
-        queries.append(" ".join(keywords[:2]))
-    for kw in keywords[:4]:
-        queries.append(kw)
+    from datetime import timedelta
+    date_from = (datetime.now() - timedelta(days=3 * 365)).strftime("%Y-%m-%d")
+    branch = _detect_dvids_branch(keywords)
+    queries = _build_dvids_queries(keywords)
 
-    # Askeri fallback sorguları (geniş havuz — 10 klip bulmak için)
-    military_fallbacks = [
-        "military exercise", "fighter jet", "aircraft carrier",
-        "special operations", "drone strike", "naval operations",
-        "air force training", "army combat", "marine corps",
-        "helicopter operation", "missile launch", "tank training",
-        "navy seal", "airborne operation", "military convoy",
-        "artillery fire", "warship", "military parade",
-        "combat footage", "defense exercise", "bombing range",
-    ]
-    random.shuffle(military_fallbacks)
-    queries.extend(military_fallbacks)
+    if branch:
+        print(f"[video_builder] DVIDS branch tespiti: {branch}")
+
+    downloaded = []
 
     for query in queries:
         if len(downloaded) >= n:
             break
+
         params = {
             "q": query,
-            "max_results": 25,
+            "max_results": 50,
             "type": "video",
+            "sort": "date",          # En yeni önce
+            "date_from": date_from,  # Son 3 yıl
             "api_key": api_key,
         }
+        if branch:
+            params["branch"] = branch
+
         try:
             resp = requests.get(DVIDS_API, params=params, timeout=20)
             resp.raise_for_status()
             results = resp.json().get("results", [])
-            random.shuffle(results)
+
+            # Tarih sıralaması zaten API tarafından yapıldı — shuffle etme
             for asset in results:
                 if len(downloaded) >= n:
                     break
-                # Sadece video
                 if asset.get("type") != "video":
                     continue
                 vid = f"dvids_{asset.get('id')}"
@@ -606,22 +698,24 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
                 hls_url = asset.get("hls_url")
                 if not hls_url:
                     continue
-                # HLS → MP4 (ffmpeg subprocess)
+
+                title = asset.get("title", "")[:60]
                 try:
                     tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="dvids_")
                     tmp.close()
                     cmd = [
                         "ffmpeg", "-y",
-                        "-ss", "5",        # ilk 5sn atla (DVIDS slate/tag ekranı)
+                        "-ss", "5",           # ilk 5sn atla (DVIDS slate ekranı)
                         "-i", hls_url,
-                        "-c", "copy", "-t", "30",  # max 30 saniye
+                        "-c", "copy",
+                        "-t", "30",           # max 30 saniye
                         "-loglevel", "error",
                         tmp.name,
                     ]
                     result = subprocess.run(cmd, timeout=60, capture_output=True)
                     if result.returncode == 0 and os.path.getsize(tmp.name) > 10000:
                         downloaded.append(tmp.name)
-                        print(f"[video_builder] DVIDS klip {len(downloaded)}/{n} (id:{vid})")
+                        print(f"[video_builder] DVIDS klip {len(downloaded)}/{n}: '{title}'")
                     else:
                         os.unlink(tmp.name)
                 except (subprocess.TimeoutExpired, Exception) as e:
@@ -631,47 +725,119 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
                     except OSError:
                         pass
         except Exception as e:
-            print(f"[video_builder] DVIDS arama hatası ({query}): {e}")
+            print(f"[video_builder] DVIDS arama hatası ({query!r}): {e}")
 
     return downloaded
 
 
+# Archive.org askeri koleksiyonları — yeniden eskiye öncelik sırası
+_ARCHIVE_MILITARY_COLLECTIONS = [
+    "defense_visual_information",  # DVIDS arşivi — en güncel, HD
+    "usnavyfilms",                 # ABD Deniz Kuvvetleri
+    "usarmyfilms",                 # ABD Ordusu
+    "usmcarchive",                 # ABD Deniz Piyadesi
+    "usmilitaryfilms",             # Genel ABD askeri
+    "usgovfilms",                  # Genel ABD hükümeti
+]
+
+# Keyword → Archive koleksiyon tercihi
+_ARCHIVE_BRANCH_COLLECTIONS = {
+    "navy":    ["usnavyfilms", "defense_visual_information"],
+    "army":    ["usarmyfilms", "defense_visual_information"],
+    "marine":  ["usmcarchive", "defense_visual_information"],
+    "air":     ["defense_visual_information", "usgovfilms"],
+    "default": _ARCHIVE_MILITARY_COLLECTIONS,
+}
+
+
+def _pick_archive_collections(keywords: list) -> list[str]:
+    """Keyword'lere göre öncelikli Archive koleksiyon listesi döndürür."""
+    kw_text = " ".join(keywords).lower()
+    if any(w in kw_text for w in ["navy", "naval", "ship", "carrier", "submarine", "seal"]):
+        return _ARCHIVE_BRANCH_COLLECTIONS["navy"]
+    if any(w in kw_text for w in ["marine", "usmc", "amphibious"]):
+        return _ARCHIVE_BRANCH_COLLECTIONS["marine"]
+    if any(w in kw_text for w in ["army", "tank", "infantry", "soldier", "ranger"]):
+        return _ARCHIVE_BRANCH_COLLECTIONS["army"]
+    if any(w in kw_text for w in ["jet", "aircraft", "bomber", "pilot", "air force"]):
+        return _ARCHIVE_BRANCH_COLLECTIONS["air"]
+    return _ARCHIVE_BRANCH_COLLECTIONS["default"]
+
+
+def _score_archive_file(name: str, size: int) -> int:
+    """MP4 dosyasını kalite/güncellik puanı ile değerlendirir. Yüksek = tercih edilir."""
+    score = 0
+    name_l = name.lower()
+    # HD indikatörleri
+    if "1080" in name_l:
+        score += 40
+    if "720" in name_l:
+        score += 25
+    if "_hd" in name_l or "-hd" in name_l or "hd." in name_l:
+        score += 20
+    if "h264" in name_l or "x264" in name_l or "h.264" in name_l:
+        score += 10
+    # Dosya büyüklüğü: her 10MB için +5 puan (max 50 puan)
+    score += min(50, (size // (10 * 1024 * 1024)) * 5)
+    return score
+
+
 def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
-    """Internet Archive'dan Public Domain askeri video indirir. API key gereksiz."""
+    """Internet Archive'dan Public Domain askeri video indirir. API key gereksiz.
+
+    İyileştirmeler:
+    - sort=publicdate desc (en yeni önce)
+    - date:[2010-01-01 TO *] filtresi (eski çekim görüntüleri dışla)
+    - 6 askeri koleksiyona genişletildi
+    - HD dosya tercihi (1080 > 720 > hd > büyük boyut)
+    - Minimum 3MB dosya boyutu
+    """
     downloaded = []
+
+    # Sorgu listesi
     queries = []
     if len(keywords) >= 2:
         queries.append(" ".join(keywords[:2]))
-    for kw in keywords[:3]:
-        queries.append(kw)
+    if len(keywords) >= 3:
+        queries.append(" ".join(keywords[:3]))
+    for kw in keywords[:4]:
+        if kw not in queries:
+            queries.append(kw)
 
-    # Koleksiyon bazlı fallback'ler
     archive_fallbacks = [
-        "military aircraft", "world war", "nuclear test",
-        "navy ships", "military training", "cold war",
+        "combat operations", "military exercise", "special operations",
+        "naval exercise", "air operations", "ground forces",
     ]
     random.shuffle(archive_fallbacks)
-    queries.extend(archive_fallbacks[:2])
+    queries.extend(archive_fallbacks[:3])
 
     headers = {"User-Agent": "WarShorts/1.0 (video asset downloader)"}
+    collections = _pick_archive_collections(keywords)
+    collection_q = " OR ".join(f"collection:{c}" for c in collections)
 
     for query in queries:
         if len(downloaded) >= n:
             break
-        search_q = f"({query}) AND mediatype:movies AND collection:(usgovfilms OR military)"
+
+        search_q = (
+            f"({query}) AND mediatype:movies "
+            f"AND ({collection_q}) "
+            f"AND date:[2010-01-01 TO *]"   # 2010 öncesi dışla
+        )
         params = {
             "q": search_q,
             "output": "json",
-            "rows": 10,
+            "rows": 20,
             "page": 1,
-            "sort[]": "downloads desc",
-            "fl[]": "identifier,title",
+            "sort[]": "publicdate desc",    # En yeni önce
+            "fl[]": ["identifier", "title", "publicdate"],
         }
         try:
             resp = requests.get(ARCHIVE_API, params=params, timeout=20, headers=headers)
             resp.raise_for_status()
             docs = resp.json().get("response", {}).get("docs", [])
-            random.shuffle(docs)
+            # Tarih sıralaması API tarafından yapıldı — shuffle etme
+
             for doc in docs:
                 if len(downloaded) >= n:
                     break
@@ -682,41 +848,50 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
                 if vid in seen_ids:
                     continue
                 seen_ids.add(vid)
-                # Metadata'dan mp4 dosyası bul
+
                 try:
                     meta_url = f"https://archive.org/metadata/{identifier}"
                     meta_resp = requests.get(meta_url, timeout=15, headers=headers)
                     meta_resp.raise_for_status()
                     files = meta_resp.json().get("files", [])
-                    # mp4 dosyası ara (boyut < 50MB)
-                    mp4_file = None
+
+                    # MP4 adaylarını topla ve kalite puanına göre sırala
+                    candidates = []
                     for f in files:
                         name = f.get("name", "")
                         size = int(f.get("size", 0) or 0)
                         fmt = f.get("format", "").lower()
-                        if (name.lower().endswith(".mp4") or "mpeg4" in fmt or "mp4" in fmt) \
-                                and 0 < size < 50 * 1024 * 1024:
-                            mp4_file = name
-                            break
-                    if not mp4_file:
+                        is_mp4 = name.lower().endswith(".mp4") or "mpeg4" in fmt or "mp4" in fmt
+                        # Min 3MB, max 150MB
+                        if is_mp4 and 3 * 1024 * 1024 <= size <= 150 * 1024 * 1024:
+                            candidates.append((name, size, _score_archive_file(name, size)))
+
+                    if not candidates:
                         continue
-                    # İndir
-                    dl_url = f"https://archive.org/download/{identifier}/{mp4_file}"
+
+                    # En yüksek puanlı dosyayı seç
+                    candidates.sort(key=lambda x: x[2], reverse=True)
+                    best_name, best_size, best_score = candidates[0]
+
+                    dl_url = f"https://archive.org/download/{identifier}/{best_name}"
                     tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="archive_")
-                    r = requests.get(dl_url, stream=True, timeout=60, headers=headers)
+                    r = requests.get(dl_url, stream=True, timeout=90, headers=headers)
                     r.raise_for_status()
-                    for chunk in r.iter_content(chunk_size=8192):
+                    for chunk in r.iter_content(chunk_size=65536):
                         tmp.write(chunk)
                     tmp.close()
-                    if os.path.getsize(tmp.name) > 10000:
+
+                    pub_date = doc.get("publicdate", "?")[:10]
+                    if os.path.getsize(tmp.name) > 3 * 1024 * 1024:
                         downloaded.append(tmp.name)
-                        print(f"[video_builder] Archive klip {len(downloaded)}/{n}: {identifier}")
+                        print(f"[video_builder] Archive klip {len(downloaded)}/{n}: "
+                              f"{identifier} ({pub_date}, score:{best_score})")
                     else:
                         os.unlink(tmp.name)
                 except Exception as e:
                     print(f"[video_builder] Archive indirme hatası ({identifier}): {e}")
         except Exception as e:
-            print(f"[video_builder] Archive arama hatası ({query}): {e}")
+            print(f"[video_builder] Archive arama hatası ({query!r}): {e}")
 
     return downloaded
 
