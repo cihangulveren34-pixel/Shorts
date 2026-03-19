@@ -1393,13 +1393,14 @@ def _fetch_images(keywords: list) -> list[str]:
     return images
 
 
-def _fetch_clips(keywords: list, n: int = 10) -> list[str]:
+def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> list[str]:
     """
     DVIDS + Pexels + Pixabay + Wikimedia + Archive'dan video klip indirir.
     Returns: list of file paths (sadece video, tuple yok).
     """
     dvids_key = os.environ.get("DVIDS_API_KEY")
-    seen_ids = set()
+    if seen_ids is None:
+        seen_ids = set()
     video_paths = []
 
     # ─── 1) DVIDS — ana kaynak (Public Domain) ────────────────────────
@@ -1956,6 +1957,7 @@ def build_video(
     audio_path: str,
     vtt_path: str = None,
     output_path: str = "output/short.mp4",
+    seen_ids: set | None = None,
 ) -> str:
     """Script, ses ve VTT'den 1080x1920 Short üretir."""
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -1970,7 +1972,7 @@ def build_video(
     for tw in title_words:
         if tw not in " ".join(keywords).lower():
             keywords.append(tw)
-    clip_paths = _fetch_clips(keywords, n=10)
+    clip_paths = _fetch_clips(keywords, n=10, seen_ids=seen_ids)
 
     # 1b) Araya eklenecek resimler (5 Wikimedia + 5 Pexels)
     image_paths = _fetch_images(keywords)

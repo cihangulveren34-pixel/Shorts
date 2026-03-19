@@ -72,6 +72,7 @@ def produce_batch(count: int = 7, dry_run: bool = False, language: str = "en") -
     print("=" * 52)
 
     produced = []
+    batch_seen_ids: set = set()  # Batch boyunca klip tekrarını önler
     for i in range(count):
         slot_date = start_date + timedelta(days=i)
         video_dir = os.path.join(BATCH_DIR, str(slot_date))
@@ -117,6 +118,7 @@ def produce_batch(count: int = 7, dry_run: bool = False, language: str = "en") -
             video_path = build_video(
                 script, audio_path, vtt_path,
                 output_path=os.path.join(video_dir, "short.mp4"),
+                seen_ids=batch_seen_ids,
             )
 
             # 5) Thumbnail
