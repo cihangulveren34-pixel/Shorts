@@ -118,8 +118,15 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     print("\n[main] RSS haberleri taranıyor...")
     try:
         rss_result = rss_update(max_topics=8)
-        if rss_result.get("topics_added"):
-            print(f"[main] {rss_result['topics_added']} güncel analiz konusu eklendi")
+        added = rss_result.get("topics_added", 0)
+        if added:
+            print(f"[main] {added} güncel analiz konusu eklendi")
+        # Taze haber bulunduysa ve override yoksa direkt kullan (sıfır gecikme)
+        if added > 0 and not topic_override:
+            sample = rss_result.get("sample_topics", [])
+            if sample:
+                topic_override = f"[NEWS] {sample[0]}"
+                print(f"[main] Son dakika haberi pipeline'a alındı: {topic_override}")
     except Exception as e:
         print(f"[main] RSS tarama hatası (kritik değil): {e}")
 

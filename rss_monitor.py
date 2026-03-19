@@ -35,13 +35,47 @@ except ImportError:
 
 TIMEOUT = 15
 MONITOR_STATE_PATH = "rss_state.json"
-# Kaç saatlik haberler işlensin (varsayılan: son 48 saat)
-NEWS_MAX_AGE_HOURS = int(os.environ.get("NEWS_MAX_AGE_HOURS", "48"))
+# Kaç saatlik haberler işlensin (varsayılan: son 8 saat — son dakika odaklı)
+NEWS_MAX_AGE_HOURS = int(os.environ.get("NEWS_MAX_AGE_HOURS", "8"))
+
+_YEAR = str(datetime.now().year)
 
 RSS_FEEDS = [
+    # --- Doğrudan wire service / haber ajansı RSS'leri (en güncel, en hızlı) ---
+    {
+        "name": "Reuters — World News",
+        "url": "https://feeds.reuters.com/reuters/topNews",
+        "keywords": ["military", "war", "missile", "troops", "attack", "strike", "conflict", "ceasefire", "sanctions", "nuclear"],
+    },
+    {
+        "name": "BBC — World",
+        "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+        "keywords": ["military", "war", "conflict", "missile", "troops", "attack", "nato", "ukraine", "russia", "china", "iran"],
+    },
+    {
+        "name": "Al Jazeera — News",
+        "url": "https://www.aljazeera.com/xml/rss/all.xml",
+        "keywords": ["military", "war", "missile", "troops", "conflict", "attack", "israel", "iran", "ukraine", "russia"],
+    },
+    {
+        "name": "Kyiv Independent — War Updates",
+        "url": "https://kyivindependent.com/feed/",
+        "keywords": ["ukraine", "russia", "war", "frontline", "attack", "drone", "missile", "ceasefire", "troops", "offensive"],
+    },
+    {
+        "name": "Defense News",
+        "url": "https://www.defensenews.com/arc/outboundfeeds/rss/",
+        "keywords": ["military", "weapon", "missile", "drone", "navy", "army", "air force", "defense", "pentagon", "nato"],
+    },
+    {
+        "name": "Military Times",
+        "url": "https://www.militarytimes.com/arc/outboundfeeds/rss/",
+        "keywords": ["military", "weapon", "troops", "army", "navy", "marine", "air force", "pentagon", "defense"],
+    },
+    # --- Google News arama RSS'leri (geniş kapsam) ---
     {
         "name": "Google News — Military",
-        "url": "https://news.google.com/rss/search?q=military+weapon+defense+2025&hl=en-US&gl=US&ceid=US:en",
+        "url": f"https://news.google.com/rss/search?q=military+weapon+defense+{_YEAR}&hl=en-US&gl=US&ceid=US:en",
         "keywords": ["military", "weapon", "missile", "drone", "fighter", "tank", "navy", "army", "defense"],
     },
     {
@@ -104,6 +138,52 @@ RSS_FEEDS = [
         "url": "https://news.google.com/rss/search?q=UAE+Saudi+Arabia+military+arms+deal+defense&hl=en-US&gl=US&ceid=US:en",
         "keywords": ["uae", "saudi", "qatar", "arms", "defense", "deal", "military"],
     },
+    # --- Amerika / ABD askeri operasyonları ---
+    {
+        "name": "Google News — US Military Operations",
+        "url": "https://news.google.com/rss/search?q=US+military+operation+airstrike+troops+deployed&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["us military", "american", "pentagon", "airstrike", "troops", "deployed", "operation", "special forces", "centcom", "pacom"],
+    },
+    {
+        "name": "Google News — US Navy Carrier Strike",
+        "url": "https://news.google.com/rss/search?q=US+navy+carrier+strike+group+deployed+warship&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["carrier", "strike group", "navy", "warship", "destroyer", "submarine", "7th fleet", "6th fleet", "indo-pacific"],
+    },
+    {
+        "name": "Google News — US Air Force Stealth B-21",
+        "url": "https://news.google.com/rss/search?q=US+air+force+B-21+F-35+stealth+bomber+fighter&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["b-21", "b-2", "f-35", "f-22", "stealth", "bomber", "air force", "usaf", "aircraft"],
+    },
+    {
+        "name": "Google News — US Pentagon Defense Budget",
+        "url": "https://news.google.com/rss/search?q=Pentagon+defense+budget+weapon+contract+military+spending&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["pentagon", "defense budget", "contract", "spending", "lockheed", "raytheon", "northrop", "general dynamics", "boeing defense"],
+    },
+    {
+        "name": "Google News — US Special Forces SOCOM",
+        "url": "https://news.google.com/rss/search?q=US+special+forces+SOCOM+Delta+Force+Rangers+operation&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["special forces", "socom", "delta force", "rangers", "seal", "green berets", "psyop", "covert", "classified"],
+    },
+    {
+        "name": "Google News — US Middle East Houthi Yemen",
+        "url": "https://news.google.com/rss/search?q=US+military+Houthi+Yemen+Red+Sea+airstrike&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["houthi", "yemen", "red sea", "airstrike", "us navy", "centcom", "shipping", "tanker", "drone attack"],
+    },
+    {
+        "name": "Google News — US China Pacific Tension",
+        "url": "https://news.google.com/rss/search?q=US+China+military+Pacific+Taiwan+strait+confrontation&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["us china", "pacific", "taiwan strait", "south china sea", "confrontation", "indopacom", "freedom of navigation"],
+    },
+    {
+        "name": "Google News — US Sanctions Arms Embargo",
+        "url": "https://news.google.com/rss/search?q=US+sanctions+arms+embargo+military+aid+weapon+transfer&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["sanctions", "arms embargo", "military aid", "weapon transfer", "defense package", "lend-lease", "military assistance"],
+    },
+    {
+        "name": "Stars and Stripes — US Military News",
+        "url": "https://www.stripes.com/arc/outboundfeeds/rss/",
+        "keywords": ["military", "troops", "deployment", "operation", "pentagon", "army", "navy", "air force", "marines", "combat"],
+    },
 ]
 
 # Alakasız içerik filtreleri
@@ -125,11 +205,15 @@ Convert these into {count} YouTube Shorts topics. Each topic should be an ANALYS
 - "Why [weapon/event] should terrify [country]"
 - "[Event] explained: What nobody is telling you"
 - "The REAL reason behind [event]"
+- "America's [operation/weapon/move]: What it really means"
+- "Why the US [action] changes everything in [region]"
+- "The Pentagon just [action]: Here's what nobody is saying"
 
 RULES:
 - Focus on ANALYSIS and IMPLICATIONS, not just restating the news
 - Make it sound URGENT and TERRIFYING
-- Use specific names, weapons, countries
+- Use specific names, weapons, countries (include US military actions when relevant)
+- Cover US operations, deployments, airstrikes, carrier movements, sanctions
 - Each topic must create massive CURIOSITY
 - Topics must work as standalone Shorts (viewer doesn't need to know the news)
 - NO ancient history — ONLY current events (2024-2025)
@@ -257,6 +341,17 @@ def _is_relevant(title: str, desc: str, keywords: list[str]) -> bool:
         "ukraine", "russia", "china", "taiwan", "iran", "israel",
         "turkey", "saudi", "uae", "korea", "hypersonic", "stealth",
         "submarine", "carrier", "cyber", "satellite",
+        # ABD / Amerika askeri operasyonları
+        "pentagon", "centcom", "pacom", "indopacom", "socom",
+        "us military", "american military", "us army", "us navy", "us air force",
+        "us marines", "us troops", "us forces", "us airstrike", "us strike",
+        "deployed", "deployment", "operation ", "special forces",
+        "delta force", "navy seal", "green beret", "ranger",
+        "b-21", "b-2", "f-35", "f-22", "a-10", "ac-130",
+        "uss ", "carrier strike", "7th fleet", "6th fleet", "5th fleet",
+        "houthi", "red sea", "freedom of navigation",
+        "lockheed", "raytheon", "northrop", "general dynamics",
+        "arms deal", "military aid", "defense package", "lend-lease",
     ]
     return any(kw in combined for kw in military_kws)
 
