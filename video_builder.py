@@ -1213,26 +1213,202 @@ def _fetch_pexels_images(keywords: list, n: int, seen_ids: set) -> list[str]:
     return downloaded
 
 
+def _fetch_aljazeera_images(keywords: list, n: int, seen_ids: set) -> list[str]:
+    """Al Jazeera Creative Commons'tan resim indirir."""
+    downloaded = []
+    queries = keywords[:2] + ["military", "war", "conflict", "politics"]
+    random.shuffle(queries)
+
+    for query in queries:
+        if len(downloaded) >= n:
+            break
+        try:
+            # Al Jazeera CC arama API'si
+            resp = requests.get(
+                "https://creativecommons.aljazeera.net/search",
+                params={"q": query, "limit": 20, "offset": 0},
+                headers={
+                    "User-Agent": "WarShorts/1.0",
+                    "Accept": "application/json, text/html",
+                },
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                continue
+
+            # JSON yanıt denemesi
+            try:
+                data = resp.json()
+                results = data.get("results") or data.get("images") or data.get("hits") or []
+                if isinstance(results, dict):
+                    results = results.get("hits") or []
+            except Exception:
+                results = []
+
+            # HTML yanıt — og:image ve data-src URL'lerini regex ile çek
+            if not results:
+                import re as _re
+                urls_found = _re.findall(
+                    r'https://[^\s"\'<>]+\.(?:jpg|jpeg|png|webp)[^\s"\'<>]*',
+                    resp.text,
+                )
+                # Sadece Al Jazeera CDN URL'leri
+                urls_found = [u for u in urls_found if "aljazeera" in u or "ajenglish" in u]
+                for url in urls_found:
+                    if len(downloaded) >= n:
+                        break
+                    img_id = f"aljazeera_{hash(url)}"
+                    if img_id in seen_ids:
+                        continue
+                    seen_ids.add(img_id)
+                    try:
+                        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False, prefix="aje_img_")
+                        tmp.close()
+                        r = requests.get(url, timeout=30, stream=True,
+                                         headers={"User-Agent": "WarShorts/1.0"})
+                        r.raise_for_status()
+                        with open(tmp.name, "wb") as f:
+                            for chunk in r.iter_content(chunk_size=1024 * 256):
+                                f.write(chunk)
+                        if os.path.getsize(tmp.name) > 5000:
+                            downloaded.append(tmp.name)
+                            print(f"[video_builder] Al Jazeera resim {len(downloaded)}/{n}")
+                        else:
+                            os.unlink(tmp.name)
+                    except Exception:
+                        try:
+                            os.unlink(tmp.name)
+                        except OSError:
+                            pass
+                continue
+
+            for item in results:
+                if len(downloaded) >= n:
+                    break
+                url = (item.get("url") or item.get("image_url") or
+                       item.get("src") or item.get("thumbnail") or "")
+                if not url:
+                    continue
+                img_id = f"aljazeera_{item.get('id', hash(url))}"
+                if img_id in seen_ids:
+                    continue
+                seen_ids.add(img_id)
+                try:
+                    tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False, prefix="aje_img_")
+                    tmp.close()
+                    r = requests.get(url, timeout=30, stream=True,
+                                     headers={"User-Agent": "WarShorts/1.0"})
+                    r.raise_for_status()
+                    with open(tmp.name, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=1024 * 256):
+                            f.write(chunk)
+                    if os.path.getsize(tmp.name) > 5000:
+                        downloaded.append(tmp.name)
+                        print(f"[video_builder] Al Jazeera resim {len(downloaded)}/{n} (id:{img_id})")
+                    else:
+                        os.unlink(tmp.name)
+                except Exception:
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError:
+                        pass
+        except Exception as e:
+            print(f"[video_builder] Al Jazeera resim arama hatası ({query}): {e}")
+    return downloaded
+
+
+def _fetch_unsplash_images(keywords: list, n: int, seen_ids: set) -> list[str]:
+    """Unsplash'tan ücretsiz resim indirir (UNSPLASH_ACCESS_KEY gerekli)."""
+    access_key = os.environ.get("UNSPLASH_ACCESS_KEY", "")
+    if not access_key:
+        print("[video_builder] UNSPLASH_ACCESS_KEY bulunamadı, Unsplash atlanıyor.")
+        return []
+    downloaded = []
+    queries = keywords[:2] + ["military", "war", "soldier", "fighter jet"]
+    random.shuffle(queries)
+
+    for query in queries:
+        if len(downloaded) >= n:
+            break
+        try:
+            resp = requests.get(
+                "https://api.unsplash.com/search/photos",
+                params={"query": query, "per_page": 15, "orientation": "portrait"},
+                headers={"Authorization": f"Client-ID {access_key}"},
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                continue
+            for photo in resp.json().get("results", []):
+                if len(downloaded) >= n:
+                    break
+                img_id = f"unsplash_{photo['id']}"
+                if img_id in seen_ids:
+                    continue
+                seen_ids.add(img_id)
+                # En yüksek çözünürlüklü portrait URL
+                url = photo.get("urls", {}).get("regular") or photo.get("urls", {}).get("full", "")
+                if not url:
+                    continue
+                try:
+                    tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False, prefix="unsplash_img_")
+                    tmp.close()
+                    r = requests.get(url, timeout=30, stream=True)
+                    r.raise_for_status()
+                    with open(tmp.name, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=1024 * 256):
+                            f.write(chunk)
+                    if os.path.getsize(tmp.name) > 5000:
+                        downloaded.append(tmp.name)
+                        print(f"[video_builder] Unsplash resim {len(downloaded)}/{n} (id:{img_id})")
+                    else:
+                        os.unlink(tmp.name)
+                except Exception:
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError:
+                        pass
+        except Exception as e:
+            print(f"[video_builder] Unsplash resim arama hatası ({query}): {e}")
+    return downloaded
+
+
 def _fetch_images(keywords: list) -> list[str]:
-    """5 Wikimedia + 5 Pexels resim indirir."""
+    """2 Wikimedia + 2 Pexels + 2 Al Jazeera + 2 Unsplash = 8 resim indirir."""
     seen_ids: set = set()
     images: list[str] = []
 
-    # 5 Wikimedia
+    # 2 Wikimedia
     try:
-        wiki_imgs = _fetch_wikimedia_images(keywords, 5, seen_ids)
-        images.extend(wiki_imgs)
-        print(f"[video_builder] Wikimedia resim: {len(wiki_imgs)}")
+        imgs = _fetch_wikimedia_images(keywords, 2, seen_ids)
+        images.extend(imgs)
+        print(f"[video_builder] Wikimedia resim: {len(imgs)}")
     except Exception as e:
         print(f"[video_builder] Wikimedia resim hatası: {e}")
 
-    # 5 Pexels
+    # 2 Pexels
     try:
-        pexels_imgs = _fetch_pexels_images(keywords, 5, seen_ids)
-        images.extend(pexels_imgs)
-        print(f"[video_builder] Pexels resim: {len(pexels_imgs)}")
+        imgs = _fetch_pexels_images(keywords, 2, seen_ids)
+        images.extend(imgs)
+        print(f"[video_builder] Pexels resim: {len(imgs)}")
     except Exception as e:
         print(f"[video_builder] Pexels resim hatası: {e}")
+
+    # 2 Al Jazeera
+    try:
+        imgs = _fetch_aljazeera_images(keywords, 2, seen_ids)
+        images.extend(imgs)
+        print(f"[video_builder] Al Jazeera resim: {len(imgs)}")
+    except Exception as e:
+        print(f"[video_builder] Al Jazeera resim hatası: {e}")
+
+    # 2 Unsplash
+    try:
+        imgs = _fetch_unsplash_images(keywords, 2, seen_ids)
+        images.extend(imgs)
+        print(f"[video_builder] Unsplash resim: {len(imgs)}")
+    except Exception as e:
+        print(f"[video_builder] Unsplash resim hatası: {e}")
 
     print(f"[video_builder] Toplam resim: {len(images)}")
     return images
