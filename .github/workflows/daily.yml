@@ -123,7 +123,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add used_topics.json
           git diff --cached --quiet || git commit -m "chore: update used_topics after daily run [skip ci]"
-          git push origin HEAD
+          git pull --rebase origin $(git rev-parse --abbrev-ref HEAD) || true
+          git push origin HEAD || true
 
       - name: Upload output artifacts (debug)
         if: failure()
