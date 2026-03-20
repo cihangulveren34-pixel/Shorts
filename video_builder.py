@@ -1482,6 +1482,7 @@ def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> li
 
     print(f"[video_builder] Toplam: {len(video_paths)} video klip")
     _save_seen_ids(seen_ids)
+    random.shuffle(video_paths)
     return video_paths[:n]
 
 
@@ -1650,6 +1651,8 @@ def _build_background(clip_paths: list, total_duration: float,
     processed = []
     img_pool = list(image_paths) if image_paths else []
     random.shuffle(img_pool)
+    clip_paths = list(clip_paths)
+    random.shuffle(clip_paths)
 
     for i, path in enumerate(clip_paths):
         kb = style.ken_burns_pool[i % len(style.ken_burns_pool)]
