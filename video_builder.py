@@ -1393,6 +1393,25 @@ def _fetch_images(keywords: list) -> list[str]:
     return images
 
 
+SEEN_IDS_FILE = os.path.join("output", "seen_clip_ids.json")
+
+
+def _load_seen_ids() -> set:
+    """Daha önce kullanılan klip ID'lerini diskten yükler."""
+    try:
+        with open(SEEN_IDS_FILE, "r") as f:
+            return set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return set()
+
+
+def _save_seen_ids(seen_ids: set) -> None:
+    """Kullanılan klip ID'lerini diske kaydeder."""
+    os.makedirs(os.path.dirname(SEEN_IDS_FILE), exist_ok=True)
+    with open(SEEN_IDS_FILE, "w") as f:
+        json.dump(list(seen_ids), f)
+
+
 def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> list[str]:
     """
     DVIDS + Pexels + Pixabay + Wikimedia + Archive'dan video klip indirir.
@@ -1400,7 +1419,7 @@ def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> li
     """
     dvids_key = os.environ.get("DVIDS_API_KEY")
     if seen_ids is None:
-        seen_ids = set()
+        seen_ids = _load_seen_ids()
     video_paths = []
 
     # ─── 1) DVIDS — ana kaynak (Public Domain) ────────────────────────
@@ -1462,6 +1481,7 @@ def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> li
         raise RuntimeError("Hiç video klip indirilemedi.")
 
     print(f"[video_builder] Toplam: {len(video_paths)} video klip")
+    _save_seen_ids(seen_ids)
     return video_paths[:n]
 
 
