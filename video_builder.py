@@ -597,6 +597,14 @@ _DVIDS_TOPIC_QUERIES = {
 }
 
 
+def _keyword_hits(text: str, keywords: list[str]) -> int:
+    """Metnin içinde kaç keyword geçtiğini döndürür. Relevance sıralaması için kullanılır."""
+    if not text or not keywords:
+        return 0
+    text_l = text.lower()
+    return sum(1 for kw in keywords if kw.lower() in text_l)
+
+
 def _detect_dvids_branch(keywords: list) -> str | None:
     """Keyword listesinden en uygun DVIDS askeri kolunu tespit eder."""
     kw_text = " ".join(keywords).lower()
@@ -682,7 +690,11 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
             resp.raise_for_status()
             results = resp.json().get("results", [])
 
-            # Tarih sıralaması zaten API tarafından yapıldı — shuffle etme
+            # Keyword relevance'a göre sırala: en alakalı önce indirilir
+            results.sort(
+                key=lambda a: _keyword_hits(a.get("title", ""), keywords),
+                reverse=True,
+            )
             for asset in results:
                 if len(downloaded) >= n:
                     break
@@ -833,7 +845,15 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
             resp = requests.get(ARCHIVE_API, params=params, timeout=20, headers=headers)
             resp.raise_for_status()
             docs = resp.json().get("response", {}).get("docs", [])
-            # Tarih sıralaması API tarafından yapıldı — shuffle etme
+            # Relevance'a göre sırala (keyword match > 0 olanlar önce)
+            docs.sort(
+                key=lambda d: _keyword_hits(
+                    (d.get("title") if isinstance(d.get("title"), str)
+                     else " ".join(d.get("title") or [])),
+                    keywords,
+                ),
+                reverse=True,
+            )
 
             for doc in docs:
                 if len(downloaded) >= n:
@@ -841,6 +861,14 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
                 identifier = doc.get("identifier")
                 if not identifier:
                     continue
+
+                # Metadata çekmeden önce title ile hızlı relevance kontrolü
+                raw_title = doc.get("title") or ""
+                title_str = raw_title if isinstance(raw_title, str) else " ".join(raw_title)
+                if _keyword_hits(title_str, keywords) == 0 and len(downloaded) > 0:
+                    # Zaten yeterli relevantlı klip varsa alakasızları atla
+                    continue
+
                 vid = f"archive_{identifier}"
                 if vid in seen_ids:
                     continue
@@ -1013,7 +1041,10 @@ def _fetch_pixabay_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
 def _fetch_wikimedia_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
     """Wikimedia Commons'tan video indirir. Klip süresi 3sn ile sınırlı."""
     downloaded = []
-    queries = keywords[:3] + ["military", "missile", "tank", "aircraft"]
+    # Sadece gerçek keyword'ler — generic military fallback kaldırıldı
+    queries = keywords[:4]
+    if not queries:
+        return []
     random.shuffle(queries)
 
     for query in queries:
@@ -1104,7 +1135,10 @@ def _fetch_wikimedia_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
 def _fetch_wikimedia_images(keywords: list, n: int, seen_ids: set) -> list[str]:
     """Wikimedia Commons'tan resim (JPG/PNG) indirir."""
     downloaded = []
-    queries = keywords[:3] + ["military", "missile", "tank", "aircraft"]
+    # Sadece gerçek keyword'ler — generic military fallback kaldırıldı
+    queries = keywords[:4]
+    if not queries:
+        return []
     random.shuffle(queries)
 
     for query in queries:
@@ -1220,8 +1254,10 @@ def _fetch_pexels_images(keywords: list, n: int, seen_ids: set) -> list[str]:
 def _fetch_aljazeera_images(keywords: list, n: int, seen_ids: set) -> list[str]:
     """Al Jazeera Creative Commons'tan resim indirir."""
     downloaded = []
-    queries = keywords[:2] + ["military", "war", "conflict", "politics"]
-    random.shuffle(queries)
+    # Sadece gerçek keyword'ler — generic fallback sorgular kaldırıldı (alakasız resim çekiyordu)
+    queries = keywords[:3]
+    if not queries:
+        return []
 
     for query in queries:
         if len(downloaded) >= n:
@@ -1292,6 +1328,14 @@ def _fetch_aljazeera_images(keywords: list, n: int, seen_ids: set) -> list[str]:
                 url = (item.get("url") or item.get("image_url") or
                        item.get("src") or item.get("thumbnail") or "")
                 if not url:
+                    continue
+                # Title/description relevance kontrolü — alakasız haberleri filtrele
+                item_text = " ".join(filter(None, [
+                    item.get("title") or "",
+                    item.get("description") or "",
+                    item.get("caption") or "",
+                ]))
+                if item_text and _keyword_hits(item_text, keywords) == 0:
                     continue
                 img_id = f"aljazeera_{item.get('id', hash(url))}"
                 if img_id in seen_ids:
@@ -1378,16 +1422,34 @@ def _fetch_unsplash_images(keywords: list, n: int, seen_ids: set) -> list[str]:
 
 
 def _fetch_images(keywords: list) -> list[str]:
-    """Al Jazeera Creative Commons'tan 8 resim indirir."""
+    """Keyword'lere göre alakalı resimler indirir.
+
+    Öncelik sırası:
+    1. Wikimedia Commons — keyword araması, lisanslı, doğrudan alakalı
+    2. Al Jazeera CC    — yedek; artık generic sorgusuz, title-filtered
+    """
     seen_ids: set = set()
     images: list[str] = []
+    target = 8
 
+    # 1) Wikimedia — birincil kaynak (keyword-driven, güvenilir)
     try:
-        imgs = _fetch_aljazeera_images(keywords, 8, seen_ids)
-        images.extend(imgs)
-        print(f"[video_builder] Al Jazeera resim: {len(imgs)}")
+        wiki_imgs = _fetch_wikimedia_images(keywords, target, seen_ids)
+        images.extend(wiki_imgs)
+        print(f"[video_builder] Wikimedia resim: {len(wiki_imgs)}")
     except Exception as e:
-        print(f"[video_builder] Al Jazeera resim hatası: {e}")
+        print(f"[video_builder] Wikimedia resim hatası: {e}")
+
+    # 2) Al Jazeera — yedek (keyword title-filtered, generic sorgu kaldırıldı)
+    if len(images) < target:
+        remaining = target - len(images)
+        try:
+            aje_imgs = _fetch_aljazeera_images(keywords, remaining, seen_ids)
+            images.extend(aje_imgs)
+            if aje_imgs:
+                print(f"[video_builder] Al Jazeera resim: {len(aje_imgs)}")
+        except Exception as e:
+            print(f"[video_builder] Al Jazeera resim hatası: {e}")
 
     print(f"[video_builder] Toplam resim: {len(images)}")
     return images
