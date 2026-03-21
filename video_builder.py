@@ -607,6 +607,7 @@ def _keyword_hits(text: str, keywords: list[str]) -> int:
 
 # Tören / brifing / röportaj içeriklerini dışla — video montajına görsel olarak uygunsuz
 _NON_ACTION_TERMS = {
+    # Tören / protokol
     "briefing", "press briefing", "press conference", "interview",
     "ceremony", "change of command", "retirement", "promotion ceremony",
     "award ceremony", "ribbon cutting", "speech", "remarks", "town hall",
@@ -617,6 +618,11 @@ _NON_ACTION_TERMS = {
     "promotion", "swearing", "oath of office", "congressional",
     "senator", "secretary of defense", "chief of staff", "pentagon",
     "news conference", "media roundtable", "official visit", "dignitary",
+    # Haber / yayın — lower-thirds ve chyron içerir
+    "news report", "news story", "broadcast", "reporter", "anchor",
+    "correspondent", "newscast", "on camera", "on-camera", "stand-up",
+    "package", "live report", "public affairs", "pa product",
+    "media embed", "embedded media", "press pool",
 }
 
 
@@ -733,9 +739,12 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
                     tmp.close()
                     cmd = [
                         "ffmpeg", "-y",
-                        "-ss", "5",           # ilk 5sn atla (DVIDS slate ekranı)
+                        "-ss", "8",           # ilk 8sn atla (DVIDS slate + açılış lower-third)
                         "-i", hls_url,
-                        "-c", "copy",
+                        # Alt %12'yi kes (lower-thirds / isim-rütbe barları), orijinal boyuta scale et
+                        "-vf", "crop=iw:trunc(ih*0.88/2)*2:0:0,scale=iw:ih",
+                        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20",
+                        "-an",               # ses yok (B-roll)
                         "-t", "30",           # max 30 saniye
                         "-loglevel", "error",
                         tmp.name,
@@ -925,9 +934,35 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
 
                     pub_date = doc.get("publicdate", "?")[:10]
                     if os.path.getsize(tmp.name) > 3 * 1024 * 1024:
-                        downloaded.append(tmp.name)
-                        print(f"[video_builder] Archive klip {len(downloaded)}/{n}: "
-                              f"{identifier} ({pub_date}, score:{best_score})")
+                        # Alt %12'yi kes (lower-thirds / haber barları), orijinal boyuta scale et
+                        if shutil.which("ffmpeg"):
+                            cropped = tempfile.NamedTemporaryFile(
+                                suffix=".mp4", delete=False, prefix="archive_crop_"
+                            )
+                            cropped.close()
+                            subprocess.run(
+                                [
+                                    "ffmpeg", "-y", "-i", tmp.name,
+                                    "-vf", "crop=iw:trunc(ih*0.88/2)*2:0:0,scale=iw:ih",
+                                    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20",
+                                    "-an", "-loglevel", "error", cropped.name,
+                                ],
+                                timeout=120, capture_output=True,
+                            )
+                            os.unlink(tmp.name)
+                            if os.path.exists(cropped.name) and os.path.getsize(cropped.name) > 3 * 1024 * 1024:
+                                downloaded.append(cropped.name)
+                                print(f"[video_builder] Archive klip {len(downloaded)}/{n}: "
+                                      f"{identifier} ({pub_date}, score:{best_score})")
+                            else:
+                                try:
+                                    os.unlink(cropped.name)
+                                except OSError:
+                                    pass
+                        else:
+                            downloaded.append(tmp.name)
+                            print(f"[video_builder] Archive klip {len(downloaded)}/{n}: "
+                                  f"{identifier} ({pub_date}, score:{best_score})")
                     else:
                         os.unlink(tmp.name)
                 except Exception as e:
@@ -1454,14 +1489,17 @@ def _fetch_images(keywords: list) -> list[str]:
     """Keyword'lere göre alakalı resimler indirir.
 
     Öncelik sırası:
-    1. Wikimedia Commons — keyword araması, lisanslı, doğrudan alakalı
-    2. Al Jazeera CC    — yedek; artık generic sorgusuz, title-filtered
+    1. Wikimedia Commons — keyword araması, lisanslı, metin içermez
+    2. Pexels            — stock fotoğraf, temiz (logo/metin yok)
+
+    Al Jazeera kaldırıldı: haber fotoğrafları doğası gereği
+    logo, watermark ve altyazı metni içeriyor.
     """
     seen_ids: set = set()
     images: list[str] = []
     target = 8
 
-    # 1) Wikimedia — birincil kaynak (keyword-driven, güvenilir)
+    # 1) Wikimedia — birincil kaynak (keyword-driven, temiz)
     try:
         wiki_imgs = _fetch_wikimedia_images(keywords, target, seen_ids)
         images.extend(wiki_imgs)
@@ -1469,16 +1507,16 @@ def _fetch_images(keywords: list) -> list[str]:
     except Exception as e:
         print(f"[video_builder] Wikimedia resim hatası: {e}")
 
-    # 2) Al Jazeera — yedek (keyword title-filtered, generic sorgu kaldırıldı)
+    # 2) Pexels — yedek (stock fotoğraf, metin/logo yok)
     if len(images) < target:
         remaining = target - len(images)
         try:
-            aje_imgs = _fetch_aljazeera_images(keywords, remaining, seen_ids)
-            images.extend(aje_imgs)
-            if aje_imgs:
-                print(f"[video_builder] Al Jazeera resim: {len(aje_imgs)}")
+            pexels_imgs = _fetch_pexels_images(keywords, remaining, seen_ids)
+            images.extend(pexels_imgs)
+            if pexels_imgs:
+                print(f"[video_builder] Pexels resim: {len(pexels_imgs)}")
         except Exception as e:
-            print(f"[video_builder] Al Jazeera resim hatası: {e}")
+            print(f"[video_builder] Pexels resim hatası: {e}")
 
     print(f"[video_builder] Toplam resim: {len(images)}")
     return images
