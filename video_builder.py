@@ -1488,35 +1488,18 @@ def _fetch_unsplash_images(keywords: list, n: int, seen_ids: set) -> list[str]:
 def _fetch_images(keywords: list) -> list[str]:
     """Keyword'lere göre alakalı resimler indirir.
 
-    Öncelik sırası:
-    1. Wikimedia Commons — keyword araması, lisanslı, metin içermez
-    2. Pexels            — stock fotoğraf, temiz (logo/metin yok)
-
-    Al Jazeera kaldırıldı: haber fotoğrafları doğası gereği
-    logo, watermark ve altyazı metni içeriyor.
+    Sadece Wikimedia Commons — keyword araması, lisanslı, metin/logo içermez.
     """
     seen_ids: set = set()
     images: list[str] = []
     target = 8
 
-    # 1) Wikimedia — birincil kaynak (keyword-driven, temiz)
     try:
         wiki_imgs = _fetch_wikimedia_images(keywords, target, seen_ids)
         images.extend(wiki_imgs)
         print(f"[video_builder] Wikimedia resim: {len(wiki_imgs)}")
     except Exception as e:
         print(f"[video_builder] Wikimedia resim hatası: {e}")
-
-    # 2) Pexels — yedek (stock fotoğraf, metin/logo yok)
-    if len(images) < target:
-        remaining = target - len(images)
-        try:
-            pexels_imgs = _fetch_pexels_images(keywords, remaining, seen_ids)
-            images.extend(pexels_imgs)
-            if pexels_imgs:
-                print(f"[video_builder] Pexels resim: {len(pexels_imgs)}")
-        except Exception as e:
-            print(f"[video_builder] Pexels resim hatası: {e}")
 
     print(f"[video_builder] Toplam resim: {len(images)}")
     return images
