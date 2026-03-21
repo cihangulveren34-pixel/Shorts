@@ -605,6 +605,27 @@ def _keyword_hits(text: str, keywords: list[str]) -> int:
     return sum(1 for kw in keywords if kw.lower() in text_l)
 
 
+# Tören / brifing / röportaj içeriklerini dışla — video montajına görsel olarak uygunsuz
+_NON_ACTION_TERMS = {
+    "briefing", "press briefing", "press conference", "interview",
+    "ceremony", "change of command", "retirement", "promotion ceremony",
+    "award ceremony", "ribbon cutting", "speech", "remarks", "town hall",
+    "graduation", "commencement", "visit", "tour", "meet and greet",
+    "signing ceremony", "memorandum", "commemoration", "memorial service",
+    "wreath laying", "flag ceremony", "press event", "media day",
+    "roundtable", "symposium", "summit", "welcome ceremony", "farewell",
+    "promotion", "swearing", "oath of office", "congressional",
+    "senator", "secretary of defense", "chief of staff", "pentagon",
+    "news conference", "media roundtable", "official visit", "dignitary",
+}
+
+
+def _is_action_footage(title: str) -> bool:
+    """True dönerse klip aksiyon/eğitim görüntüsüdür. False ise tören/röportaj/brifing."""
+    title_l = title.lower()
+    return not any(term in title_l for term in _NON_ACTION_TERMS)
+
+
 def _detect_dvids_branch(keywords: list) -> str | None:
     """Keyword listesinden en uygun DVIDS askeri kolunu tespit eder."""
     kw_text = " ".join(keywords).lower()
@@ -639,17 +660,9 @@ def _build_dvids_queries(keywords: list) -> list[str]:
         if kw not in queries:
             queries.append(kw)
 
-    # 4) Genel fallback havuzu (geniş kapsam)
-    fallbacks = [
-        "joint military exercise", "combat operations", "live fire training",
-        "special operations forces", "expeditionary operations",
-        "multinational exercise", "force readiness", "military deployment",
-        "combined arms training", "close air support", "naval exercise",
-        "airborne operation", "artillery training", "armor operations",
-        "counterterrorism exercise", "medevac training",
-    ]
-    random.shuffle(fallbacks)
-    queries.extend(fallbacks[:6])
+    # 4) Kategori bazlı action-only fallback — tören/brifing değil, aksiyon içerikleri
+    # _DVIDS_TOPIC_QUERIES'den seçilen topic_queries zaten bunu kapsar (yukarıda eklendi)
+    # Genel "military deployment / force readiness" gibi sorgular tören döndürebilirdi — kaldırıldı
 
     return queries
 
@@ -708,7 +721,13 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
                 if not hls_url:
                     continue
 
-                title = asset.get("title", "")[:60]
+                title = asset.get("title", "")
+                # Röportaj / tören / brifing içeriklerini atla
+                if not _is_action_footage(title):
+                    print(f"[video_builder] DVIDS atlandı (tören/brifing): '{title[:60]}'")
+                    continue
+
+                title = title[:60]
                 try:
                     tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="dvids_")
                     tmp.close()
@@ -813,12 +832,8 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
         if kw not in queries:
             queries.append(kw)
 
-    archive_fallbacks = [
-        "combat operations", "military exercise", "special operations",
-        "naval exercise", "air operations", "ground forces",
-    ]
-    random.shuffle(archive_fallbacks)
-    queries.extend(archive_fallbacks[:3])
+    # Generic fallback sorgular kaldırıldı: tören/brifing döndürebiliyordu
+    # Archive koleksiyonları zaten askeri içeriğe odaklı
 
     headers = {"User-Agent": "WarShorts/1.0 (video asset downloader)"}
     collections = _pick_archive_collections(keywords)
@@ -862,9 +877,11 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
                 if not identifier:
                     continue
 
-                # Metadata çekmeden önce title ile hızlı relevance kontrolü
+                # Metadata çekmeden önce title ile hızlı relevance + aksiyon kontrolü
                 raw_title = doc.get("title") or ""
                 title_str = raw_title if isinstance(raw_title, str) else " ".join(raw_title)
+                if not _is_action_footage(title_str):
+                    continue  # Tören/brifing/röportaj — atla
                 if _keyword_hits(title_str, keywords) == 0 and len(downloaded) > 0:
                     # Zaten yeterli relevantlı klip varsa alakasızları atla
                     continue
@@ -927,7 +944,10 @@ def _fetch_pexels_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
     if not api_key:
         return []
     downloaded = []
-    queries = keywords[:3] + ["military", "war", "explosion", "soldier"]
+    # Sadece gerçek keyword'ler — generic fallback sorgular kaldırıldı
+    queries = keywords[:4]
+    if not queries:
+        return []
     random.shuffle(queries)
 
     for query in queries:
@@ -985,7 +1005,10 @@ def _fetch_pixabay_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
     if not api_key:
         return []
     downloaded = []
-    queries = keywords[:3] + ["military", "war", "army", "navy"]
+    # Sadece gerçek keyword'ler — generic fallback sorgular kaldırıldı
+    queries = keywords[:4]
+    if not queries:
+        return []
     random.shuffle(queries)
 
     for query in queries:
@@ -1203,7 +1226,10 @@ def _fetch_pexels_images(keywords: list, n: int, seen_ids: set) -> list[str]:
     if not api_key:
         return []
     downloaded = []
-    queries = keywords[:3] + ["military", "war", "soldier", "explosion"]
+    # Sadece gerçek keyword'ler — generic fallback sorgular kaldırıldı
+    queries = keywords[:4]
+    if not queries:
+        return []
     random.shuffle(queries)
 
     for query in queries:
@@ -1372,7 +1398,10 @@ def _fetch_unsplash_images(keywords: list, n: int, seen_ids: set) -> list[str]:
         print("[video_builder] UNSPLASH_ACCESS_KEY bulunamadı, Unsplash atlanıyor.")
         return []
     downloaded = []
-    queries = keywords[:2] + ["military", "war", "soldier", "fighter jet"]
+    # Sadece gerçek keyword'ler — generic fallback sorgular kaldırıldı
+    queries = keywords[:4]
+    if not queries:
+        return []
     random.shuffle(queries)
 
     for query in queries:
