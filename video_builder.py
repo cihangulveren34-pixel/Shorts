@@ -597,6 +597,35 @@ _DVIDS_TOPIC_QUERIES = {
 }
 
 
+def _keyword_hits(text: str, keywords: list[str]) -> int:
+    """Metnin içinde kaç keyword geçtiğini döndürür. Relevance sıralaması için kullanılır."""
+    if not text or not keywords:
+        return 0
+    text_l = text.lower()
+    return sum(1 for kw in keywords if kw.lower() in text_l)
+
+
+# Tören / brifing / röportaj içeriklerini dışla — video montajına görsel olarak uygunsuz
+_NON_ACTION_TERMS = {
+    "briefing", "press briefing", "press conference", "interview",
+    "ceremony", "change of command", "retirement", "promotion ceremony",
+    "award ceremony", "ribbon cutting", "speech", "remarks", "town hall",
+    "graduation", "commencement", "visit", "tour", "meet and greet",
+    "signing ceremony", "memorandum", "commemoration", "memorial service",
+    "wreath laying", "flag ceremony", "press event", "media day",
+    "roundtable", "symposium", "summit", "welcome ceremony", "farewell",
+    "promotion", "swearing", "oath of office", "congressional",
+    "senator", "secretary of defense", "chief of staff", "pentagon",
+    "news conference", "media roundtable", "official visit", "dignitary",
+}
+
+
+def _is_action_footage(title: str) -> bool:
+    """True dönerse klip aksiyon/eğitim görüntüsüdür. False ise tören/röportaj/brifing."""
+    title_l = title.lower()
+    return not any(term in title_l for term in _NON_ACTION_TERMS)
+
+
 def _detect_dvids_branch(keywords: list) -> str | None:
     """Keyword listesinden en uygun DVIDS askeri kolunu tespit eder."""
     kw_text = " ".join(keywords).lower()
@@ -631,17 +660,9 @@ def _build_dvids_queries(keywords: list) -> list[str]:
         if kw not in queries:
             queries.append(kw)
 
-    # 4) Genel fallback havuzu (geniş kapsam)
-    fallbacks = [
-        "joint military exercise", "combat operations", "live fire training",
-        "special operations forces", "expeditionary operations",
-        "multinational exercise", "force readiness", "military deployment",
-        "combined arms training", "close air support", "naval exercise",
-        "airborne operation", "artillery training", "armor operations",
-        "counterterrorism exercise", "medevac training",
-    ]
-    random.shuffle(fallbacks)
-    queries.extend(fallbacks[:6])
+    # 4) Kategori bazlı action-only fallback — tören/brifing değil, aksiyon içerikleri
+    # _DVIDS_TOPIC_QUERIES'den seçilen topic_queries zaten bunu kapsar (yukarıda eklendi)
+    # Genel "military deployment / force readiness" gibi sorgular tören döndürebilirdi — kaldırıldı
 
     return queries
 
@@ -682,7 +703,11 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
             resp.raise_for_status()
             results = resp.json().get("results", [])
 
-            # Tarih sıralaması zaten API tarafından yapıldı — shuffle etme
+            # Keyword relevance'a göre sırala: en alakalı önce indirilir
+            results.sort(
+                key=lambda a: _keyword_hits(a.get("title", ""), keywords),
+                reverse=True,
+            )
             for asset in results:
                 if len(downloaded) >= n:
                     break
@@ -696,7 +721,13 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
                 if not hls_url:
                     continue
 
-                title = asset.get("title", "")[:60]
+                title = asset.get("title", "")
+                # Röportaj / tören / brifing içeriklerini atla
+                if not _is_action_footage(title):
+                    print(f"[video_builder] DVIDS atlandı (tören/brifing): '{title[:60]}'")
+                    continue
+
+                title = title[:60]
                 try:
                     tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="dvids_")
                     tmp.close()
@@ -801,12 +832,8 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
         if kw not in queries:
             queries.append(kw)
 
-    archive_fallbacks = [
-        "combat operations", "military exercise", "special operations",
-        "naval exercise", "air operations", "ground forces",
-    ]
-    random.shuffle(archive_fallbacks)
-    queries.extend(archive_fallbacks[:3])
+    # Generic fallback sorgular kaldırıldı: tören/brifing döndürebiliyordu
+    # Archive koleksiyonları zaten askeri içeriğe odaklı
 
     headers = {"User-Agent": "WarShorts/1.0 (video asset downloader)"}
     collections = _pick_archive_collections(keywords)
@@ -833,7 +860,15 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
             resp = requests.get(ARCHIVE_API, params=params, timeout=20, headers=headers)
             resp.raise_for_status()
             docs = resp.json().get("response", {}).get("docs", [])
-            # Tarih sıralaması API tarafından yapıldı — shuffle etme
+            # Relevance'a göre sırala (keyword match > 0 olanlar önce)
+            docs.sort(
+                key=lambda d: _keyword_hits(
+                    (d.get("title") if isinstance(d.get("title"), str)
+                     else " ".join(d.get("title") or [])),
+                    keywords,
+                ),
+                reverse=True,
+            )
 
             for doc in docs:
                 if len(downloaded) >= n:
@@ -841,6 +876,16 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
                 identifier = doc.get("identifier")
                 if not identifier:
                     continue
+
+                # Metadata çekmeden önce title ile hızlı relevance + aksiyon kontrolü
+                raw_title = doc.get("title") or ""
+                title_str = raw_title if isinstance(raw_title, str) else " ".join(raw_title)
+                if not _is_action_footage(title_str):
+                    continue  # Tören/brifing/röportaj — atla
+                if _keyword_hits(title_str, keywords) == 0 and len(downloaded) > 0:
+                    # Zaten yeterli relevantlı klip varsa alakasızları atla
+                    continue
+
                 vid = f"archive_{identifier}"
                 if vid in seen_ids:
                     continue
@@ -899,7 +944,10 @@ def _fetch_pexels_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
     if not api_key:
         return []
     downloaded = []
-    queries = keywords[:3] + ["military", "war", "explosion", "soldier"]
+    # Sadece gerçek keyword'ler — generic fallback sorgular kaldırıldı
+    queries = keywords[:4]
+    if not queries:
+        return []
     random.shuffle(queries)
 
     for query in queries:
@@ -957,7 +1005,10 @@ def _fetch_pixabay_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
     if not api_key:
         return []
     downloaded = []
-    queries = keywords[:3] + ["military", "war", "army", "navy"]
+    # Sadece gerçek keyword'ler — generic fallback sorgular kaldırıldı
+    queries = keywords[:4]
+    if not queries:
+        return []
     random.shuffle(queries)
 
     for query in queries:
@@ -1013,7 +1064,10 @@ def _fetch_pixabay_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
 def _fetch_wikimedia_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
     """Wikimedia Commons'tan video indirir. Klip süresi 3sn ile sınırlı."""
     downloaded = []
-    queries = keywords[:3] + ["military", "missile", "tank", "aircraft"]
+    # Sadece gerçek keyword'ler — generic military fallback kaldırıldı
+    queries = keywords[:4]
+    if not queries:
+        return []
     random.shuffle(queries)
 
     for query in queries:
@@ -1104,7 +1158,10 @@ def _fetch_wikimedia_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
 def _fetch_wikimedia_images(keywords: list, n: int, seen_ids: set) -> list[str]:
     """Wikimedia Commons'tan resim (JPG/PNG) indirir."""
     downloaded = []
-    queries = keywords[:3] + ["military", "missile", "tank", "aircraft"]
+    # Sadece gerçek keyword'ler — generic military fallback kaldırıldı
+    queries = keywords[:4]
+    if not queries:
+        return []
     random.shuffle(queries)
 
     for query in queries:
@@ -1169,7 +1226,10 @@ def _fetch_pexels_images(keywords: list, n: int, seen_ids: set) -> list[str]:
     if not api_key:
         return []
     downloaded = []
-    queries = keywords[:3] + ["military", "war", "soldier", "explosion"]
+    # Sadece gerçek keyword'ler — generic fallback sorgular kaldırıldı
+    queries = keywords[:4]
+    if not queries:
+        return []
     random.shuffle(queries)
 
     for query in queries:
@@ -1220,8 +1280,10 @@ def _fetch_pexels_images(keywords: list, n: int, seen_ids: set) -> list[str]:
 def _fetch_aljazeera_images(keywords: list, n: int, seen_ids: set) -> list[str]:
     """Al Jazeera Creative Commons'tan resim indirir."""
     downloaded = []
-    queries = keywords[:2] + ["military", "war", "conflict", "politics"]
-    random.shuffle(queries)
+    # Sadece gerçek keyword'ler — generic fallback sorgular kaldırıldı (alakasız resim çekiyordu)
+    queries = keywords[:3]
+    if not queries:
+        return []
 
     for query in queries:
         if len(downloaded) >= n:
@@ -1293,6 +1355,14 @@ def _fetch_aljazeera_images(keywords: list, n: int, seen_ids: set) -> list[str]:
                        item.get("src") or item.get("thumbnail") or "")
                 if not url:
                     continue
+                # Title/description relevance kontrolü — alakasız haberleri filtrele
+                item_text = " ".join(filter(None, [
+                    item.get("title") or "",
+                    item.get("description") or "",
+                    item.get("caption") or "",
+                ]))
+                if item_text and _keyword_hits(item_text, keywords) == 0:
+                    continue
                 img_id = f"aljazeera_{item.get('id', hash(url))}"
                 if img_id in seen_ids:
                     continue
@@ -1328,7 +1398,10 @@ def _fetch_unsplash_images(keywords: list, n: int, seen_ids: set) -> list[str]:
         print("[video_builder] UNSPLASH_ACCESS_KEY bulunamadı, Unsplash atlanıyor.")
         return []
     downloaded = []
-    queries = keywords[:2] + ["military", "war", "soldier", "fighter jet"]
+    # Sadece gerçek keyword'ler — generic fallback sorgular kaldırıldı
+    queries = keywords[:4]
+    if not queries:
+        return []
     random.shuffle(queries)
 
     for query in queries:
@@ -1378,16 +1451,34 @@ def _fetch_unsplash_images(keywords: list, n: int, seen_ids: set) -> list[str]:
 
 
 def _fetch_images(keywords: list) -> list[str]:
-    """Al Jazeera Creative Commons'tan 8 resim indirir."""
+    """Keyword'lere göre alakalı resimler indirir.
+
+    Öncelik sırası:
+    1. Wikimedia Commons — keyword araması, lisanslı, doğrudan alakalı
+    2. Al Jazeera CC    — yedek; artık generic sorgusuz, title-filtered
+    """
     seen_ids: set = set()
     images: list[str] = []
+    target = 8
 
+    # 1) Wikimedia — birincil kaynak (keyword-driven, güvenilir)
     try:
-        imgs = _fetch_aljazeera_images(keywords, 8, seen_ids)
-        images.extend(imgs)
-        print(f"[video_builder] Al Jazeera resim: {len(imgs)}")
+        wiki_imgs = _fetch_wikimedia_images(keywords, target, seen_ids)
+        images.extend(wiki_imgs)
+        print(f"[video_builder] Wikimedia resim: {len(wiki_imgs)}")
     except Exception as e:
-        print(f"[video_builder] Al Jazeera resim hatası: {e}")
+        print(f"[video_builder] Wikimedia resim hatası: {e}")
+
+    # 2) Al Jazeera — yedek (keyword title-filtered, generic sorgu kaldırıldı)
+    if len(images) < target:
+        remaining = target - len(images)
+        try:
+            aje_imgs = _fetch_aljazeera_images(keywords, remaining, seen_ids)
+            images.extend(aje_imgs)
+            if aje_imgs:
+                print(f"[video_builder] Al Jazeera resim: {len(aje_imgs)}")
+        except Exception as e:
+            print(f"[video_builder] Al Jazeera resim hatası: {e}")
 
     print(f"[video_builder] Toplam resim: {len(images)}")
     return images
