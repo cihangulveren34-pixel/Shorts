@@ -29,9 +29,8 @@ jobs:
       - name: Install Python dependencies
         run: pip install -U "yt-dlp[default]" pytubefix
 
-      - name: Install & start Cloudflare WARP
+      - name: Install & start Cloudflare WARP (tam tünel)
         run: |
-          # Cloudflare WARP CLI kur
           curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
             | sudo gpg --yes --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
           echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" \
@@ -39,63 +38,40 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y cloudflare-warp
 
-          # warp-svc daemon'unu başlat (systemd GitHub Actions'ta güvenilir değil)
           sudo systemctl start warp-svc || sudo warp-svc &
-          # Daemon'un başlamasını bekle
           for i in $(seq 1 10); do
-            if warp-cli --accept-tos status 2>/dev/null | grep -qi "registration\|disconnected\|connected"; then
-              echo "warp-svc hazır (${i}. deneme)"
-              break
-            fi
-            echo "warp-svc bekleniyor... ($i/10)"
+            if warp-cli --accept-tos status 2>/dev/null | grep -qi "registration\|disconnected\|connected"; then break; fi
             sleep 2
           done
 
-          # Register ol, proxy moduna geç, bağlan
           warp-cli --accept-tos registration new 2>/dev/null || true
-          warp-cli --accept-tos mode proxy
-          warp-cli --accept-tos proxy port 40000
+          warp-cli --accept-tos mode warp
           warp-cli --accept-tos connect
 
-          # Aşama 1: warp-cli status "Connected" olana kadar bekle
-          echo "WARP bağlantısı bekleniyor..."
           for i in $(seq 1 30); do
             status=$(warp-cli --accept-tos status 2>/dev/null || echo "unknown")
             if echo "$status" | grep -qi "^Status update: Connected"; then
-              echo "WARP bağlandı! (${i}. deneme, ~$((i*3))s)"
-              echo "$status"
+              echo "WARP bağlandı! (${i}. deneme)"
               break
             fi
             echo "  ($i/30) $status"
             sleep 3
           done
 
-          # Aşama 2: SOCKS5 proxy'nin çalıştığını doğrula
-          echo "Proxy testi..."
-          for i in $(seq 1 10); do
-            result=$(curl -s --max-time 5 --socks5h 127.0.0.1:40000 https://cloudflare.com/cdn-cgi/trace 2>/dev/null || echo "fail")
-            if echo "$result" | grep -q "warp=on"; then
-              echo "WARP proxy aktif! ✓"
-              echo "$result"
-              exit 0
-            fi
-            echo "  Proxy testi ($i/10) — $result"
-            sleep 3
-          done
-          echo "::error::WARP proxy çalışmıyor!"
-          warp-cli --accept-tos status || true
-          warp-cli --accept-tos settings 2>/dev/null || true
-          ss -tlnp | grep 40000 || echo "Port 40000 dinlenmiyor"
-          journalctl -u warp-svc --no-pager -n 20 2>/dev/null || true
-          exit 1
+          result=$(curl -s --max-time 10 https://cloudflare.com/cdn-cgi/trace 2>/dev/null || echo "fail")
+          if echo "$result" | grep -q "warp=on"; then
+            echo "WARP tünel aktif! ✓"
+            echo "$result"
+          else
+            echo "::error::WARP tünel çalışmıyor!"
+            echo "$result"
+            exit 1
+          fi
 
-      - name: WARP IP kontrolü
+      - name: IP kontrolü
         run: |
-          echo "=== WARP IP ==="
-          curl -s --socks5h 127.0.0.1:40000 https://ipinfo.io 2>/dev/null || echo "WARP üzerinden IP alınamadı"
-          echo ""
-          echo "=== Direkt IP ==="
-          curl -s https://ipinfo.io 2>/dev/null || echo "Direkt IP alınamadı"
+          echo "=== Mevcut IP (WARP üzerinden) ==="
+          curl -s https://ipinfo.io 2>/dev/null || true
 
       - name: Write YouTube cookies
         env:
@@ -106,7 +82,7 @@ jobs:
             echo "Cookies yazıldı ($(wc -c < yt_cookies.txt) byte)"
           fi
 
-      - name: "Test 1: WARP + yt-dlp"
+      - name: "Test 1: yt-dlp (trafik WARP tünelinden geçiyor)"
         id: warp_ytdlp
         continue-on-error: true
         run: |
@@ -115,7 +91,6 @@ jobs:
           [ -f yt_cookies.txt ] && cookie_arg="--cookies yt_cookies.txt"
 
           yt-dlp \
-            --proxy socks5h://127.0.0.1:40000 \
             --skip-download \
             --print "title" \
             --print "format_id" \
@@ -123,7 +98,7 @@ jobs:
             $cookie_arg \
             "https://www.youtube.com/watch?v=$vid" 2>&1
 
-      - name: "Test 2: WARP + pytubefix"
+      - name: "Test 2: pytubefix (trafik WARP tünelinden geçiyor)"
         id: warp_ptf
         continue-on-error: true
         run: |
@@ -133,12 +108,11 @@ jobs:
 
           vid = "${{ inputs.video_id || 'jNQXAC9IVRw' }}"
           url = f"https://www.youtube.com/watch?v={vid}"
-          proxies = {"https": "socks5h://127.0.0.1:40000", "http": "socks5h://127.0.0.1:40000"}
 
           for client in ["ANDROID_TESTSUITE", "IOS", "WEB"]:
-              print(f"\n--- WARP + {client} ---")
+              print(f"\n--- {client} ---")
               try:
-                  yt = YouTube(url, client=client, proxies=proxies)
+                  yt = YouTube(url, client=client)
                   streams = yt.streams.filter(file_extension="mp4")
                   print(f"  Başlık: {yt.title}")
                   print(f"  Stream sayısı: {len(streams)}")
@@ -151,21 +125,6 @@ jobs:
           sys.exit(1)
           PYEOF
 
-      - name: "Test 3: Proxy'siz yt-dlp (karşılaştırma)"
-        id: no_proxy_ytdlp
-        continue-on-error: true
-        run: |
-          vid="${{ inputs.video_id || 'jNQXAC9IVRw' }}"
-          cookie_arg=""
-          [ -f yt_cookies.txt ] && cookie_arg="--cookies yt_cookies.txt"
-
-          yt-dlp \
-            --skip-download \
-            --print "title" \
-            --print "format_id" \
-            $cookie_arg \
-            "https://www.youtube.com/watch?v=$vid" 2>&1
-
       - name: Sonuçları özetle
         if: always()
         run: |
@@ -176,20 +135,17 @@ jobs:
 
           r1="${{ steps.warp_ytdlp.outcome }}"
           r2="${{ steps.warp_ptf.outcome }}"
-          r3="${{ steps.no_proxy_ytdlp.outcome }}"
 
-          [ "$r1" = "success" ] && echo "✅ WARP + yt-dlp      → ÇALIŞIYOR" || echo "❌ WARP + yt-dlp      → BAŞARISIZ"
-          [ "$r2" = "success" ] && echo "✅ WARP + pytubefix   → ÇALIŞIYOR" || echo "❌ WARP + pytubefix   → BAŞARISIZ"
-          [ "$r3" = "success" ] && echo "✅ Proxy'siz yt-dlp   → ÇALIŞIYOR" || echo "❌ Proxy'siz yt-dlp   → BAŞARISIZ"
+          [ "$r1" = "success" ] && echo "✅ yt-dlp (WARP tünel) → ÇALIŞIYOR" || echo "❌ yt-dlp (WARP tünel) → BAŞARISIZ"
+          [ "$r2" = "success" ] && echo "✅ pytubefix (WARP tünel) → ÇALIŞIYOR" || echo "❌ pytubefix (WARP tünel) → BAŞARISIZ"
 
           echo "========================================"
 
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          ## YouTube Test Sonuçları
+          ## YouTube Test Sonuçları (Cloudflare WARP Tünel)
 
           | Yöntem | Sonuç |
           |--------|-------|
-          | WARP + yt-dlp | $([ "$r1" = "success" ] && echo "✅" || echo "❌") |
-          | WARP + pytubefix | $([ "$r2" = "success" ] && echo "✅" || echo "❌") |
-          | Proxy'siz yt-dlp (karşılaştırma) | $([ "$r3" = "success" ] && echo "✅" || echo "❌") |
+          | yt-dlp | $([ "$r1" = "success" ] && echo "✅" || echo "❌") |
+          | pytubefix | $([ "$r2" = "success" ] && echo "✅" || echo "❌") |
           EOF
