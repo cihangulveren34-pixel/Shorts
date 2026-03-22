@@ -461,7 +461,7 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "--print", "id",
                 "--no-warnings",
                 "--no-progress",
-                "--extractor-args", "youtube:player_client=web_creator,web,default;player_skip=webpage",
+                "--extractor-args", "youtube:player_client=web_creator,web,default",
             ] + cookie_args
             id_result = subprocess.run(id_cmd, timeout=30, capture_output=True, text=True)
             video_ids = [l.strip() for l in id_result.stdout.splitlines()
@@ -493,26 +493,35 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 def error(self, msg):
                     print(f"[video_builder]   yt-dlp: {msg[:120]}")
 
-            # Datacenter IP'lerinden çalışan client'lar (öncelik sırasıyla):
-            # web_creator: datacenter IP'lerde web'den daha az kısıtlı.
-            # web: cookie ile iyi çalışır ama datacenter'da sorunlu olabilir.
-            # tv: tv_embedded'den farklı; daha az kısıtlama.
-            # default: yt-dlp kendi en iyi client'ını seçsin.
-            _clients = [["web_creator"], ["web"], ["tv"], ["default"]]
+            # Datacenter IP'lerinden çalışan client'lar (öncelik sırasıyla).
+            # Her tuple: (client_list, player_skip_list | None)
+            # İlk denemeler webpage skip ile (hızlı), başarısız olursa
+            # webpage ile tekrar dene (token toplama için gerekli olabilir).
+            _client_configs = [
+                (["web_creator"],           ["webpage"]),
+                (["web_creator"],           None),       # webpage ile token topla
+                (["web"],                   None),
+                (["tv"],                    ["webpage"]),
+                (["mediaconnect"],          ["webpage"]),
+                (["default"],               None),
+            ]
 
             actual_file = None
             for cc_video_id in video_ids:
                 url = f"https://www.youtube.com/watch?v={cc_video_id}"
                 success = False
 
-                for _client in _clients:
+                for _client, _skip in _client_configs:
                     tmp = tempfile.NamedTemporaryFile(
                         suffix=".mp4", delete=False, prefix="ytcc_full_")
                     tmp.close()
 
+                    _yt_args: dict = {"player_client": _client}
+                    if _skip:
+                        _yt_args["player_skip"] = _skip
+
                     dl_opts = {
                         # format_sort: 720p tercih et ama yoksa daha yüksek de kabul et.
-                        # Eski [height<=720] filtresi format yoksa "not available" veriyordu.
                         # "best*" herhangi bir formatı kabul eder (video+audio veya mux'lu).
                         "format": "bestvideo+bestaudio/best*/best",
                         "format_sort": ["res:720", "ext:mp4:m4a"],
@@ -522,32 +531,50 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                         "quiet": True,
                         "no_warnings": True,
                         "logger": _SilentLogger(),
-                        # check_formats=False: format URL'lerini önceden test etme.
-                        # Default True olunca YouTube stream URL'lerini HEAD request
-                        # ile kontrol eder; datacenter IP'lerinde 403 döner → format
-                        # listesi boşalır → "Requested format is not available" hatası.
                         "check_formats": False,
                         "no_check_certificate": True,
-                        # player_skip=webpage: ilk sayfa yüklemesini atla, bot tespitini
-                        # tetikleyen ana sayfa fetch'ini engeller.
-                        "extractor_args": {
-                            "youtube": {
-                                "player_client": _client,
-                                "player_skip": ["webpage"],
-                            }
-                        },
+                        "extractor_args": {"youtube": _yt_args},
                     }
                     if cookie_file:
                         dl_opts["cookiefile"] = cookie_file
 
+                    _skip_label = "+skip" if _skip else "+page"
                     print(f"[video_builder] YouTube CC: '{query}' → {cc_video_id} "
-                          f"[{_client[0]}]...")
+                          f"[{_client[0]}{_skip_label}]...")
+
+                    # Önce info-only çek → format sayısını logla
+                    try:
+                        info_opts = dict(dl_opts)
+                        info_opts["quiet"] = True
+                        with _ytdlp.YoutubeDL(info_opts) as ydl:
+                            info = ydl.extract_info(url, download=False)
+                        n_fmt = len(info.get("formats") or []) if info else 0
+                        print(f"[video_builder]   {cc_video_id} [{_client[0]}{_skip_label}] "
+                              f"format sayısı: {n_fmt}")
+                        if n_fmt == 0:
+                            try:
+                                os.unlink(tmp.name)
+                            except OSError:
+                                pass
+                            continue
+                    except Exception as e:
+                        err = str(e)[:100]
+                        print(f"[video_builder]   {cc_video_id} [{_client[0]}{_skip_label}] "
+                              f"info başarısız: {err}")
+                        try:
+                            os.unlink(tmp.name)
+                        except OSError:
+                            pass
+                        continue
+
+                    # Format var → indir
                     try:
                         with _ytdlp.YoutubeDL(dl_opts) as ydl:
                             ydl.extract_info(url, download=True)
                     except Exception as e:
                         err = str(e)[:100]
-                        print(f"[video_builder]   {cc_video_id} [{_client[0]}] başarısız: {err}")
+                        print(f"[video_builder]   {cc_video_id} [{_client[0]}{_skip_label}] "
+                              f"indirme başarısız: {err}")
                         try:
                             os.unlink(tmp.name)
                         except OSError:
