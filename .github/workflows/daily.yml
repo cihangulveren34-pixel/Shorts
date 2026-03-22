@@ -12,6 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # Cloudflare WARP proxy: YouTube datacenter IP'lerini engellediği için
+    # tüm YouTube trafiğini WARP üzerinden Cloudflare IP'sine yönlendiriyoruz.
+    services:
+      warp:
+        image: ghcr.io/patrickplaggenborg/warp-proxy:latest
+        ports:
+          - 1080:1080
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,7 +62,21 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Update yt-dlp & pytubefix to latest
-        run: pip install -U yt-dlp pytubefix
+        run: pip install -U "yt-dlp[default]" pytubefix
+
+      - name: Wait for WARP proxy to be ready
+        run: |
+          echo "WARP proxy'nin hazır olmasını bekliyorum..."
+          for i in $(seq 1 15); do
+            if curl -s --socks5 localhost:1080 https://cloudflare.com/cdn-cgi/trace 2>/dev/null | grep -q "warp=on"; then
+              echo "WARP proxy hazır! (${i}. deneme)"
+              curl -s --socks5 localhost:1080 https://cloudflare.com/cdn-cgi/trace
+              exit 0
+            fi
+            echo "Bekleniyor... (${i}/15)"
+            sleep 2
+          done
+          echo "::warning::WARP proxy başlatılamadı — proxy'siz devam ediliyor."
 
       - name: Write YouTube cookies
         env:
@@ -62,17 +84,6 @@ jobs:
         run: |
           if [ -n "$YT_COOKIES" ]; then
             echo "$YT_COOKIES" > yt_cookies.txt
-          fi
-
-      - name: Restore pytubefix OAuth token
-        env:
-          PYTUBEFIX_OAUTH_TOKEN: ${{ secrets.PYTUBEFIX_OAUTH_TOKEN }}
-        run: |
-          if [ -n "$PYTUBEFIX_OAUTH_TOKEN" ]; then
-            echo "$PYTUBEFIX_OAUTH_TOKEN" > .pytubefix_oauth.json
-            echo "pytubefix OAuth token restored."
-          else
-            echo "PYTUBEFIX_OAUTH_TOKEN secret not set — OAuth disabled."
           fi
 
       - name: Run pipeline
@@ -102,6 +113,8 @@ jobs:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
           TRANSLATE_LANGUAGES: ${{ vars.TRANSLATE_LANGUAGES || 'es,fr,pt' }}
+          # Cloudflare WARP SOCKS5 proxy — YouTube indirmeleri için
+          YT_PROXY: socks5://localhost:1080
 
       - name: Save last_video cache
         if: always()
