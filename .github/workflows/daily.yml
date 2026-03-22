@@ -16,9 +16,9 @@ jobs:
     # tüm YouTube trafiğini WARP üzerinden Cloudflare IP'sine yönlendiriyoruz.
     services:
       warp:
-        image: ghcr.io/patrickplaggenborg/warp-proxy:latest
+        image: monius/docker-warp-socks:v5
         ports:
-          - 1080:1080
+          - 9091:9091
 
     steps:
       - name: Checkout
@@ -68,9 +68,9 @@ jobs:
         run: |
           echo "WARP proxy'nin hazır olmasını bekliyorum..."
           for i in $(seq 1 15); do
-            if curl -s --socks5 localhost:1080 https://cloudflare.com/cdn-cgi/trace 2>/dev/null | grep -q "warp=on"; then
+            if curl -s --socks5h localhost:9091 https://cloudflare.com/cdn-cgi/trace 2>/dev/null | grep -q "warp=on"; then
               echo "WARP proxy hazır! (${i}. deneme)"
-              curl -s --socks5 localhost:1080 https://cloudflare.com/cdn-cgi/trace
+              curl -s --socks5h localhost:9091 https://cloudflare.com/cdn-cgi/trace
               exit 0
             fi
             echo "Bekleniyor... (${i}/15)"
@@ -114,7 +114,7 @@ jobs:
           FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
           TRANSLATE_LANGUAGES: ${{ vars.TRANSLATE_LANGUAGES || 'es,fr,pt' }}
           # Cloudflare WARP SOCKS5 proxy — YouTube indirmeleri için
-          YT_PROXY: socks5://localhost:1080
+          YT_PROXY: socks5h://localhost:9091
 
       - name: Save last_video cache
         if: always()
