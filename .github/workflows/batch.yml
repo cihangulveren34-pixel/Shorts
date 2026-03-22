@@ -35,8 +35,8 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: Update yt-dlp to latest
-        run: pip install -U yt-dlp
+      - name: Update yt-dlp & pytubefix to latest
+        run: pip install -U yt-dlp pytubefix
 
       - name: Write YouTube cookies
         run: |
@@ -46,16 +46,15 @@ jobs:
         env:
           YT_COOKIES: ${{ secrets.YT_COOKIES }}
 
-      - name: Restore yt-dlp OAuth2 token
+      - name: Restore pytubefix OAuth token
         env:
-          YT_OAUTH2_TOKEN: ${{ secrets.YT_OAUTH2_TOKEN }}
+          PYTUBEFIX_OAUTH_TOKEN: ${{ secrets.PYTUBEFIX_OAUTH_TOKEN }}
         run: |
-          if [ -n "$YT_OAUTH2_TOKEN" ]; then
-            mkdir -p ~/.cache/yt-dlp/youtube-oauth2
-            echo "$YT_OAUTH2_TOKEN" > ~/.cache/yt-dlp/youtube-oauth2/token.json
-            echo "yt-dlp OAuth2 token restored."
+          if [ -n "$PYTUBEFIX_OAUTH_TOKEN" ]; then
+            echo "$PYTUBEFIX_OAUTH_TOKEN" > .pytubefix_oauth.json
+            echo "pytubefix OAuth token restored."
           else
-            echo "YT_OAUTH2_TOKEN secret not set — OAuth2 disabled."
+            echo "PYTUBEFIX_OAUTH_TOKEN secret not set — OAuth disabled."
           fi
 
       - name: Download assets (SFX & music)

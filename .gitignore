@@ -19,3 +19,4 @@ venv/
 *.tmp
 *.temp
 assets/backgrounds/
+.pytubefix_oauth.json

@@ -1,4 +1,4 @@
-name: YouTube OAuth2 Token Kurulumu
+name: YouTube OAuth Token Kurulumu (pytubefix)
 
 on:
   workflow_dispatch:   # Sadece manuel tetikleme
@@ -9,10 +9,18 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Install yt-dlp
-        run: pip install -U yt-dlp
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: ">>> OAUTH2 BAŞLAT — Logları takip et! <<<"
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pytubefix
+        run: pip install -U pytubefix
+
+      - name: ">>> OAUTH BAŞLAT — Logları takip et! <<<"
         run: |
           echo "============================================"
           echo " Aşağıda bir URL ve kod göreceksin."
@@ -23,56 +31,72 @@ jobs:
           echo "============================================"
           echo ""
 
-          # OAuth2 device-code flow başlat
-          # yt-dlp ekrana URL + kodu basar, kullanıcı onayını bekler
-          yt-dlp \
-            --username oauth2 \
-            --password "" \
-            --skip-download \
-            --print title \
-            "https://www.youtube.com/watch?v=jNQXAC9IVRw" \
-            2>&1 || true
+          python3 << 'PYEOF'
+          import json, os, sys
 
-          echo ""
-          echo "OAuth2 flow tamamlandı."
+          try:
+              from pytubefix import YouTube
+          except ImportError:
+              print("pytubefix kurulamadı!")
+              sys.exit(1)
 
-      - name: Token'ı oku ve göster
-        id: read_token
+          token_file = "/tmp/pytubefix_oauth.json"
+
+          # OAuth device-code flow başlat
+          # pytubefix ekrana URL + kodu basar, kullanıcı onayını bekler
+          try:
+              yt = YouTube(
+                  "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+                  client="ANDROID_TESTSUITE",
+                  use_oauth=True,
+                  allow_oauth_cache=True,
+                  token_file=token_file,
+              )
+              # Streams'e erişim token'ı tetikler
+              title = yt.title
+              print(f"\nVideo başlığı: {title}")
+              print("OAuth başarılı!")
+          except Exception as e:
+              print(f"OAuth hatası: {e}")
+              # Token yine de oluşmuş olabilir
+              if not os.path.isfile(token_file):
+                  sys.exit(1)
+
+          if os.path.isfile(token_file):
+              with open(token_file) as f:
+                  data = f.read().strip()
+              print(f"\nToken dosyası oluşturuldu ({len(data)} byte)")
+              # Token'ı output'a yaz (sonraki step okuyacak)
+              with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as out:
+                  # Multiline output
+                  out.write(f"token<<TOKENEOF\n{data}\nTOKENEOF\n")
+          else:
+              print("Token dosyası oluşturulamadı!")
+              sys.exit(1)
+          PYEOF
+
+      - name: Token'ı Summary'ye yaz
         run: |
-          # yt-dlp OAuth2 token'ı cache'e kaydeder
-          TOKEN_FILE=""
-          for f in $(find ~/.cache/yt-dlp -name "*.json" 2>/dev/null); do
-            if grep -q "refresh_token\|access_token\|token_type" "$f" 2>/dev/null; then
-              TOKEN_FILE="$f"
-              break
-            fi
-          done
-
-          if [ -z "$TOKEN_FILE" ]; then
-            echo "::error::Token dosyası bulunamadı! OAuth2 onayı yapılmamış olabilir."
-            echo "Logları kontrol et — URL'yi açıp onayladın mı?"
-            exit 1
-          fi
-
-          echo "Token dosyası bulundu: $TOKEN_FILE"
-          TOKEN_CONTENT=$(cat "$TOKEN_FILE")
-
-          # Job Summary'ye yaz (Actions sekmesinde görünür)
           cat >> "$GITHUB_STEP_SUMMARY" << 'HEADER'
-          ## YouTube OAuth2 Token Hazır
+          ## YouTube OAuth Token Hazır
 
           Aşağıdaki JSON'ı GitHub Secret olarak kaydet:
 
-          1. **Settings** → **Secrets and variables** → **Actions**
+          1. Bu repo → **Settings** → **Secrets and variables** → **Actions**
           2. **New repository secret** tıkla
-          3. Name: `YT_OAUTH2_TOKEN`
-          4. Value: Aşağıdaki JSON'ı yapıştır
+          3. Name: `PYTUBEFIX_OAUTH_TOKEN`
+          4. Value: Aşağıdaki JSON'ı kopyala-yapıştır
           5. **Add secret** tıkla
 
           ```json
           HEADER
 
-          echo "$TOKEN_CONTENT" >> "$GITHUB_STEP_SUMMARY"
+          # Token'ı dosyadan oku
+          if [ -f /tmp/pytubefix_oauth.json ]; then
+            cat /tmp/pytubefix_oauth.json >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '{"error": "Token oluşturulamadı"}' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
           cat >> "$GITHUB_STEP_SUMMARY" << 'FOOTER'
           ```
