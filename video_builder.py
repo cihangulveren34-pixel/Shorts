@@ -441,10 +441,17 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
             tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="ytcc_full_")
             tmp.close()
 
+            # sp=EgIwAQ%3D%3D → YouTube'un yerleşik "Creative Commons" filtresi.
+            # ytsearch + --match-filter "license=..." çalışmıyor: yt-dlp arama
+            # sonuçlarında lisans alanını doldurmadığından tüm videolar eleniyor.
+            encoded_query = query.replace(" ", "+")
+            yt_cc_url = (
+                f"https://www.youtube.com/results"
+                f"?search_query={encoded_query}&sp=EgIwAQ%3D%3D"
+            )
             cmd = [
                 "yt-dlp",
-                f"ytsearch5:{query}",
-                "--match-filter", "license=Creative Commons",
+                yt_cc_url,
                 # android: datacenter IP'lerde PO token gerektirmiyor — en güvenilir seçenek
                 "--extractor-args", "youtube:player_client=android,mweb,tv",
                 "--no-check-certificates",
