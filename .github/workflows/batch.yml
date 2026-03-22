@@ -35,6 +35,9 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
+      - name: Update yt-dlp to latest
+        run: pip install -U yt-dlp
+
       - name: Write YouTube cookies
         run: |
           if [ -n "$YT_COOKIES" ]; then
