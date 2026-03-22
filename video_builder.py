@@ -438,44 +438,70 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
             break
 
         try:
+            # -- Aşama 1: ytsearch ile video ID'lerini al (hızlı, innertube API) --
+            # ytsearch + --match-filter "license=..." çalışmıyor: arama
+            # metadata'sında lisans alanı boş kalıyor. Doğru yol: her videonun
+            # sayfasını ayrı ayrı kontrol etmek.
+            cookie_args = []
+            if os.path.exists(YT_COOKIES_PATH) and os.path.getsize(YT_COOKIES_PATH) > 0:
+                cookie_args = ["--cookies", YT_COOKIES_PATH]
+            else:
+                print(f"[video_builder] Uyarı: {YT_COOKIES_PATH} bulunamadı veya boş — bot tespiti riski yüksek")
+
+            id_cmd = [
+                "yt-dlp",
+                "--flat-playlist",
+                "--print", "id",
+                "--quiet", "--no-warnings",
+                f"ytsearch5:{query}",
+            ] + cookie_args
+            id_result = subprocess.run(id_cmd, timeout=30, capture_output=True, text=True)
+            video_ids = [l.strip() for l in id_result.stdout.splitlines() if l.strip()]
+
+            if not video_ids:
+                continue
+
+            # -- Aşama 2: Her video için lisansı kontrol et, ilk CC'yi bul --
+            cc_video_id = None
+            for vid in video_ids:
+                meta_cmd = [
+                    "yt-dlp",
+                    "--skip-download",
+                    "--print", "license",
+                    "--quiet", "--no-warnings",
+                    f"https://www.youtube.com/watch?v={vid}",
+                ] + cookie_args
+                meta = subprocess.run(meta_cmd, timeout=15, capture_output=True, text=True)
+                if "creative commons" in meta.stdout.lower():
+                    cc_video_id = vid
+                    break
+
+            if not cc_video_id:
+                continue
+
+            # -- Aşama 3: CC videoyu indir --
             tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="ytcc_full_")
             tmp.close()
 
-            # sp=EgIwAQ%3D%3D → YouTube'un yerleşik "Creative Commons" filtresi.
-            # ytsearch + --match-filter "license=..." çalışmıyor: yt-dlp arama
-            # sonuçlarında lisans alanını doldurmadığından tüm videolar eleniyor.
-            encoded_query = query.replace(" ", "+")
-            yt_cc_url = (
-                f"https://www.youtube.com/results"
-                f"?search_query={encoded_query}&sp=EgIwAQ%3D%3D"
-            )
             cmd = [
                 "yt-dlp",
-                yt_cc_url,
-                # android: datacenter IP'lerde PO token gerektirmiyor — en güvenilir seçenek
+                f"https://www.youtube.com/watch?v={cc_video_id}",
+                # android: datacenter IP'lerde PO token gerektirmiyor
                 "--extractor-args", "youtube:player_client=android,mweb,tv",
                 "--no-check-certificates",
                 "--format", "bestvideo[height>=480][ext=mp4]+bestaudio[ext=m4a]/best[height>=480][ext=mp4]/best[ext=mp4]/best",
                 "--merge-output-format", "mp4",
-                "--max-downloads", "1",
                 "--max-filesize", "200M",
                 "--no-playlist",
                 "--no-warnings",
-                "--ignore-errors",  # tek bir video hata verirse atla, aramaya devam et
                 "--quiet",
                 "--no-progress",
                 "--sleep-interval", "2",
                 "--max-sleep-interval", "6",
                 "-o", tmp.name,
-            ]
+            ] + cookie_args
 
-            # Cookie dosyası varsa kullan
-            if os.path.exists(YT_COOKIES_PATH) and os.path.getsize(YT_COOKIES_PATH) > 0:
-                cmd.extend(["--cookies", YT_COOKIES_PATH])
-            else:
-                print(f"[video_builder] Uyarı: {YT_COOKIES_PATH} bulunamadı veya boş — bot tespiti riski yüksek")
-
-            print(f"[video_builder] YouTube CC aranıyor: '{query}'...")
+            print(f"[video_builder] YouTube CC aranıyor: '{query}' → {cc_video_id}...")
             result = subprocess.run(cmd, timeout=120, capture_output=True, text=True)
 
             actual_file = tmp.name
