@@ -22,28 +22,35 @@ jobs:
 
       - name: ">>> OAUTH BAŞLAT — Logları takip et! <<<"
         run: |
-          echo "============================================"
-          echo " Aşağıda bir URL ve kod göreceksin."
-          echo " 1) URL'yi telefonunda aç"
-          echo " 2) Google hesabınla giriş yap"
-          echo " 3) Kodu gir ve 'İzin Ver' tıkla"
-          echo " 4) Buraya geri dön — token otomatik oluşacak"
-          echo "============================================"
-          echo ""
-
           python3 << 'PYEOF'
-          import json, os, sys
+          import json, os, sys, time
 
           try:
               from pytubefix import YouTube
           except ImportError:
-              print("pytubefix kurulamadı!")
+              print("pytubefix import hatası!")
               sys.exit(1)
 
           token_file = "/tmp/pytubefix_oauth.json"
 
-          # OAuth device-code flow başlat
-          # pytubefix ekrana URL + kodu basar, kullanıcı onayını bekler
+          # Özel verifier: input() yerine poll ile bekle.
+          # GitHub Actions'ta stdin yok, bu yüzden input() EOF verir.
+          # Bu callback sadece URL+kodu yazdırır, pytubefix arka planda
+          # Google'ın token endpoint'ini otomatik pollar.
+          def ci_oauth_verifier(verification_url, user_code):
+              print("")
+              print("=" * 55)
+              print("  TELEFONUNDA ŞUNU YAP:")
+              print("=" * 55)
+              print(f"  1) Bu URL'yi aç: {verification_url}")
+              print(f"  2) Bu kodu gir:  {user_code}")
+              print("  3) Google hesabınla izin ver")
+              print("=" * 55)
+              print("")
+              print("Onayını bekliyorum... (5 dakika süren var)")
+              print("")
+              # input() çağırmıyoruz — pytubefix kendi polling'ini yapacak
+
           try:
               yt = YouTube(
                   "https://www.youtube.com/watch?v=jNQXAC9IVRw",
@@ -51,14 +58,14 @@ jobs:
                   use_oauth=True,
                   allow_oauth_cache=True,
                   token_file=token_file,
+                  oauth_verifier=ci_oauth_verifier,
               )
-              # Streams'e erişim token'ı tetikler
+              # title'a erişim OAuth flow'u tamamlanmasını tetikler
               title = yt.title
               print(f"\nVideo başlığı: {title}")
-              print("OAuth başarılı!")
+              print("OAuth BAŞARILI!")
           except Exception as e:
-              print(f"OAuth hatası: {e}")
-              # Token yine de oluşmuş olabilir
+              print(f"\nOAuth hatası: {e}")
               if not os.path.isfile(token_file):
                   sys.exit(1)
 
@@ -66,10 +73,6 @@ jobs:
               with open(token_file) as f:
                   data = f.read().strip()
               print(f"\nToken dosyası oluşturuldu ({len(data)} byte)")
-              # Token'ı output'a yaz (sonraki step okuyacak)
-              with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as out:
-                  # Multiline output
-                  out.write(f"token<<TOKENEOF\n{data}\nTOKENEOF\n")
           else:
               print("Token dosyası oluşturulamadı!")
               sys.exit(1)
@@ -77,6 +80,11 @@ jobs:
 
       - name: Token'ı Summary'ye yaz
         run: |
+          if [ ! -f /tmp/pytubefix_oauth.json ]; then
+            echo "::error::Token dosyası bulunamadı!"
+            exit 1
+          fi
+
           cat >> "$GITHUB_STEP_SUMMARY" << 'HEADER'
           ## YouTube OAuth Token Hazır
 
@@ -91,23 +99,16 @@ jobs:
           ```json
           HEADER
 
-          # Token'ı dosyadan oku
-          if [ -f /tmp/pytubefix_oauth.json ]; then
-            cat /tmp/pytubefix_oauth.json >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo '{"error": "Token oluşturulamadı"}' >> "$GITHUB_STEP_SUMMARY"
-          fi
+          cat /tmp/pytubefix_oauth.json >> "$GITHUB_STEP_SUMMARY"
 
           cat >> "$GITHUB_STEP_SUMMARY" << 'FOOTER'
           ```
 
-          > Bu token ile YouTube datacenter IP kısıtlaması aşılır.
           > Token süresi dolunca bu workflow'u tekrar çalıştır.
           FOOTER
 
           echo ""
-          echo "============================================"
+          echo "========================================"
           echo " TOKEN HAZIR!"
-          echo " Actions sekmesinde 'Summary' bölümüne bak."
-          echo " Oradaki JSON'ı Secret olarak kaydet."
-          echo "============================================"
+          echo " Summary sekmesine bak, JSON'ı kopyala."
+          echo "========================================"

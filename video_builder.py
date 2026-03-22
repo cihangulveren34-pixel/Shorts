@@ -585,10 +585,14 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                     tag = f"ptf/{client}+oauth"
                     print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [{tag}]...")
                     try:
+                        # CI ortamında input() patlar; no-op verifier kullan.
+                        # Token zaten cache'den okunacak, yeni auth gerekmez.
+                        _noop = lambda url, code: None
                         yt_obj = PTYouTube(
                             _url, client=client,
                             use_oauth=True, allow_oauth_cache=True,
                             token_file=_PTF_TOKEN_FILE,
+                            oauth_verifier=_noop,
                         )
                         stream = _pick_stream(yt_obj)
                         if not stream:
