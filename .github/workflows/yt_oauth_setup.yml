@@ -41,7 +41,7 @@ jobs:
 
           # WARP'ı proxy modunda başlat (SOCKS5 :40000)
           # TOS kabul et, register ol, proxy moduna geç
-          yes | warp-cli registration new 2>/dev/null || true
+          warp-cli --accept-tos registration new 2>/dev/null || true
           warp-cli mode proxy
           warp-cli proxy port 40000
           warp-cli connect

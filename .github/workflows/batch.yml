@@ -45,7 +45,7 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
           sudo apt-get update -qq
           sudo apt-get install -y cloudflare-warp
-          yes | warp-cli registration new 2>/dev/null || true
+          warp-cli --accept-tos registration new 2>/dev/null || true
           warp-cli mode proxy
           warp-cli proxy port 40000
           warp-cli connect
