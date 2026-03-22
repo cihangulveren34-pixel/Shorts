@@ -1530,7 +1530,7 @@ def _save_seen_ids(seen_ids: set) -> None:
 
 def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> list[str]:
     """
-    DVIDS + Pexels + Pixabay + Wikimedia + Archive'dan video klip indirir.
+    YouTube CC + DVIDS + Pexels + Pixabay + Wikimedia + Archive'dan video klip indirir.
     Returns: list of file paths (sadece video, tuple yok).
     """
     dvids_key = os.environ.get("DVIDS_API_KEY")
@@ -1538,18 +1538,25 @@ def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> li
         seen_ids = _load_seen_ids()
     video_paths = []
 
-    # ─── 1) DVIDS — ana kaynak (Public Domain) ────────────────────────
-    if dvids_key:
+    # ─── 1) YouTube CC — ana kaynak (haber konusuyla eşleşen gerçek görüntü) ──
+    try:
+        yt_clips = _fetch_youtube_cc_clips(keywords, n, seen_ids)
+        video_paths.extend(yt_clips)
+        print(f"[video_builder] YouTube CC: {len(yt_clips)} klip")
+    except Exception as e:
+        print(f"[video_builder] YouTube CC hatası: {e}")
+
+    # ─── 2) DVIDS — askeri fallback (Public Domain) ───────────────────────────
+    if len(video_paths) < n and dvids_key:
+        remaining = n - len(video_paths)
         try:
-            dvids_clips = _fetch_dvids_clips(keywords, dvids_key, n, seen_ids)
+            dvids_clips = _fetch_dvids_clips(keywords, dvids_key, remaining, seen_ids)
             video_paths.extend(dvids_clips)
             print(f"[video_builder] DVIDS: {len(dvids_clips)} klip")
         except Exception as e:
             print(f"[video_builder] DVIDS hatası: {e}")
-    else:
-        print("[video_builder] DVIDS_API_KEY bulunamadı!")
 
-    # ─── 2) Pexels — stock video ────────────────────────────────────────
+    # ─── 3) Pexels — stock video ────────────────────────────────────────
     if len(video_paths) < n and os.environ.get("PEXELS_API_KEY"):
         remaining = n - len(video_paths)
         try:
@@ -1560,7 +1567,7 @@ def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> li
         except Exception as e:
             print(f"[video_builder] Pexels hatası: {e}")
 
-    # ─── 3) Pixabay — stock video ────────────────────────────────────────
+    # ─── 4) Pixabay — stock video ────────────────────────────────────────
     if len(video_paths) < n and os.environ.get("PIXABAY_API_KEY"):
         remaining = n - len(video_paths)
         try:
@@ -1571,7 +1578,7 @@ def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> li
         except Exception as e:
             print(f"[video_builder] Pixabay hatası: {e}")
 
-    # ─── 4) Wikimedia Commons — 3sn klip ─────────────────────────────────
+    # ─── 5) Wikimedia Commons — 3sn klip ─────────────────────────────────
     if len(video_paths) < n:
         remaining = n - len(video_paths)
         try:
@@ -1582,7 +1589,7 @@ def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> li
         except Exception as e:
             print(f"[video_builder] Wikimedia hatası: {e}")
 
-    # ─── 5) Internet Archive — son fallback ───────────────────────────────
+    # ─── 6) Internet Archive — son fallback ───────────────────────────────
     if len(video_paths) < n:
         remaining = n - len(video_paths)
         try:
