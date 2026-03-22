@@ -494,79 +494,186 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                     print(f"[video_builder]   yt-dlp: {msg[:120]}")
 
             # ── YouTube İndirme: 3 katmanlı strateji ──────────────────
-            # 1) yt-dlp ile çeşitli player client'ları dene
-            # 2) yt-dlp OAuth2 token varsa onunla dene
-            # 3) pytubefix kütüphanesi ile dene
-            # Datacenter IP'lerde YouTube streaming URL vermeyebilir;
-            # bu yüzden birden fazla yöntem deniyoruz.
+            # 1) pytubefix + PO token  → otomatik bot-bypass, auth gerektirmez
+            # 2) pytubefix + OAuth     → cached token ile (GitHub Secret'tan)
+            # 3) yt-dlp + cookies      → klasik yöntem, son çare
+            #
+            # NOT: yt-dlp 2026+ sürümlerinde OAuth2 kaldırıldı.
+            # pytubefix'in kendi OAuth implementasyonu hâlâ çalışıyor.
 
-            # Client listesi: datacenter'da çalışma şansı yüksek olanlar önce.
-            # ios/android farklı API endpoint kullanır → genelde daha az kısıtlı.
-            _client_configs = [
-                (["ios"],                   None),
-                (["android"],               None),
-                (["web_creator"],           None),
-                (["web_creator"],           ["webpage"]),
-                (["web"],                   None),
-                (["tv"],                    None),
-                (["default"],               None),
+            # pytubefix client listesi: datacenter'da çalışma şansı yüksek olanlar.
+            _PTF_CLIENTS = [
+                "ANDROID_TESTSUITE", "ANDROID_VR", "ANDROID",
+                "IOS", "TV", "MEDIA_CONNECT", "WEB",
             ]
 
-            def _try_ytdlp_download(vid_id: str, extra_opts: dict = None,
-                                     label: str = "") -> str | None:
-                """Tek bir video ID'si için yt-dlp ile indirmeyi dene.
-                Başarılıysa dosya yolunu, değilse None döndür."""
-                _url = f"https://www.youtube.com/watch?v={vid_id}"
-                for _client, _skip in _client_configs:
-                    tmp = tempfile.NamedTemporaryFile(
-                        suffix=".mp4", delete=False, prefix="ytcc_full_")
-                    tmp.close()
+            # yt-dlp client listesi (cookies ile son çare).
+            _YTDLP_CLIENTS = [
+                (["ios"], None), (["android"], None),
+                (["web_creator"], None), (["web"], None),
+                (["tv"], None), (["default"], None),
+            ]
 
+            # pytubefix OAuth token dosyası (GitHub Secret'tan restore edilir).
+            _PTF_TOKEN_FILE = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                ".pytubefix_oauth.json",
+            )
+
+            def _pick_stream(yt_obj):
+                """En iyi mp4 stream'i seç: progressive (mux'lu) tercih et."""
+                s = (yt_obj.streams
+                     .filter(progressive=True, file_extension="mp4")
+                     .order_by("resolution").desc().first())
+                if not s:
+                    s = (yt_obj.streams
+                         .filter(file_extension="mp4")
+                         .order_by("resolution").desc().first())
+                return s
+
+            def _download_stream(stream, prefix: str) -> str | None:
+                """Stream'i tmp dosyaya indir, başarılıysa path döndür."""
+                tmp = tempfile.NamedTemporaryFile(
+                    suffix=".mp4", delete=False, prefix=prefix)
+                tmp.close()
+                stream.download(output_path=os.path.dirname(tmp.name),
+                                filename=os.path.basename(tmp.name))
+                if os.path.exists(tmp.name) and os.path.getsize(tmp.name) > 10000:
+                    return tmp.name
+                try:
+                    os.unlink(tmp.name)
+                except OSError:
+                    pass
+                return None
+
+            def _try_pytubefix_po(vid_id: str) -> str | None:
+                """pytubefix + PO token (otomatik, auth gerektirmez)."""
+                try:
+                    from pytubefix import YouTube as PTYouTube
+                except ImportError:
+                    return None
+                _url = f"https://www.youtube.com/watch?v={vid_id}"
+                for client in _PTF_CLIENTS:
+                    tag = f"ptf/{client}+po"
+                    print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [{tag}]...")
+                    try:
+                        yt_obj = PTYouTube(_url, client=client,
+                                           use_po_token=True)
+                        stream = _pick_stream(yt_obj)
+                        if not stream:
+                            print(f"[video_builder]   {vid_id} [{tag}] stream yok")
+                            continue
+                        path = _download_stream(stream, "ytcc_po_")
+                        if path:
+                            print(f"[video_builder]   {vid_id} [{tag}] ✓")
+                            return path
+                    except Exception as e:
+                        print(f"[video_builder]   {vid_id} [{tag}] başarısız: "
+                              f"{str(e)[:100]}")
+                return None
+
+            def _try_pytubefix_oauth(vid_id: str) -> str | None:
+                """pytubefix + cached OAuth token."""
+                if not os.path.isfile(_PTF_TOKEN_FILE):
+                    return None
+                try:
+                    from pytubefix import YouTube as PTYouTube
+                except ImportError:
+                    return None
+                _url = f"https://www.youtube.com/watch?v={vid_id}"
+                for client in _PTF_CLIENTS[:3]:  # Sadece ilk 3 client dene
+                    tag = f"ptf/{client}+oauth"
+                    print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [{tag}]...")
+                    try:
+                        yt_obj = PTYouTube(
+                            _url, client=client,
+                            use_oauth=True, allow_oauth_cache=True,
+                            token_file=_PTF_TOKEN_FILE,
+                        )
+                        stream = _pick_stream(yt_obj)
+                        if not stream:
+                            print(f"[video_builder]   {vid_id} [{tag}] stream yok")
+                            continue
+                        path = _download_stream(stream, "ytcc_oauth_")
+                        if path:
+                            print(f"[video_builder]   {vid_id} [{tag}] ✓")
+                            return path
+                    except Exception as e:
+                        print(f"[video_builder]   {vid_id} [{tag}] başarısız: "
+                              f"{str(e)[:100]}")
+                return None
+
+            def _try_pytubefix_plain(vid_id: str) -> str | None:
+                """pytubefix auth'suz (bazı client'lar auth gerektirmez)."""
+                try:
+                    from pytubefix import YouTube as PTYouTube
+                except ImportError:
+                    return None
+                _url = f"https://www.youtube.com/watch?v={vid_id}"
+                for client in _PTF_CLIENTS:
+                    tag = f"ptf/{client}"
+                    print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [{tag}]...")
+                    try:
+                        yt_obj = PTYouTube(_url, client=client)
+                        stream = _pick_stream(yt_obj)
+                        if not stream:
+                            print(f"[video_builder]   {vid_id} [{tag}] stream yok")
+                            continue
+                        path = _download_stream(stream, "ytcc_ptf_")
+                        if path:
+                            print(f"[video_builder]   {vid_id} [{tag}] ✓")
+                            return path
+                    except Exception as e:
+                        print(f"[video_builder]   {vid_id} [{tag}] başarısız: "
+                              f"{str(e)[:100]}")
+                return None
+
+            def _try_ytdlp_cookies(vid_id: str) -> str | None:
+                """yt-dlp + cookies (son çare)."""
+                if not cookie_file:
+                    return None
+                _url = f"https://www.youtube.com/watch?v={vid_id}"
+                for _client, _skip in _YTDLP_CLIENTS:
+                    tmp = tempfile.NamedTemporaryFile(
+                        suffix=".mp4", delete=False, prefix="ytcc_dlp_")
+                    tmp.close()
                     _yt_args: dict = {"player_client": _client}
                     if _skip:
                         _yt_args["player_skip"] = _skip
-
                     dl_opts = {
                         "format": "bestvideo+bestaudio/best*/best",
                         "format_sort": ["res:720", "ext:mp4:m4a"],
                         "outtmpl": tmp.name,
                         "merge_output_format": "mp4",
                         "max_filesize": 200 * 1024 * 1024,
-                        "quiet": True,
-                        "no_warnings": True,
+                        "quiet": True, "no_warnings": True,
                         "logger": _SilentLogger(),
                         "check_formats": False,
                         "no_check_certificate": True,
+                        "cookiefile": cookie_file,
                         "extractor_args": {"youtube": _yt_args},
                     }
-                    if cookie_file:
-                        dl_opts["cookiefile"] = cookie_file
-                    if extra_opts:
-                        dl_opts.update(extra_opts)
-
-                    _tag = f"{_client[0]}{label}"
-                    print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [{_tag}]...")
+                    tag = f"yt-dlp/{_client[0]}"
+                    print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [{tag}]...")
                     try:
                         with _ytdlp.YoutubeDL(dl_opts) as ydl:
                             ydl.extract_info(_url, download=True)
                     except Exception as e:
-                        err = str(e)[:120]
-                        print(f"[video_builder]   {vid_id} [{_tag}] başarısız: {err}")
+                        print(f"[video_builder]   {vid_id} [{tag}] başarısız: "
+                              f"{str(e)[:100]}")
                         try:
                             os.unlink(tmp.name)
                         except OSError:
                             pass
                         continue
-
                     candidate = tmp.name
                     for ext in [".mp4", ".webm", ".mkv"]:
                         alt = tmp.name + ext
                         if os.path.exists(alt) and os.path.getsize(alt) > 10000:
                             candidate = alt
                             break
-
                     if os.path.exists(candidate) and os.path.getsize(candidate) > 10000:
-                        print(f"[video_builder]   {vid_id} [{_tag}] ✓")
+                        print(f"[video_builder]   {vid_id} [{tag}] ✓")
                         return candidate
                     try:
                         os.unlink(tmp.name)
@@ -574,84 +681,21 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                         pass
                 return None
 
-            def _try_pytubefix_download(vid_id: str) -> str | None:
-                """pytubefix kütüphanesi ile indirmeyi dene."""
-                try:
-                    from pytubefix import YouTube as PTYouTube
-                    from pytubefix.helpers import install_proxy
-                except ImportError:
-                    print("[video_builder]   pytubefix import edilemiyor, atlanıyor.")
-                    return None
-
-                _url = f"https://www.youtube.com/watch?v={vid_id}"
-                print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [pytubefix]...")
-                try:
-                    yt_obj = PTYouTube(_url)
-                    # 720p veya altı progressive (audio+video mux'lu) stream tercih et
-                    stream = (
-                        yt_obj.streams
-                        .filter(progressive=True, file_extension="mp4")
-                        .order_by("resolution")
-                        .desc()
-                        .first()
-                    )
-                    if not stream:
-                        # progressive yoksa adaptive dene
-                        stream = (
-                            yt_obj.streams
-                            .filter(file_extension="mp4")
-                            .order_by("resolution")
-                            .desc()
-                            .first()
-                        )
-                    if not stream:
-                        print(f"[video_builder]   {vid_id} [pytubefix] stream bulunamadı")
-                        return None
-
-                    tmp = tempfile.NamedTemporaryFile(
-                        suffix=".mp4", delete=False, prefix="ytcc_ptf_")
-                    tmp.close()
-                    stream.download(output_path=os.path.dirname(tmp.name),
-                                    filename=os.path.basename(tmp.name))
-                    if os.path.exists(tmp.name) and os.path.getsize(tmp.name) > 10000:
-                        print(f"[video_builder]   {vid_id} [pytubefix] ✓")
-                        return tmp.name
-                    try:
-                        os.unlink(tmp.name)
-                    except OSError:
-                        pass
-                except Exception as e:
-                    err = str(e)[:120]
-                    print(f"[video_builder]   {vid_id} [pytubefix] başarısız: {err}")
-                return None
-
             # ── Ana indirme döngüsü ──
             actual_file = None
             _yt_consecutive_fails = 0
             for cc_video_id in video_ids:
-                # Ardarda 2 video'da tüm yöntemler başarısız → IP engelli
                 if _yt_consecutive_fails >= 2:
                     print("[video_builder] YouTube CC: ardarda 2 video başarısız; "
                           "IP muhtemelen engelli.")
                     break
 
-                # Yöntem 1: yt-dlp standart client'larla
-                result = _try_ytdlp_download(cc_video_id)
-
-                # Yöntem 2: yt-dlp OAuth2 (token cache'de varsa)
-                if not result:
-                    _oauth_token = os.path.expanduser(
-                        "~/.cache/yt-dlp/youtube-oauth2/token.json")
-                    if os.path.isfile(_oauth_token):
-                        result = _try_ytdlp_download(
-                            cc_video_id,
-                            extra_opts={"username": "oauth2", "password": ""},
-                            label="/oauth2",
-                        )
-
-                # Yöntem 3: pytubefix
-                if not result:
-                    result = _try_pytubefix_download(cc_video_id)
+                result = (
+                    _try_pytubefix_po(cc_video_id)
+                    or _try_pytubefix_oauth(cc_video_id)
+                    or _try_pytubefix_plain(cc_video_id)
+                    or _try_ytdlp_cookies(cc_video_id)
+                )
 
                 if result:
                     actual_file = result
