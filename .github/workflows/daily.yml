@@ -54,8 +54,12 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Write YouTube cookies
-        if: ${{ secrets.YT_COOKIES != '' }}
-        run: echo "${{ secrets.YT_COOKIES }}" > yt_cookies.txt
+        env:
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
+        run: |
+          if [ -n "$YT_COOKIES" ]; then
+            echo "$YT_COOKIES" > yt_cookies.txt
+          fi
 
       - name: Run pipeline
         run: python main.py
