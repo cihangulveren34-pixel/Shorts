@@ -46,6 +46,18 @@ jobs:
         env:
           YT_COOKIES: ${{ secrets.YT_COOKIES }}
 
+      - name: Restore yt-dlp OAuth2 token
+        env:
+          YT_OAUTH2_TOKEN: ${{ secrets.YT_OAUTH2_TOKEN }}
+        run: |
+          if [ -n "$YT_OAUTH2_TOKEN" ]; then
+            mkdir -p ~/.cache/yt-dlp/youtube-oauth2
+            echo "$YT_OAUTH2_TOKEN" > ~/.cache/yt-dlp/youtube-oauth2/token.json
+            echo "yt-dlp OAuth2 token restored."
+          else
+            echo "YT_OAUTH2_TOKEN secret not set — OAuth2 disabled."
+          fi
+
       - name: Download assets (SFX & music)
         run: python setup_assets.py
 

@@ -53,12 +53,27 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
+      - name: Update yt-dlp to latest
+        run: pip install -U yt-dlp
+
       - name: Write YouTube cookies
         env:
           YT_COOKIES: ${{ secrets.YT_COOKIES }}
         run: |
           if [ -n "$YT_COOKIES" ]; then
             echo "$YT_COOKIES" > yt_cookies.txt
+          fi
+
+      - name: Restore yt-dlp OAuth2 token
+        env:
+          YT_OAUTH2_TOKEN: ${{ secrets.YT_OAUTH2_TOKEN }}
+        run: |
+          if [ -n "$YT_OAUTH2_TOKEN" ]; then
+            mkdir -p ~/.cache/yt-dlp/youtube-oauth2
+            echo "$YT_OAUTH2_TOKEN" > ~/.cache/yt-dlp/youtube-oauth2/token.json
+            echo "yt-dlp OAuth2 token restored."
+          else
+            echo "YT_OAUTH2_TOKEN secret not set — OAuth2 disabled."
           fi
 
       - name: Run pipeline

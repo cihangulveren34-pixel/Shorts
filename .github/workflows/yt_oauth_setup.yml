@@ -1,0 +1,89 @@
+name: YouTube OAuth2 Token Kurulumu
+
+on:
+  workflow_dispatch:   # Sadece manuel tetikleme
+
+jobs:
+  generate-token:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Install yt-dlp
+        run: pip install -U yt-dlp
+
+      - name: ">>> OAUTH2 BAŞLAT — Logları takip et! <<<"
+        run: |
+          echo "============================================"
+          echo " Aşağıda bir URL ve kod göreceksin."
+          echo " 1) URL'yi telefonunda aç"
+          echo " 2) Google hesabınla giriş yap"
+          echo " 3) Kodu gir ve 'İzin Ver' tıkla"
+          echo " 4) Buraya geri dön — token otomatik oluşacak"
+          echo "============================================"
+          echo ""
+
+          # OAuth2 device-code flow başlat
+          # yt-dlp ekrana URL + kodu basar, kullanıcı onayını bekler
+          yt-dlp \
+            --username oauth2 \
+            --password "" \
+            --skip-download \
+            --print title \
+            "https://www.youtube.com/watch?v=jNQXAC9IVRw" \
+            2>&1 || true
+
+          echo ""
+          echo "OAuth2 flow tamamlandı."
+
+      - name: Token'ı oku ve göster
+        id: read_token
+        run: |
+          # yt-dlp OAuth2 token'ı cache'e kaydeder
+          TOKEN_FILE=""
+          for f in $(find ~/.cache/yt-dlp -name "*.json" 2>/dev/null); do
+            if grep -q "refresh_token\|access_token\|token_type" "$f" 2>/dev/null; then
+              TOKEN_FILE="$f"
+              break
+            fi
+          done
+
+          if [ -z "$TOKEN_FILE" ]; then
+            echo "::error::Token dosyası bulunamadı! OAuth2 onayı yapılmamış olabilir."
+            echo "Logları kontrol et — URL'yi açıp onayladın mı?"
+            exit 1
+          fi
+
+          echo "Token dosyası bulundu: $TOKEN_FILE"
+          TOKEN_CONTENT=$(cat "$TOKEN_FILE")
+
+          # Job Summary'ye yaz (Actions sekmesinde görünür)
+          cat >> "$GITHUB_STEP_SUMMARY" << 'HEADER'
+          ## YouTube OAuth2 Token Hazır
+
+          Aşağıdaki JSON'ı GitHub Secret olarak kaydet:
+
+          1. **Settings** → **Secrets and variables** → **Actions**
+          2. **New repository secret** tıkla
+          3. Name: `YT_OAUTH2_TOKEN`
+          4. Value: Aşağıdaki JSON'ı yapıştır
+          5. **Add secret** tıkla
+
+          ```json
+          HEADER
+
+          echo "$TOKEN_CONTENT" >> "$GITHUB_STEP_SUMMARY"
+
+          cat >> "$GITHUB_STEP_SUMMARY" << 'FOOTER'
+          ```
+
+          > Bu token ile YouTube datacenter IP kısıtlaması aşılır.
+          > Token süresi dolunca bu workflow'u tekrar çalıştır.
+          FOOTER
+
+          echo ""
+          echo "============================================"
+          echo " TOKEN HAZIR!"
+          echo " Actions sekmesinde 'Summary' bölümüne bak."
+          echo " Oradaki JSON'ı Secret olarak kaydet."
+          echo "============================================"
