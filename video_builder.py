@@ -475,48 +475,58 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 continue
 
             # İlk ID'yi indir — YouTube zaten CC filtreledi, ayrıca lisans kontrolü gerekmez
-            cc_video_id = video_ids[0]
-            tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="ytcc_full_")
-            tmp.close()
+            # 5 ID'yi sırayla dene, ilk başarılı indirme yeterli
+            actual_file = None
+            result = None
+            tmp = None
+            for cc_video_id in video_ids:
+                tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="ytcc_full_")
+                tmp.close()
 
-            cmd = [
-                "yt-dlp",
-                f"https://www.youtube.com/watch?v={cc_video_id}",
-                "--no-check-certificates",
-                "--format", "best[height>=480]/best",
-                "--max-filesize", "200M",
-                "--no-playlist",
-                "--no-warnings",
-                "--quiet",
-                "--no-progress",
-                "--sleep-interval", "2",
-                "--max-sleep-interval", "6",
-                "-o", tmp.name,
-            ] + cookie_args
+                cmd = [
+                    "yt-dlp",
+                    f"https://www.youtube.com/watch?v={cc_video_id}",
+                    # android: datacenter IP'lerinde PO token gerektirmiyor
+                    "--extractor-args", "youtube:player_client=android,mweb,tv",
+                    "--no-check-certificates",
+                    "--format", "best[height>=480]/best",
+                    "--merge-output-format", "mp4",
+                    "--max-filesize", "200M",
+                    "--no-playlist",
+                    "--no-warnings",
+                    "--quiet",
+                    "--no-progress",
+                    "--sleep-interval", "1",
+                    "--max-sleep-interval", "3",
+                    "-o", tmp.name,
+                ] + cookie_args
 
-            print(f"[video_builder] YouTube CC indiriliyor: '{query}' → {cc_video_id}...")
-            result = subprocess.run(cmd, timeout=120, capture_output=True, text=True)
+                print(f"[video_builder] YouTube CC indiriliyor: '{query}' → {cc_video_id}...")
+                result = subprocess.run(cmd, timeout=120, capture_output=True, text=True)
 
-            actual_file = tmp.name
-            if not os.path.exists(actual_file) or os.path.getsize(actual_file) < 10000:
+                candidate = tmp.name
                 for ext in [".mp4", ".webm", ".mkv"]:
                     alt = tmp.name + ext
                     if os.path.exists(alt) and os.path.getsize(alt) > 10000:
-                        actual_file = alt
+                        candidate = alt
                         break
 
-            if not os.path.exists(actual_file) or os.path.getsize(actual_file) < 10000:
-                try:
-                    os.unlink(tmp.name)
-                except OSError:
-                    pass
-                if result.stderr:
-                    err_lines = [l for l in result.stderr.splitlines()
-                                 if 'UserWarning' not in l and 'cookiejar' not in l.lower()
-                                 and 'warnings.warn' not in l and l.strip()]
-                    if err_lines:
-                        err_msg = '\n'.join(err_lines[-3:])
-                        print(f"[video_builder] yt-dlp hata: {err_msg[:500]}")
+                if os.path.exists(candidate) and os.path.getsize(candidate) > 10000:
+                    actual_file = candidate
+                    break  # başarılı — diğer ID'leri denemeye gerek yok
+                else:
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError:
+                        pass
+                    if result.stderr:
+                        err_lines = [l for l in result.stderr.splitlines()
+                                     if 'UserWarning' not in l and 'cookiejar' not in l.lower()
+                                     and 'warnings.warn' not in l and l.strip()]
+                        if err_lines:
+                            print(f"[video_builder]   {cc_video_id} başarısız: {err_lines[-1][:120]}")
+
+            if not actual_file:
                 continue
 
             # Video süresini al
