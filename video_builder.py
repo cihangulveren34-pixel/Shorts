@@ -507,9 +507,16 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
             ]
 
             actual_file = None
+            _zero_fmt_streak = 0          # ardarda 0-format video sayacı
             for cc_video_id in video_ids:
                 url = f"https://www.youtube.com/watch?v={cc_video_id}"
                 success = False
+                # Ardarda 2 video'da hiç format bulunamadıysa IP büyük ihtimalle
+                # engelli; kalan video'ları denemeye gerek yok.
+                if _zero_fmt_streak >= 2:
+                    print("[video_builder] YouTube CC: ardarda 2 video'da 0 format; "
+                          "IP muhtemelen engelli, fallback'lere geçiliyor.")
+                    break
 
                 for _client, _skip in _client_configs:
                     tmp = tempfile.NamedTemporaryFile(
@@ -543,8 +550,12 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                           f"[{_client[0]}{_skip_label}]...")
 
                     # Önce info-only çek → format sayısını logla
+                    # format/format_sort kaldır: sadece ham format listesini al,
+                    # format seçimi yapma (yoksa "not available" fırlatır).
                     try:
                         info_opts = dict(dl_opts)
+                        info_opts.pop("format", None)
+                        info_opts.pop("format_sort", None)
                         info_opts["quiet"] = True
                         with _ytdlp.YoutubeDL(info_opts) as ydl:
                             info = ydl.extract_info(url, download=False)
@@ -600,7 +611,10 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                             pass
 
                 if success:
+                    _zero_fmt_streak = 0
                     break
+                else:
+                    _zero_fmt_streak += 1
 
             if not actual_file:
                 continue
