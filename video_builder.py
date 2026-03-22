@@ -452,11 +452,17 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "yt-dlp",
                 "--flat-playlist",
                 "--print", "id",
-                "--quiet", "--no-warnings",
+                "--no-warnings",
+                "--no-progress",   # --quiet --print çıktısını bastırıyor — sadece progress'i kapat
                 f"ytsearch5:{query}",
             ] + cookie_args
             id_result = subprocess.run(id_cmd, timeout=30, capture_output=True, text=True)
-            video_ids = [l.strip() for l in id_result.stdout.splitlines() if l.strip()]
+            video_ids = [l.strip() for l in id_result.stdout.splitlines()
+                         if l.strip() and len(l.strip()) == 11]  # YouTube ID = 11 karakter
+            print(f"[video_builder] ytsearch '{query}': {len(video_ids)} ID bulundu "
+                  f"(rc={id_result.returncode})")
+            if id_result.returncode != 0 and id_result.stderr:
+                print(f"[video_builder]   stderr: {id_result.stderr.strip()[:200]}")
 
             if not video_ids:
                 continue
@@ -468,11 +474,14 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                     "yt-dlp",
                     "--skip-download",
                     "--print", "license",
-                    "--quiet", "--no-warnings",
+                    "--no-warnings",
+                    "--no-progress",  # --quiet --print çıktısını bastırıyor
                     f"https://www.youtube.com/watch?v={vid}",
                 ] + cookie_args
-                meta = subprocess.run(meta_cmd, timeout=15, capture_output=True, text=True)
-                if "creative commons" in meta.stdout.lower():
+                meta = subprocess.run(meta_cmd, timeout=20, capture_output=True, text=True)
+                license_val = meta.stdout.strip()
+                print(f"[video_builder]   {vid}: license='{license_val}'")
+                if "creative commons" in license_val.lower():
                     cc_video_id = vid
                     break
 
