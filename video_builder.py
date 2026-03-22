@@ -474,10 +474,6 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
             if not video_ids:
                 continue
 
-            # yt_dlp Python kütüphanesi ile indir.
-            # Subprocess yaklaşımında "Requested format is not available" hatası
-            # çıkıyordu — format seçici mevcut stream'lerle eşleşmiyordu.
-            # Kütüphane ile önce mevcut formatları al, sonra var olan birini seç.
             try:
                 import yt_dlp as _ytdlp
             except ImportError:
@@ -489,88 +485,83 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                            and os.path.getsize(YT_COOKIES_PATH) > 0
                            else None)
 
+            # yt-dlp'nin kendi hata mesajlarını bastır; sadece bizim loglarımız görünsün.
+            class _SilentLogger:
+                def debug(self, _): pass
+                def info(self, _): pass
+                def warning(self, _): pass
+                def error(self, msg):
+                    print(f"[video_builder]   yt-dlp: {msg[:120]}")
+
+            # Datacenter IP'lerinden çalışan client'lar (öncelik sırasıyla):
+            # ios → tv_embedded → android → mweb
+            # Her birini sırayla dene; ilk başarılı olan kazanır.
+            _clients = [["ios"], ["tv_embedded"], ["android"], ["mweb"]]
+
             actual_file = None
             for cc_video_id in video_ids:
                 url = f"https://www.youtube.com/watch?v={cc_video_id}"
+                success = False
 
-                # 1) Mevcut formatları keşfet
-                info_opts = {
-                    "quiet": True, "no_warnings": True,
-                    "skip_download": True,
-                    "extractor_args": {"youtube": {"player_client": ["android", "mweb", "tv"]}},
-                }
-                if cookie_file:
-                    info_opts["cookiefile"] = cookie_file
-                try:
-                    with _ytdlp.YoutubeDL(info_opts) as ydl:
-                        info = ydl.extract_info(url, download=False)
-                except Exception as e:
-                    print(f"[video_builder]   {cc_video_id} info hatası: {str(e)[:100]}")
-                    continue
+                for _client in _clients:
+                    tmp = tempfile.NamedTemporaryFile(
+                        suffix=".mp4", delete=False, prefix="ytcc_full_")
+                    tmp.close()
 
-                if not info:
-                    continue
+                    dl_opts = {
+                        # tek instance: info + download aynı fetch'te → format tutarlı
+                        "format": "bestvideo[height<=720]+bestaudio/bestvideo+bestaudio/best",
+                        "outtmpl": tmp.name,
+                        "merge_output_format": "mp4",
+                        "max_filesize": 200 * 1024 * 1024,
+                        "quiet": True,
+                        "no_warnings": True,
+                        "logger": _SilentLogger(),
+                        # check_formats=False: format URL'lerini önceden test etme.
+                        # Default True olunca YouTube stream URL'lerini HEAD request
+                        # ile kontrol eder; datacenter IP'lerinde 403 döner → format
+                        # listesi boşalır → "Requested format is not available" hatası.
+                        "check_formats": False,
+                        "no_check_certificate": True,
+                        "extractor_args": {"youtube": {"player_client": _client}},
+                    }
+                    if cookie_file:
+                        dl_opts["cookiefile"] = cookie_file
 
-                # 2) Format seç: önce >=480p video+audio, sonra herhangi bir video
-                fmts = info.get("formats") or []
-                def _score(f):
-                    has_v = f.get("vcodec", "none") not in ("none", None)
-                    has_a = f.get("acodec", "none") not in ("none", None)
-                    h = f.get("height") or 0
-                    size = f.get("filesize") or f.get("filesize_approx") or 0
-                    return (has_v and has_a, has_v, h >= 480, h, -size)
-
-                usable = [f for f in fmts if f.get("vcodec", "none") not in ("none", None)]
-                if not usable:
-                    print(f"[video_builder]   {cc_video_id}: video stream yok, atlanıyor")
-                    continue
-                best_fmt = sorted(usable, key=_score, reverse=True)[0]
-                fmt_id = best_fmt["format_id"]
-                # Ses ayrı stream'deyse bestaudio ekle
-                if best_fmt.get("acodec", "none") in ("none", None):
-                    fmt_id = f"{fmt_id}+bestaudio"
-                print(f"[video_builder] YouTube CC indiriliyor: '{query}' → {cc_video_id} "
-                      f"(fmt={fmt_id}, {best_fmt.get('height')}p)...")
-
-                # 3) İndir
-                tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="ytcc_full_")
-                tmp.close()
-                dl_opts = {
-                    "format": fmt_id,
-                    "outtmpl": tmp.name,
-                    "merge_output_format": "mp4",
-                    "max_filesize": 200 * 1024 * 1024,
-                    "quiet": True, "no_warnings": True,
-                    "extractor_args": {"youtube": {"player_client": ["android", "mweb", "tv"]}},
-                }
-                if cookie_file:
-                    dl_opts["cookiefile"] = cookie_file
-                try:
-                    with _ytdlp.YoutubeDL(dl_opts) as ydl:
-                        ydl.download([url])
-                except Exception as e:
-                    print(f"[video_builder]   {cc_video_id} download hatası: {str(e)[:100]}")
+                    print(f"[video_builder] YouTube CC: '{query}' → {cc_video_id} "
+                          f"[{_client[0]}]...")
                     try:
-                        os.unlink(tmp.name)
-                    except OSError:
-                        pass
-                    continue
+                        with _ytdlp.YoutubeDL(dl_opts) as ydl:
+                            ydl.extract_info(url, download=True)
+                    except Exception as e:
+                        err = str(e)[:100]
+                        print(f"[video_builder]   {cc_video_id} [{_client[0]}] başarısız: {err}")
+                        try:
+                            os.unlink(tmp.name)
+                        except OSError:
+                            pass
+                        continue
 
-                candidate = tmp.name
-                for ext in [".mp4", ".webm", ".mkv"]:
-                    alt = tmp.name + ext
-                    if os.path.exists(alt) and os.path.getsize(alt) > 10000:
-                        candidate = alt
+                    candidate = tmp.name
+                    for ext in [".mp4", ".webm", ".mkv"]:
+                        alt = tmp.name + ext
+                        if os.path.exists(alt) and os.path.getsize(alt) > 10000:
+                            candidate = alt
+                            break
+
+                    if os.path.exists(candidate) and os.path.getsize(candidate) > 10000:
+                        actual_file = candidate
+                        success = True
+                        print(f"[video_builder]   {cc_video_id} [{_client[0]}] ✓")
                         break
+                    else:
+                        try:
+                            os.unlink(tmp.name)
+                        except OSError:
+                            pass
 
-                if os.path.exists(candidate) and os.path.getsize(candidate) > 10000:
-                    actual_file = candidate
+                if success:
                     break
-                else:
-                    try:
-                        os.unlink(tmp.name)
-                    except OSError:
-                        pass
 
             if not actual_file:
                 continue
