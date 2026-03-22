@@ -12,14 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    # Cloudflare WARP proxy: YouTube datacenter IP'lerini engellediği için
-    # tüm YouTube trafiğini WARP üzerinden Cloudflare IP'sine yönlendiriyoruz.
-    services:
-      warp:
-        image: monius/docker-warp-socks:v5
-        ports:
-          - 9091:9091
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,30 +45,42 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install Deno (yt-dlp EJS runtime)
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg imagemagick fonts-liberation
+
+      - name: Install & start Cloudflare WARP
+        run: |
+          curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
+            | sudo gpg --yes --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" \
+            | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+          sudo apt-get update -qq
+          sudo apt-get install -y cloudflare-warp
+          yes | warp-cli registration new 2>/dev/null || true
+          warp-cli mode proxy
+          warp-cli proxy port 40000
+          warp-cli connect
+          for i in $(seq 1 20); do
+            if curl -s --socks5h 127.0.0.1:40000 https://cloudflare.com/cdn-cgi/trace 2>/dev/null | grep -q "warp=on"; then
+              echo "WARP aktif! (${i}. deneme)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::warning::WARP başlatılamadı — proxy'siz devam ediliyor"
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
       - name: Update yt-dlp & pytubefix to latest
         run: pip install -U "yt-dlp[default]" pytubefix
-
-      - name: Wait for WARP proxy to be ready
-        run: |
-          echo "WARP proxy'nin hazır olmasını bekliyorum..."
-          for i in $(seq 1 15); do
-            if curl -s --socks5h localhost:9091 https://cloudflare.com/cdn-cgi/trace 2>/dev/null | grep -q "warp=on"; then
-              echo "WARP proxy hazır! (${i}. deneme)"
-              curl -s --socks5h localhost:9091 https://cloudflare.com/cdn-cgi/trace
-              exit 0
-            fi
-            echo "Bekleniyor... (${i}/15)"
-            sleep 2
-          done
-          echo "::warning::WARP proxy başlatılamadı — proxy'siz devam ediliyor."
 
       - name: Write YouTube cookies
         env:
@@ -114,7 +118,7 @@ jobs:
           FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
           TRANSLATE_LANGUAGES: ${{ vars.TRANSLATE_LANGUAGES || 'es,fr,pt' }}
           # Cloudflare WARP SOCKS5 proxy — YouTube indirmeleri için
-          YT_PROXY: socks5h://localhost:9091
+          YT_PROXY: socks5h://127.0.0.1:40000
 
       - name: Save last_video cache
         if: always()

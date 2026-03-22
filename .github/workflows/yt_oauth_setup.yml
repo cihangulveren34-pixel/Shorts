@@ -12,12 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    services:
-      warp:
-        image: monius/docker-warp-socks:v5
-        ports:
-          - 9091:9091
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,20 +21,53 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install Deno (yt-dlp EJS runtime)
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install Python dependencies
         run: pip install -U "yt-dlp[default]" pytubefix
 
-      - name: Wait for WARP proxy
+      - name: Install & start Cloudflare WARP
         run: |
-          for i in $(seq 1 15); do
-            if curl -s --socks5h localhost:9091 https://cloudflare.com/cdn-cgi/trace 2>/dev/null | grep -q "warp=on"; then
-              echo "WARP hazır! (${i}. deneme)"
-              curl -s --socks5h localhost:9091 https://cloudflare.com/cdn-cgi/trace
+          # Cloudflare WARP CLI kur
+          curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
+            | sudo gpg --yes --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" \
+            | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+          sudo apt-get update -qq
+          sudo apt-get install -y cloudflare-warp
+
+          # WARP'ı proxy modunda başlat (SOCKS5 :40000)
+          # TOS kabul et, register ol, proxy moduna geç
+          yes | warp-cli registration new 2>/dev/null || true
+          warp-cli mode proxy
+          warp-cli proxy port 40000
+          warp-cli connect
+
+          # Bağlantıyı bekle
+          for i in $(seq 1 20); do
+            result=$(curl -s --socks5h 127.0.0.1:40000 https://cloudflare.com/cdn-cgi/trace 2>/dev/null || echo "fail")
+            if echo "$result" | grep -q "warp=on"; then
+              echo "WARP aktif! (${i}. deneme)"
+              echo "$result"
               exit 0
             fi
+            echo "Bekleniyor... ($i/20) — $result"
             sleep 2
           done
-          echo "::warning::WARP proxy başlatılamadı"
+          echo "::error::WARP bağlantısı kurulamadı!"
+          warp-cli status
+          exit 1
+
+      - name: WARP IP kontrolü
+        run: |
+          echo "=== WARP IP ==="
+          curl -s --socks5h 127.0.0.1:40000 https://ipinfo.io 2>/dev/null || echo "WARP üzerinden IP alınamadı"
+          echo ""
+          echo "=== Direkt IP ==="
+          curl -s https://ipinfo.io 2>/dev/null || echo "Direkt IP alınamadı"
 
       - name: Write YouTube cookies
         env:
@@ -49,12 +76,27 @@ jobs:
           if [ -n "$YT_COOKIES" ]; then
             echo "$YT_COOKIES" > yt_cookies.txt
             echo "Cookies yazıldı ($(wc -c < yt_cookies.txt) byte)"
-          else
-            echo "::warning::YT_COOKIES secret ayarlanmamış!"
           fi
 
-      - name: "Test: WARP + pytubefix (PO token)"
-        id: warp_po
+      - name: "Test 1: WARP + yt-dlp"
+        id: warp_ytdlp
+        continue-on-error: true
+        run: |
+          vid="${{ inputs.video_id || 'jNQXAC9IVRw' }}"
+          cookie_arg=""
+          [ -f yt_cookies.txt ] && cookie_arg="--cookies yt_cookies.txt"
+
+          yt-dlp \
+            --proxy socks5h://127.0.0.1:40000 \
+            --skip-download \
+            --print "title" \
+            --print "format_id" \
+            --sleep-interval 2 \
+            $cookie_arg \
+            "https://www.youtube.com/watch?v=$vid" 2>&1
+
+      - name: "Test 2: WARP + pytubefix"
+        id: warp_ptf
         continue-on-error: true
         run: |
           python3 << PYEOF
@@ -63,40 +105,10 @@ jobs:
 
           vid = "${{ inputs.video_id || 'jNQXAC9IVRw' }}"
           url = f"https://www.youtube.com/watch?v={vid}"
-          proxies = {"https": "socks5h://localhost:9091", "http": "socks5h://localhost:9091"}
+          proxies = {"https": "socks5h://127.0.0.1:40000", "http": "socks5h://127.0.0.1:40000"}
 
-          clients = ["ANDROID_TESTSUITE", "ANDROID_VR", "IOS", "WEB"]
-          for client in clients:
-              print(f"\n--- WARP + {client} + PO token ---")
-              try:
-                  yt = YouTube(url, client=client, use_po_token=True, proxies=proxies)
-                  streams = yt.streams.filter(file_extension="mp4")
-                  print(f"  Başlık: {yt.title}")
-                  print(f"  Stream sayısı: {len(streams)}")
-                  if streams:
-                      s = streams.order_by("resolution").desc().first()
-                      print(f"  En iyi: {s.resolution} ({s.filesize_mb:.1f} MB)")
-                      sys.exit(0)
-              except Exception as e:
-                  print(f"  HATA: {str(e)[:150]}")
-          sys.exit(1)
-          PYEOF
-
-      - name: "Test: WARP + pytubefix (plain)"
-        id: warp_plain
-        continue-on-error: true
-        run: |
-          python3 << PYEOF
-          import sys
-          from pytubefix import YouTube
-
-          vid = "${{ inputs.video_id || 'jNQXAC9IVRw' }}"
-          url = f"https://www.youtube.com/watch?v={vid}"
-          proxies = {"https": "socks5h://localhost:9091", "http": "socks5h://localhost:9091"}
-
-          clients = ["ANDROID_TESTSUITE", "ANDROID_VR", "IOS", "WEB"]
-          for client in clients:
-              print(f"\n--- WARP + {client} (plain) ---")
+          for client in ["ANDROID_TESTSUITE", "IOS", "WEB"]:
+              print(f"\n--- WARP + {client} ---")
               try:
                   yt = YouTube(url, client=client, proxies=proxies)
                   streams = yt.streams.filter(file_extension="mp4")
@@ -107,45 +119,24 @@ jobs:
                       print(f"  En iyi: {s.resolution} ({s.filesize_mb:.1f} MB)")
                       sys.exit(0)
               except Exception as e:
-                  print(f"  HATA: {str(e)[:150]}")
+                  print(f"  HATA: {str(e)[:200]}")
           sys.exit(1)
           PYEOF
 
-      - name: "Test: WARP + yt-dlp"
-        id: warp_ytdlp
+      - name: "Test 3: Proxy'siz yt-dlp (karşılaştırma)"
+        id: no_proxy_ytdlp
         continue-on-error: true
         run: |
           vid="${{ inputs.video_id || 'jNQXAC9IVRw' }}"
           cookie_arg=""
-          if [ -f yt_cookies.txt ]; then
-            cookie_arg="--cookies yt_cookies.txt"
-          fi
+          [ -f yt_cookies.txt ] && cookie_arg="--cookies yt_cookies.txt"
 
           yt-dlp \
-            --proxy socks5h://localhost:9091 \
             --skip-download \
             --print "title" \
             --print "format_id" \
             $cookie_arg \
             "https://www.youtube.com/watch?v=$vid" 2>&1
-
-      - name: "Test: Proxy'siz pytubefix (karşılaştırma)"
-        id: no_proxy
-        continue-on-error: true
-        run: |
-          python3 << PYEOF
-          import sys
-          from pytubefix import YouTube
-          vid = "${{ inputs.video_id || 'jNQXAC9IVRw' }}"
-          try:
-              yt = YouTube(f"https://www.youtube.com/watch?v={vid}", client="ANDROID_TESTSUITE")
-              streams = yt.streams.filter(file_extension="mp4")
-              print(f"Başlık: {yt.title}, Stream: {len(streams)}")
-              sys.exit(0 if streams else 1)
-          except Exception as e:
-              print(f"HATA: {str(e)[:150]}")
-              sys.exit(1)
-          PYEOF
 
       - name: Sonuçları özetle
         if: always()
@@ -155,15 +146,13 @@ jobs:
           echo "         YOUTUBE TEST SONUÇLARI"
           echo "========================================"
 
-          warp_po="${{ steps.warp_po.outcome }}"
-          warp_plain="${{ steps.warp_plain.outcome }}"
-          warp_ytdlp="${{ steps.warp_ytdlp.outcome }}"
-          no_proxy="${{ steps.no_proxy.outcome }}"
+          r1="${{ steps.warp_ytdlp.outcome }}"
+          r2="${{ steps.warp_ptf.outcome }}"
+          r3="${{ steps.no_proxy_ytdlp.outcome }}"
 
-          [ "$warp_po" = "success" ] && echo "✅ WARP + pytubefix + PO token → ÇALIŞIYOR" || echo "❌ WARP + pytubefix + PO token → BAŞARISIZ"
-          [ "$warp_plain" = "success" ] && echo "✅ WARP + pytubefix plain     → ÇALIŞIYOR" || echo "❌ WARP + pytubefix plain     → BAŞARISIZ"
-          [ "$warp_ytdlp" = "success" ] && echo "✅ WARP + yt-dlp              → ÇALIŞIYOR" || echo "❌ WARP + yt-dlp              → BAŞARISIZ"
-          [ "$no_proxy" = "success" ] && echo "✅ Proxy'siz (karşılaştırma)  → ÇALIŞIYOR" || echo "❌ Proxy'siz (karşılaştırma)  → BAŞARISIZ"
+          [ "$r1" = "success" ] && echo "✅ WARP + yt-dlp      → ÇALIŞIYOR" || echo "❌ WARP + yt-dlp      → BAŞARISIZ"
+          [ "$r2" = "success" ] && echo "✅ WARP + pytubefix   → ÇALIŞIYOR" || echo "❌ WARP + pytubefix   → BAŞARISIZ"
+          [ "$r3" = "success" ] && echo "✅ Proxy'siz yt-dlp   → ÇALIŞIYOR" || echo "❌ Proxy'siz yt-dlp   → BAŞARISIZ"
 
           echo "========================================"
 
@@ -172,8 +161,7 @@ jobs:
 
           | Yöntem | Sonuç |
           |--------|-------|
-          | WARP + pytubefix + PO token | $([ "$warp_po" = "success" ] && echo "✅" || echo "❌") |
-          | WARP + pytubefix plain | $([ "$warp_plain" = "success" ] && echo "✅" || echo "❌") |
-          | WARP + yt-dlp | $([ "$warp_ytdlp" = "success" ] && echo "✅" || echo "❌") |
-          | Proxy'siz (karşılaştırma) | $([ "$no_proxy" = "success" ] && echo "✅" || echo "❌") |
+          | WARP + yt-dlp | $([ "$r1" = "success" ] && echo "✅" || echo "❌") |
+          | WARP + pytubefix | $([ "$r2" = "success" ] && echo "✅" || echo "❌") |
+          | Proxy'siz yt-dlp (karşılaştırma) | $([ "$r3" = "success" ] && echo "✅" || echo "❌") |
           EOF
