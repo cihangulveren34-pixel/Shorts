@@ -56,23 +56,37 @@ jobs:
           warp-cli --accept-tos mode proxy
           warp-cli --accept-tos proxy port 40000
           warp-cli --accept-tos connect
-          echo "warp-cli connect çalıştırıldı"
-          warp-cli --accept-tos status || true
 
-          # Bağlantıyı doğrula
-          for i in $(seq 1 20); do
+          # Aşama 1: warp-cli status "Connected" olana kadar bekle
+          echo "WARP bağlantısı bekleniyor..."
+          for i in $(seq 1 30); do
+            status=$(warp-cli --accept-tos status 2>/dev/null || echo "unknown")
+            if echo "$status" | grep -qi "^Status update: Connected"; then
+              echo "WARP bağlandı! (${i}. deneme, ~$((i*3))s)"
+              echo "$status"
+              break
+            fi
+            echo "  ($i/30) $status"
+            sleep 3
+          done
+
+          # Aşama 2: SOCKS5 proxy'nin çalıştığını doğrula
+          echo "Proxy testi..."
+          for i in $(seq 1 10); do
             result=$(curl -s --max-time 5 --socks5h 127.0.0.1:40000 https://cloudflare.com/cdn-cgi/trace 2>/dev/null || echo "fail")
             if echo "$result" | grep -q "warp=on"; then
-              echo "WARP aktif! (${i}. deneme)"
+              echo "WARP proxy aktif! ✓"
               echo "$result"
               exit 0
             fi
-            echo "Bekleniyor... ($i/20) — $result"
-            sleep 2
+            echo "  Proxy testi ($i/10) — $result"
+            sleep 3
           done
-          echo "::error::WARP bağlantısı kurulamadı!"
+          echo "::error::WARP proxy çalışmıyor!"
           warp-cli --accept-tos status || true
-          journalctl -u warp-svc --no-pager -n 30 2>/dev/null || true
+          warp-cli --accept-tos settings 2>/dev/null || true
+          ss -tlnp | grep 40000 || echo "Port 40000 dinlenmiyor"
+          journalctl -u warp-svc --no-pager -n 20 2>/dev/null || true
           exit 1
 
       - name: WARP IP kontrolü

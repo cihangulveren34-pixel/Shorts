@@ -56,12 +56,19 @@ jobs:
           warp-cli --accept-tos mode proxy
           warp-cli --accept-tos proxy port 40000
           warp-cli --accept-tos connect
-          for i in $(seq 1 20); do
+          for i in $(seq 1 30); do
+            if warp-cli --accept-tos status 2>/dev/null | grep -qi "^Status update: Connected"; then
+              echo "WARP bağlandı! (${i}. deneme)"
+              break
+            fi
+            sleep 3
+          done
+          for i in $(seq 1 10); do
             if curl -s --max-time 5 --socks5h 127.0.0.1:40000 https://cloudflare.com/cdn-cgi/trace 2>/dev/null | grep -q "warp=on"; then
-              echo "WARP aktif! (${i}. deneme)"
+              echo "WARP proxy aktif!"
               exit 0
             fi
-            sleep 2
+            sleep 3
           done
           echo "::warning::WARP başlatılamadı"
 
