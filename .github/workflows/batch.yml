@@ -35,6 +35,14 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
+      - name: Write YouTube cookies
+        run: |
+          if [ -n "$YT_COOKIES" ]; then
+            echo "$YT_COOKIES" > yt_cookies.txt
+          fi
+        env:
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
+
       - name: Download assets (SFX & music)
         run: python setup_assets.py
 
