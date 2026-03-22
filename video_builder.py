@@ -524,7 +524,14 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                                      if 'UserWarning' not in l and 'cookiejar' not in l.lower()
                                      and 'warnings.warn' not in l and l.strip()]
                         if err_lines:
-                            print(f"[video_builder]   {cc_video_id} başarısız: {err_lines[-1][:120]}")
+                            last_err = err_lines[-1]
+                            print(f"[video_builder]   {cc_video_id} başarısız: {last_err[:120]}")
+                            # "format is not available" → YouTube bu ortamda stream sunmuyor.
+                            # Tüm sorgular aynı şekilde başarısız olacak; erken çık.
+                            if "format is not available" in last_err or "not available" in last_err:
+                                print("[video_builder] YouTube stream erişimi engellendi "
+                                      "(datacenter IP / PO token). YouTube CC atlanıyor.")
+                                return downloaded
 
             if not actual_file:
                 continue
