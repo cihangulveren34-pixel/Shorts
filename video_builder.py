@@ -493,31 +493,30 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 def error(self, msg):
                     print(f"[video_builder]   yt-dlp: {msg[:120]}")
 
-            # Datacenter IP'lerinden çalışan client'lar (öncelik sırasıyla).
-            # Her tuple: (client_list, player_skip_list | None)
-            # İlk denemeler webpage skip ile (hızlı), başarısız olursa
-            # webpage ile tekrar dene (token toplama için gerekli olabilir).
+            # ── YouTube İndirme: 3 katmanlı strateji ──────────────────
+            # 1) yt-dlp ile çeşitli player client'ları dene
+            # 2) yt-dlp OAuth2 token varsa onunla dene
+            # 3) pytubefix kütüphanesi ile dene
+            # Datacenter IP'lerde YouTube streaming URL vermeyebilir;
+            # bu yüzden birden fazla yöntem deniyoruz.
+
+            # Client listesi: datacenter'da çalışma şansı yüksek olanlar önce.
+            # ios/android farklı API endpoint kullanır → genelde daha az kısıtlı.
             _client_configs = [
+                (["ios"],                   None),
+                (["android"],               None),
+                (["web_creator"],           None),
                 (["web_creator"],           ["webpage"]),
-                (["web_creator"],           None),       # webpage ile token topla
                 (["web"],                   None),
-                (["tv"],                    ["webpage"]),
-                (["mediaconnect"],          ["webpage"]),
+                (["tv"],                    None),
                 (["default"],               None),
             ]
 
-            actual_file = None
-            _zero_fmt_streak = 0          # ardarda 0-format video sayacı
-            for cc_video_id in video_ids:
-                url = f"https://www.youtube.com/watch?v={cc_video_id}"
-                success = False
-                # Ardarda 2 video'da hiç format bulunamadıysa IP büyük ihtimalle
-                # engelli; kalan video'ları denemeye gerek yok.
-                if _zero_fmt_streak >= 2:
-                    print("[video_builder] YouTube CC: ardarda 2 video'da 0 format; "
-                          "IP muhtemelen engelli, fallback'lere geçiliyor.")
-                    break
-
+            def _try_ytdlp_download(vid_id: str, extra_opts: dict = None,
+                                     label: str = "") -> str | None:
+                """Tek bir video ID'si için yt-dlp ile indirmeyi dene.
+                Başarılıysa dosya yolunu, değilse None döndür."""
+                _url = f"https://www.youtube.com/watch?v={vid_id}"
                 for _client, _skip in _client_configs:
                     tmp = tempfile.NamedTemporaryFile(
                         suffix=".mp4", delete=False, prefix="ytcc_full_")
@@ -528,8 +527,6 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                         _yt_args["player_skip"] = _skip
 
                     dl_opts = {
-                        # format_sort: 720p tercih et ama yoksa daha yüksek de kabul et.
-                        # "best*" herhangi bir formatı kabul eder (video+audio veya mux'lu).
                         "format": "bestvideo+bestaudio/best*/best",
                         "format_sort": ["res:720", "ext:mp4:m4a"],
                         "outtmpl": tmp.name,
@@ -544,48 +541,17 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                     }
                     if cookie_file:
                         dl_opts["cookiefile"] = cookie_file
+                    if extra_opts:
+                        dl_opts.update(extra_opts)
 
-                    _skip_label = "+skip" if _skip else "+page"
-                    print(f"[video_builder] YouTube CC: '{query}' → {cc_video_id} "
-                          f"[{_client[0]}{_skip_label}]...")
-
-                    # Önce info-only çek → format sayısını logla
-                    # format/format_sort kaldır: sadece ham format listesini al,
-                    # format seçimi yapma (yoksa "not available" fırlatır).
-                    try:
-                        info_opts = dict(dl_opts)
-                        info_opts.pop("format", None)
-                        info_opts.pop("format_sort", None)
-                        info_opts["quiet"] = True
-                        with _ytdlp.YoutubeDL(info_opts) as ydl:
-                            info = ydl.extract_info(url, download=False)
-                        n_fmt = len(info.get("formats") or []) if info else 0
-                        print(f"[video_builder]   {cc_video_id} [{_client[0]}{_skip_label}] "
-                              f"format sayısı: {n_fmt}")
-                        if n_fmt == 0:
-                            try:
-                                os.unlink(tmp.name)
-                            except OSError:
-                                pass
-                            continue
-                    except Exception as e:
-                        err = str(e)[:100]
-                        print(f"[video_builder]   {cc_video_id} [{_client[0]}{_skip_label}] "
-                              f"info başarısız: {err}")
-                        try:
-                            os.unlink(tmp.name)
-                        except OSError:
-                            pass
-                        continue
-
-                    # Format var → indir
+                    _tag = f"{_client[0]}{label}"
+                    print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [{_tag}]...")
                     try:
                         with _ytdlp.YoutubeDL(dl_opts) as ydl:
-                            ydl.extract_info(url, download=True)
+                            ydl.extract_info(_url, download=True)
                     except Exception as e:
-                        err = str(e)[:100]
-                        print(f"[video_builder]   {cc_video_id} [{_client[0]}{_skip_label}] "
-                              f"indirme başarısız: {err}")
+                        err = str(e)[:120]
+                        print(f"[video_builder]   {vid_id} [{_tag}] başarısız: {err}")
                         try:
                             os.unlink(tmp.name)
                         except OSError:
@@ -600,21 +566,101 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                             break
 
                     if os.path.exists(candidate) and os.path.getsize(candidate) > 10000:
-                        actual_file = candidate
-                        success = True
-                        print(f"[video_builder]   {cc_video_id} [{_client[0]}] ✓")
-                        break
-                    else:
-                        try:
-                            os.unlink(tmp.name)
-                        except OSError:
-                            pass
+                        print(f"[video_builder]   {vid_id} [{_tag}] ✓")
+                        return candidate
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError:
+                        pass
+                return None
 
-                if success:
-                    _zero_fmt_streak = 0
+            def _try_pytubefix_download(vid_id: str) -> str | None:
+                """pytubefix kütüphanesi ile indirmeyi dene."""
+                try:
+                    from pytubefix import YouTube as PTYouTube
+                    from pytubefix.helpers import install_proxy
+                except ImportError:
+                    print("[video_builder]   pytubefix import edilemiyor, atlanıyor.")
+                    return None
+
+                _url = f"https://www.youtube.com/watch?v={vid_id}"
+                print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [pytubefix]...")
+                try:
+                    yt_obj = PTYouTube(_url)
+                    # 720p veya altı progressive (audio+video mux'lu) stream tercih et
+                    stream = (
+                        yt_obj.streams
+                        .filter(progressive=True, file_extension="mp4")
+                        .order_by("resolution")
+                        .desc()
+                        .first()
+                    )
+                    if not stream:
+                        # progressive yoksa adaptive dene
+                        stream = (
+                            yt_obj.streams
+                            .filter(file_extension="mp4")
+                            .order_by("resolution")
+                            .desc()
+                            .first()
+                        )
+                    if not stream:
+                        print(f"[video_builder]   {vid_id} [pytubefix] stream bulunamadı")
+                        return None
+
+                    tmp = tempfile.NamedTemporaryFile(
+                        suffix=".mp4", delete=False, prefix="ytcc_ptf_")
+                    tmp.close()
+                    stream.download(output_path=os.path.dirname(tmp.name),
+                                    filename=os.path.basename(tmp.name))
+                    if os.path.exists(tmp.name) and os.path.getsize(tmp.name) > 10000:
+                        print(f"[video_builder]   {vid_id} [pytubefix] ✓")
+                        return tmp.name
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError:
+                        pass
+                except Exception as e:
+                    err = str(e)[:120]
+                    print(f"[video_builder]   {vid_id} [pytubefix] başarısız: {err}")
+                return None
+
+            # ── Ana indirme döngüsü ──
+            actual_file = None
+            _yt_consecutive_fails = 0
+            for cc_video_id in video_ids:
+                # Ardarda 2 video'da tüm yöntemler başarısız → IP engelli
+                if _yt_consecutive_fails >= 2:
+                    print("[video_builder] YouTube CC: ardarda 2 video başarısız; "
+                          "IP muhtemelen engelli.")
+                    break
+
+                # Yöntem 1: yt-dlp standart client'larla
+                result = _try_ytdlp_download(cc_video_id)
+
+                # Yöntem 2: yt-dlp OAuth2 (token varsa)
+                if not result:
+                    _oauth_cache = os.path.expanduser("~/.cache/yt-dlp/youtube-nsig")
+                    _has_oauth = (
+                        os.path.isdir(os.path.expanduser("~/.cache/yt-dlp"))
+                    )
+                    if _has_oauth and cookie_file:
+                        result = _try_ytdlp_download(
+                            cc_video_id,
+                            extra_opts={"username": "oauth2", "password": ""},
+                            label="/oauth2",
+                        )
+
+                # Yöntem 3: pytubefix
+                if not result:
+                    result = _try_pytubefix_download(cc_video_id)
+
+                if result:
+                    actual_file = result
+                    _yt_consecutive_fails = 0
                     break
                 else:
-                    _zero_fmt_streak += 1
+                    _yt_consecutive_fails += 1
 
             if not actual_file:
                 continue
