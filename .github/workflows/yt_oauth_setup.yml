@@ -39,16 +39,29 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y cloudflare-warp
 
-          # WARP'ı proxy modunda başlat (SOCKS5 :40000)
-          # TOS kabul et, register ol, proxy moduna geç
+          # warp-svc daemon'unu başlat (systemd GitHub Actions'ta güvenilir değil)
+          sudo systemctl start warp-svc || sudo warp-svc &
+          # Daemon'un başlamasını bekle
+          for i in $(seq 1 10); do
+            if warp-cli --accept-tos status 2>/dev/null | grep -qi "registration\|disconnected\|connected"; then
+              echo "warp-svc hazır (${i}. deneme)"
+              break
+            fi
+            echo "warp-svc bekleniyor... ($i/10)"
+            sleep 2
+          done
+
+          # Register ol, proxy moduna geç, bağlan
           warp-cli --accept-tos registration new 2>/dev/null || true
           warp-cli --accept-tos mode proxy
           warp-cli --accept-tos proxy port 40000
           warp-cli --accept-tos connect
+          echo "warp-cli connect çalıştırıldı"
+          warp-cli --accept-tos status || true
 
-          # Bağlantıyı bekle
+          # Bağlantıyı doğrula
           for i in $(seq 1 20); do
-            result=$(curl -s --socks5h 127.0.0.1:40000 https://cloudflare.com/cdn-cgi/trace 2>/dev/null || echo "fail")
+            result=$(curl -s --max-time 5 --socks5h 127.0.0.1:40000 https://cloudflare.com/cdn-cgi/trace 2>/dev/null || echo "fail")
             if echo "$result" | grep -q "warp=on"; then
               echo "WARP aktif! (${i}. deneme)"
               echo "$result"
@@ -58,7 +71,8 @@ jobs:
             sleep 2
           done
           echo "::error::WARP bağlantısı kurulamadı!"
-          warp-cli status
+          warp-cli --accept-tos status || true
+          journalctl -u warp-svc --no-pager -n 30 2>/dev/null || true
           exit 1
 
       - name: WARP IP kontrolü
