@@ -517,6 +517,12 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                         "quiet": True,
                         "no_warnings": True,
                         "logger": _SilentLogger(),
+                        # check_formats=False: format URL'lerini önceden test etme.
+                        # Default True olunca YouTube stream URL'lerini HEAD request
+                        # ile kontrol eder; datacenter IP'lerinde 403 döner → format
+                        # listesi boşalır → "Requested format is not available" hatası.
+                        "check_formats": False,
+                        "no_check_certificate": True,
                         "extractor_args": {"youtube": {"player_client": _client}},
                     }
                     if cookie_file:
