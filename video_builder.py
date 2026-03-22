@@ -638,13 +638,11 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 # Yöntem 1: yt-dlp standart client'larla
                 result = _try_ytdlp_download(cc_video_id)
 
-                # Yöntem 2: yt-dlp OAuth2 (token varsa)
+                # Yöntem 2: yt-dlp OAuth2 (token cache'de varsa)
                 if not result:
-                    _oauth_cache = os.path.expanduser("~/.cache/yt-dlp/youtube-nsig")
-                    _has_oauth = (
-                        os.path.isdir(os.path.expanduser("~/.cache/yt-dlp"))
-                    )
-                    if _has_oauth and cookie_file:
+                    _oauth_token = os.path.expanduser(
+                        "~/.cache/yt-dlp/youtube-oauth2/token.json")
+                    if os.path.isfile(_oauth_token):
                         result = _try_ytdlp_download(
                             cc_video_id,
                             extra_opts={"username": "oauth2", "password": ""},
