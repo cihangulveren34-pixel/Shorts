@@ -461,7 +461,7 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "--print", "id",
                 "--no-warnings",
                 "--no-progress",
-                "--extractor-args", "youtube:player_client=android,mweb,tv",
+                "--extractor-args", "youtube:player_client=web,default",
             ] + cookie_args
             id_result = subprocess.run(id_cmd, timeout=30, capture_output=True, text=True)
             video_ids = [l.strip() for l in id_result.stdout.splitlines()
@@ -494,9 +494,10 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                     print(f"[video_builder]   yt-dlp: {msg[:120]}")
 
             # Datacenter IP'lerinden çalışan client'lar (öncelik sırasıyla):
-            # ios → tv_embedded → android → mweb
-            # Her birini sırayla dene; ilk başarılı olan kazanır.
-            _clients = [["ios"], ["tv_embedded"], ["android"], ["mweb"]]
+            # web (cookie ile en güvenilir) → default (yt-dlp kendi seçsin)
+            # ios/android/tv_embedded/mweb artık datacenter IP'lerinde
+            # boş format listesi döndürüyor (YouTube kısıtlaması, 2025+).
+            _clients = [["web"], ["default"], ["mweb", "web"], ["ios"]]
 
             actual_file = None
             for cc_video_id in video_ids:
@@ -510,7 +511,10 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
 
                     dl_opts = {
                         # tek instance: info + download aynı fetch'te → format tutarlı
-                        "format": "bestvideo[height<=720]+bestaudio/bestvideo+bestaudio/best",
+                        # best[height<=720]: mux'lu tek stream (web client genelde bunu döner)
+                        # bestvideo[height<=720]+bestaudio: ayrı stream'ler (ffmpeg merge)
+                        "format": ("bestvideo[height<=720]+bestaudio/best[height<=720]/"
+                                   "bestvideo+bestaudio/best"),
                         "outtmpl": tmp.name,
                         "merge_output_format": "mp4",
                         "max_filesize": 200 * 1024 * 1024,
