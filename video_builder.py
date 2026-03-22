@@ -438,64 +438,50 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
             break
 
         try:
-            # -- Aşama 1: ytsearch ile video ID'lerini al (hızlı, innertube API) --
-            # ytsearch + --match-filter "license=..." çalışmıyor: arama
-            # metadata'sında lisans alanı boş kalıyor. Doğru yol: her videonun
-            # sayfasını ayrı ayrı kontrol etmek.
+            # YouTube CC arama filtresi: sp=EgIwAQ%3D%3D → YouTube kendi tarafında
+            # sadece Creative Commons videoları döndürür. yt-dlp'nin license field'i
+            # YouTube watch sayfasından güvenilir şekilde çekilemiyor (hep boş geliyor),
+            # bu yüzden YouTube'un kendi CC filtresine güveniyoruz.
             cookie_args = []
             if os.path.exists(YT_COOKIES_PATH) and os.path.getsize(YT_COOKIES_PATH) > 0:
                 cookie_args = ["--cookies", YT_COOKIES_PATH]
             else:
                 print(f"[video_builder] Uyarı: {YT_COOKIES_PATH} bulunamadı veya boş — bot tespiti riski yüksek")
 
+            encoded_q = query.replace(" ", "+").replace("'", "%27")
+            yt_cc_url = (
+                f"https://www.youtube.com/results"
+                f"?search_query={encoded_q}&sp=EgIwAQ%3D%3D"
+            )
             id_cmd = [
                 "yt-dlp",
-                "--flat-playlist",
+                yt_cc_url,
+                "--flat-playlist",     # sadece metadata, video indirme yok
+                "--playlist-end", "5", # ilk 5 sonuç yeterli
                 "--print", "id",
                 "--no-warnings",
-                "--no-progress",   # --quiet --print çıktısını bastırıyor — sadece progress'i kapat
-                f"ytsearch5:{query}",
+                "--no-progress",
+                "--extractor-args", "youtube:player_client=android,mweb,tv",
             ] + cookie_args
             id_result = subprocess.run(id_cmd, timeout=30, capture_output=True, text=True)
             video_ids = [l.strip() for l in id_result.stdout.splitlines()
-                         if l.strip() and len(l.strip()) == 11]  # YouTube ID = 11 karakter
-            print(f"[video_builder] ytsearch '{query}': {len(video_ids)} ID bulundu "
+                         if l.strip() and len(l.strip()) == 11]
+            print(f"[video_builder] YouTube CC '{query}': {len(video_ids)} ID "
                   f"(rc={id_result.returncode})")
-            if id_result.returncode != 0 and id_result.stderr:
+            if not video_ids and id_result.stderr:
                 print(f"[video_builder]   stderr: {id_result.stderr.strip()[:200]}")
 
             if not video_ids:
                 continue
 
-            # -- Aşama 2: Her video için lisansı kontrol et, ilk CC'yi bul --
-            cc_video_id = None
-            for vid in video_ids:
-                meta_cmd = [
-                    "yt-dlp",
-                    "--skip-download",
-                    "--print", "license",
-                    "--no-warnings",
-                    "--no-progress",  # --quiet --print çıktısını bastırıyor
-                    f"https://www.youtube.com/watch?v={vid}",
-                ] + cookie_args
-                meta = subprocess.run(meta_cmd, timeout=20, capture_output=True, text=True)
-                license_val = meta.stdout.strip()
-                print(f"[video_builder]   {vid}: license='{license_val}'")
-                if "creative commons" in license_val.lower():
-                    cc_video_id = vid
-                    break
-
-            if not cc_video_id:
-                continue
-
-            # -- Aşama 3: CC videoyu indir --
+            # İlk ID'yi indir — YouTube zaten CC filtreledi, ayrıca lisans kontrolü gerekmez
+            cc_video_id = video_ids[0]
             tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="ytcc_full_")
             tmp.close()
 
             cmd = [
                 "yt-dlp",
                 f"https://www.youtube.com/watch?v={cc_video_id}",
-                # android: datacenter IP'lerde PO token gerektirmiyor
                 "--extractor-args", "youtube:player_client=android,mweb,tv",
                 "--no-check-certificates",
                 "--format", "bestvideo[height>=480][ext=mp4]+bestaudio[ext=m4a]/best[height>=480][ext=mp4]/best[ext=mp4]/best",
@@ -510,7 +496,7 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "-o", tmp.name,
             ] + cookie_args
 
-            print(f"[video_builder] YouTube CC aranıyor: '{query}' → {cc_video_id}...")
+            print(f"[video_builder] YouTube CC indiriliyor: '{query}' → {cc_video_id}...")
             result = subprocess.run(cmd, timeout=120, capture_output=True, text=True)
 
             actual_file = tmp.name
