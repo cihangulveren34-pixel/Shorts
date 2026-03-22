@@ -445,9 +445,8 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "yt-dlp",
                 f"ytsearch5:{query}",
                 "--match-filter", "license=Creative Commons",
-                # iOS client: datacenter IP'lerde bot tespitini büyük ölçüde aşar,
-                # cookie gerektirmez → GitHub Actions'ta çalışır.
-                "--extractor-args", "youtube:player_client=ios,web_creator",
+                # Birden fazla client dene: datacenter IP'lerde bot tespitini azaltır.
+                "--extractor-args", "youtube:player_client=ios,tv,mweb",
                 "--format", "bestvideo[height>=480][ext=mp4]+bestaudio[ext=m4a]/best[height>=480][ext=mp4]/best[ext=mp4]/best",
                 "--merge-output-format", "mp4",
                 "--max-downloads", "1",
@@ -461,10 +460,11 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "-o", tmp.name,
             ]
 
-            # Cookie dosyası varsa kullan; yoksa sessizce devam et
-            # (--cookies-from-browser browser gerektirdiği için GH Actions'ta hiç deneme)
-            if os.path.exists(YT_COOKIES_PATH):
+            # Cookie dosyası varsa kullan
+            if os.path.exists(YT_COOKIES_PATH) and os.path.getsize(YT_COOKIES_PATH) > 0:
                 cmd.extend(["--cookies", YT_COOKIES_PATH])
+            else:
+                print(f"[video_builder] Uyarı: {YT_COOKIES_PATH} bulunamadı veya boş — bot tespiti riski yüksek")
 
             print(f"[video_builder] YouTube CC aranıyor: '{query}'...")
             result = subprocess.run(cmd, timeout=120, capture_output=True, text=True)
