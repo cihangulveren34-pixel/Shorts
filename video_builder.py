@@ -445,22 +445,26 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "yt-dlp",
                 f"ytsearch5:{query}",
                 "--match-filter", "license=Creative Commons",
-                "--format", "bestvideo[height>=720][ext=mp4]+bestaudio[ext=m4a]/best[height>=720][ext=mp4]/best",
+                # iOS client: datacenter IP'lerde bot tespitini büyük ölçüde aşar,
+                # cookie gerektirmez → GitHub Actions'ta çalışır.
+                "--extractor-args", "youtube:player_client=ios,web_creator",
+                "--format", "bestvideo[height>=480][ext=mp4]+bestaudio[ext=m4a]/best[height>=480][ext=mp4]/best[ext=mp4]/best",
                 "--merge-output-format", "mp4",
                 "--max-downloads", "1",
-                "--max-filesize", "100M",
+                "--max-filesize", "200M",
                 "--no-playlist",
                 "--no-warnings",
                 "--quiet",
                 "--no-progress",
+                "--sleep-interval", "2",
+                "--max-sleep-interval", "6",
                 "-o", tmp.name,
             ]
 
-            # Kimlik doğrulama: cookie dosyası > browser cookies
+            # Cookie dosyası varsa kullan; yoksa sessizce devam et
+            # (--cookies-from-browser browser gerektirdiği için GH Actions'ta hiç deneme)
             if os.path.exists(YT_COOKIES_PATH):
                 cmd.extend(["--cookies", YT_COOKIES_PATH])
-            else:
-                cmd.extend(["--cookies-from-browser", "firefox"])
 
             print(f"[video_builder] YouTube CC aranıyor: '{query}'...")
             result = subprocess.run(cmd, timeout=120, capture_output=True, text=True)
@@ -607,6 +611,7 @@ def _keyword_hits(text: str, keywords: list[str]) -> int:
 
 # Tören / brifing / röportaj içeriklerini dışla — video montajına görsel olarak uygunsuz
 _NON_ACTION_TERMS = {
+    # Tören / protokol
     "briefing", "press briefing", "press conference", "interview",
     "ceremony", "change of command", "retirement", "promotion ceremony",
     "award ceremony", "ribbon cutting", "speech", "remarks", "town hall",
@@ -617,6 +622,11 @@ _NON_ACTION_TERMS = {
     "promotion", "swearing", "oath of office", "congressional",
     "senator", "secretary of defense", "chief of staff", "pentagon",
     "news conference", "media roundtable", "official visit", "dignitary",
+    # Haber / yayın — lower-thirds ve chyron içerir
+    "news report", "news story", "broadcast", "reporter", "anchor",
+    "correspondent", "newscast", "on camera", "on-camera", "stand-up",
+    "package", "live report", "public affairs", "pa product",
+    "media embed", "embedded media", "press pool",
 }
 
 
@@ -733,9 +743,12 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
                     tmp.close()
                     cmd = [
                         "ffmpeg", "-y",
-                        "-ss", "5",           # ilk 5sn atla (DVIDS slate ekranı)
+                        "-ss", "8",           # ilk 8sn atla (DVIDS slate + açılış lower-third)
                         "-i", hls_url,
-                        "-c", "copy",
+                        # Alt %12'yi kes (lower-thirds / isim-rütbe barları), orijinal boyuta scale et
+                        "-vf", "crop=iw:trunc(ih*0.88/2)*2:0:0,scale=iw:ih",
+                        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20",
+                        "-an",               # ses yok (B-roll)
                         "-t", "30",           # max 30 saniye
                         "-loglevel", "error",
                         tmp.name,
@@ -925,9 +938,35 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
 
                     pub_date = doc.get("publicdate", "?")[:10]
                     if os.path.getsize(tmp.name) > 3 * 1024 * 1024:
-                        downloaded.append(tmp.name)
-                        print(f"[video_builder] Archive klip {len(downloaded)}/{n}: "
-                              f"{identifier} ({pub_date}, score:{best_score})")
+                        # Alt %12'yi kes (lower-thirds / haber barları), orijinal boyuta scale et
+                        if shutil.which("ffmpeg"):
+                            cropped = tempfile.NamedTemporaryFile(
+                                suffix=".mp4", delete=False, prefix="archive_crop_"
+                            )
+                            cropped.close()
+                            subprocess.run(
+                                [
+                                    "ffmpeg", "-y", "-i", tmp.name,
+                                    "-vf", "crop=iw:trunc(ih*0.88/2)*2:0:0,scale=iw:ih",
+                                    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20",
+                                    "-an", "-loglevel", "error", cropped.name,
+                                ],
+                                timeout=120, capture_output=True,
+                            )
+                            os.unlink(tmp.name)
+                            if os.path.exists(cropped.name) and os.path.getsize(cropped.name) > 3 * 1024 * 1024:
+                                downloaded.append(cropped.name)
+                                print(f"[video_builder] Archive klip {len(downloaded)}/{n}: "
+                                      f"{identifier} ({pub_date}, score:{best_score})")
+                            else:
+                                try:
+                                    os.unlink(cropped.name)
+                                except OSError:
+                                    pass
+                        else:
+                            downloaded.append(tmp.name)
+                            print(f"[video_builder] Archive klip {len(downloaded)}/{n}: "
+                                  f"{identifier} ({pub_date}, score:{best_score})")
                     else:
                         os.unlink(tmp.name)
                 except Exception as e:
@@ -1453,32 +1492,18 @@ def _fetch_unsplash_images(keywords: list, n: int, seen_ids: set) -> list[str]:
 def _fetch_images(keywords: list) -> list[str]:
     """Keyword'lere göre alakalı resimler indirir.
 
-    Öncelik sırası:
-    1. Wikimedia Commons — keyword araması, lisanslı, doğrudan alakalı
-    2. Al Jazeera CC    — yedek; artık generic sorgusuz, title-filtered
+    Sadece Wikimedia Commons — keyword araması, lisanslı, metin/logo içermez.
     """
     seen_ids: set = set()
     images: list[str] = []
     target = 8
 
-    # 1) Wikimedia — birincil kaynak (keyword-driven, güvenilir)
     try:
         wiki_imgs = _fetch_wikimedia_images(keywords, target, seen_ids)
         images.extend(wiki_imgs)
         print(f"[video_builder] Wikimedia resim: {len(wiki_imgs)}")
     except Exception as e:
         print(f"[video_builder] Wikimedia resim hatası: {e}")
-
-    # 2) Al Jazeera — yedek (keyword title-filtered, generic sorgu kaldırıldı)
-    if len(images) < target:
-        remaining = target - len(images)
-        try:
-            aje_imgs = _fetch_aljazeera_images(keywords, remaining, seen_ids)
-            images.extend(aje_imgs)
-            if aje_imgs:
-                print(f"[video_builder] Al Jazeera resim: {len(aje_imgs)}")
-        except Exception as e:
-            print(f"[video_builder] Al Jazeera resim hatası: {e}")
 
     print(f"[video_builder] Toplam resim: {len(images)}")
     return images
@@ -1505,7 +1530,7 @@ def _save_seen_ids(seen_ids: set) -> None:
 
 def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> list[str]:
     """
-    DVIDS + Pexels + Pixabay + Wikimedia + Archive'dan video klip indirir.
+    YouTube CC + DVIDS + Pexels + Pixabay + Wikimedia + Archive'dan video klip indirir.
     Returns: list of file paths (sadece video, tuple yok).
     """
     dvids_key = os.environ.get("DVIDS_API_KEY")
@@ -1513,18 +1538,25 @@ def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> li
         seen_ids = _load_seen_ids()
     video_paths = []
 
-    # ─── 1) DVIDS — ana kaynak (Public Domain) ────────────────────────
-    if dvids_key:
+    # ─── 1) YouTube CC — ana kaynak (haber konusuyla eşleşen gerçek görüntü) ──
+    try:
+        yt_clips = _fetch_youtube_cc_clips(keywords, n, seen_ids)
+        video_paths.extend(yt_clips)
+        print(f"[video_builder] YouTube CC: {len(yt_clips)} klip")
+    except Exception as e:
+        print(f"[video_builder] YouTube CC hatası: {e}")
+
+    # ─── 2) DVIDS — askeri fallback (Public Domain) ───────────────────────────
+    if len(video_paths) < n and dvids_key:
+        remaining = n - len(video_paths)
         try:
-            dvids_clips = _fetch_dvids_clips(keywords, dvids_key, n, seen_ids)
+            dvids_clips = _fetch_dvids_clips(keywords, dvids_key, remaining, seen_ids)
             video_paths.extend(dvids_clips)
             print(f"[video_builder] DVIDS: {len(dvids_clips)} klip")
         except Exception as e:
             print(f"[video_builder] DVIDS hatası: {e}")
-    else:
-        print("[video_builder] DVIDS_API_KEY bulunamadı!")
 
-    # ─── 2) Pexels — stock video ────────────────────────────────────────
+    # ─── 3) Pexels — stock video ────────────────────────────────────────
     if len(video_paths) < n and os.environ.get("PEXELS_API_KEY"):
         remaining = n - len(video_paths)
         try:
@@ -1535,7 +1567,7 @@ def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> li
         except Exception as e:
             print(f"[video_builder] Pexels hatası: {e}")
 
-    # ─── 3) Pixabay — stock video ────────────────────────────────────────
+    # ─── 4) Pixabay — stock video ────────────────────────────────────────
     if len(video_paths) < n and os.environ.get("PIXABAY_API_KEY"):
         remaining = n - len(video_paths)
         try:
@@ -1546,7 +1578,7 @@ def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> li
         except Exception as e:
             print(f"[video_builder] Pixabay hatası: {e}")
 
-    # ─── 4) Wikimedia Commons — 3sn klip ─────────────────────────────────
+    # ─── 5) Wikimedia Commons — 3sn klip ─────────────────────────────────
     if len(video_paths) < n:
         remaining = n - len(video_paths)
         try:
@@ -1557,7 +1589,7 @@ def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> li
         except Exception as e:
             print(f"[video_builder] Wikimedia hatası: {e}")
 
-    # ─── 5) Internet Archive — son fallback ───────────────────────────────
+    # ─── 6) Internet Archive — son fallback ───────────────────────────────
     if len(video_paths) < n:
         remaining = n - len(video_paths)
         try:
