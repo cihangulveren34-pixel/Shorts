@@ -445,8 +445,8 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "yt-dlp",
                 f"ytsearch5:{query}",
                 "--match-filter", "license=Creative Commons",
-                # mweb önce: datacenter IP'lerde en az bot tespiti
-                "--extractor-args", "youtube:player_client=mweb,tv,ios",
+                # web,mweb,tv,ios: geniş client listesi — bazı videolar belirli clientlarda format döndürmez
+                "--extractor-args", "youtube:player_client=web,mweb,tv,ios",
                 "--no-check-certificates",
                 "--format", "bestvideo[height>=480][ext=mp4]+bestaudio[ext=m4a]/best[height>=480][ext=mp4]/best[ext=mp4]/best",
                 "--merge-output-format", "mp4",
@@ -454,6 +454,7 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "--max-filesize", "200M",
                 "--no-playlist",
                 "--no-warnings",
+                "--ignore-errors",  # tek bir video hata verirse atla, aramaya devam et
                 "--quiet",
                 "--no-progress",
                 "--sleep-interval", "2",
