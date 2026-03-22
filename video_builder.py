@@ -461,7 +461,7 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "--print", "id",
                 "--no-warnings",
                 "--no-progress",
-                "--extractor-args", "youtube:player_client=web,default",
+                "--extractor-args", "youtube:player_client=web_creator,web,default;player_skip=webpage",
             ] + cookie_args
             id_result = subprocess.run(id_cmd, timeout=30, capture_output=True, text=True)
             video_ids = [l.strip() for l in id_result.stdout.splitlines()
@@ -494,10 +494,11 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                     print(f"[video_builder]   yt-dlp: {msg[:120]}")
 
             # Datacenter IP'lerinden çalışan client'lar (öncelik sırasıyla):
-            # web (cookie ile en güvenilir) → default (yt-dlp kendi seçsin)
-            # ios/android/tv_embedded/mweb artık datacenter IP'lerinde
-            # boş format listesi döndürüyor (YouTube kısıtlaması, 2025+).
-            _clients = [["web"], ["default"], ["mweb", "web"], ["ios"]]
+            # web_creator: datacenter IP'lerde web'den daha az kısıtlı.
+            # web: cookie ile iyi çalışır ama datacenter'da sorunlu olabilir.
+            # tv: tv_embedded'den farklı; daha az kısıtlama.
+            # default: yt-dlp kendi en iyi client'ını seçsin.
+            _clients = [["web_creator"], ["web"], ["tv"], ["default"]]
 
             actual_file = None
             for cc_video_id in video_ids:
@@ -510,11 +511,11 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                     tmp.close()
 
                     dl_opts = {
-                        # tek instance: info + download aynı fetch'te → format tutarlı
-                        # best[height<=720]: mux'lu tek stream (web client genelde bunu döner)
-                        # bestvideo[height<=720]+bestaudio: ayrı stream'ler (ffmpeg merge)
-                        "format": ("bestvideo[height<=720]+bestaudio/best[height<=720]/"
-                                   "bestvideo+bestaudio/best"),
+                        # format_sort: 720p tercih et ama yoksa daha yüksek de kabul et.
+                        # Eski [height<=720] filtresi format yoksa "not available" veriyordu.
+                        # "best*" herhangi bir formatı kabul eder (video+audio veya mux'lu).
+                        "format": "bestvideo+bestaudio/best*/best",
+                        "format_sort": ["res:720", "ext:mp4:m4a"],
                         "outtmpl": tmp.name,
                         "merge_output_format": "mp4",
                         "max_filesize": 200 * 1024 * 1024,
@@ -527,7 +528,14 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                         # listesi boşalır → "Requested format is not available" hatası.
                         "check_formats": False,
                         "no_check_certificate": True,
-                        "extractor_args": {"youtube": {"player_client": _client}},
+                        # player_skip=webpage: ilk sayfa yüklemesini atla, bot tespitini
+                        # tetikleyen ana sayfa fetch'ini engeller.
+                        "extractor_args": {
+                            "youtube": {
+                                "player_client": _client,
+                                "player_skip": ["webpage"],
+                            }
+                        },
                     }
                     if cookie_file:
                         dl_opts["cookiefile"] = cookie_file
