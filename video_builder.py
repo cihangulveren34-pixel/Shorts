@@ -482,10 +482,8 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
             cmd = [
                 "yt-dlp",
                 f"https://www.youtube.com/watch?v={cc_video_id}",
-                "--extractor-args", "youtube:player_client=android,mweb,tv",
                 "--no-check-certificates",
-                "--format", "bestvideo[height>=480]+bestaudio/bestvideo+bestaudio/best",
-                "--merge-output-format", "mp4",
+                "--format", "best[height>=480]/best",
                 "--max-filesize", "200M",
                 "--no-playlist",
                 "--no-warnings",
