@@ -474,35 +474,87 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
             if not video_ids:
                 continue
 
-            # İlk ID'yi indir — YouTube zaten CC filtreledi, ayrıca lisans kontrolü gerekmez
-            # 5 ID'yi sırayla dene, ilk başarılı indirme yeterli
+            # yt_dlp Python kütüphanesi ile indir.
+            # Subprocess yaklaşımında "Requested format is not available" hatası
+            # çıkıyordu — format seçici mevcut stream'lerle eşleşmiyordu.
+            # Kütüphane ile önce mevcut formatları al, sonra var olan birini seç.
+            try:
+                import yt_dlp as _ytdlp
+            except ImportError:
+                print("[video_builder] yt_dlp modülü import edilemiyor.")
+                return downloaded
+
+            cookie_file = (YT_COOKIES_PATH
+                           if os.path.exists(YT_COOKIES_PATH)
+                           and os.path.getsize(YT_COOKIES_PATH) > 0
+                           else None)
+
             actual_file = None
-            result = None
-            tmp = None
             for cc_video_id in video_ids:
+                url = f"https://www.youtube.com/watch?v={cc_video_id}"
+
+                # 1) Mevcut formatları keşfet
+                info_opts = {
+                    "quiet": True, "no_warnings": True,
+                    "skip_download": True,
+                    "extractor_args": {"youtube": {"player_client": ["android", "mweb", "tv"]}},
+                }
+                if cookie_file:
+                    info_opts["cookiefile"] = cookie_file
+                try:
+                    with _ytdlp.YoutubeDL(info_opts) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                except Exception as e:
+                    print(f"[video_builder]   {cc_video_id} info hatası: {str(e)[:100]}")
+                    continue
+
+                if not info:
+                    continue
+
+                # 2) Format seç: önce >=480p video+audio, sonra herhangi bir video
+                fmts = info.get("formats") or []
+                def _score(f):
+                    has_v = f.get("vcodec", "none") not in ("none", None)
+                    has_a = f.get("acodec", "none") not in ("none", None)
+                    h = f.get("height") or 0
+                    size = f.get("filesize") or f.get("filesize_approx") or 0
+                    return (has_v and has_a, has_v, h >= 480, h, -size)
+
+                usable = [f for f in fmts if f.get("vcodec", "none") not in ("none", None)]
+                if not usable:
+                    print(f"[video_builder]   {cc_video_id}: video stream yok, atlanıyor")
+                    continue
+                best_fmt = sorted(usable, key=_score, reverse=True)[0]
+                fmt_id = best_fmt["format_id"]
+                # Ses ayrı stream'deyse bestaudio ekle
+                if best_fmt.get("acodec", "none") in ("none", None):
+                    fmt_id = f"{fmt_id}+bestaudio"
+                print(f"[video_builder] YouTube CC indiriliyor: '{query}' → {cc_video_id} "
+                      f"(fmt={fmt_id}, {best_fmt.get('height')}p)...")
+
+                # 3) İndir
                 tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix="ytcc_full_")
                 tmp.close()
-
-                cmd = [
-                    "yt-dlp",
-                    f"https://www.youtube.com/watch?v={cc_video_id}",
-                    # android: datacenter IP'lerinde PO token gerektirmiyor
-                    "--extractor-args", "youtube:player_client=android,mweb,tv",
-                    "--no-check-certificates",
-                    "--format", "best[height>=480]/best",
-                    "--merge-output-format", "mp4",
-                    "--max-filesize", "200M",
-                    "--no-playlist",
-                    "--no-warnings",
-                    "--quiet",
-                    "--no-progress",
-                    "--sleep-interval", "1",
-                    "--max-sleep-interval", "3",
-                    "-o", tmp.name,
-                ] + cookie_args
-
-                print(f"[video_builder] YouTube CC indiriliyor: '{query}' → {cc_video_id}...")
-                result = subprocess.run(cmd, timeout=120, capture_output=True, text=True)
+                dl_opts = {
+                    "format": fmt_id,
+                    "outtmpl": tmp.name,
+                    "merge_output_format": "mp4",
+                    "max_filesize": 200 * 1024 * 1024,
+                    "quiet": True, "no_warnings": True,
+                    "extractor_args": {"youtube": {"player_client": ["android", "mweb", "tv"]}},
+                }
+                if cookie_file:
+                    dl_opts["cookiefile"] = cookie_file
+                try:
+                    with _ytdlp.YoutubeDL(dl_opts) as ydl:
+                        ydl.download([url])
+                except Exception as e:
+                    print(f"[video_builder]   {cc_video_id} download hatası: {str(e)[:100]}")
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError:
+                        pass
+                    continue
 
                 candidate = tmp.name
                 for ext in [".mp4", ".webm", ".mkv"]:
@@ -513,18 +565,12 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
 
                 if os.path.exists(candidate) and os.path.getsize(candidate) > 10000:
                     actual_file = candidate
-                    break  # başarılı — diğer ID'leri denemeye gerek yok
+                    break
                 else:
                     try:
                         os.unlink(tmp.name)
                     except OSError:
                         pass
-                    if result.stderr:
-                        err_lines = [l for l in result.stderr.splitlines()
-                                     if 'UserWarning' not in l and 'cookiejar' not in l.lower()
-                                     and 'warnings.warn' not in l and l.strip()]
-                        if err_lines:
-                            print(f"[video_builder]   {cc_video_id} başarısız: {err_lines[-1][:120]}")
 
             if not actual_file:
                 continue
