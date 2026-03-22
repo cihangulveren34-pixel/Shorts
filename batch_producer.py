@@ -166,6 +166,8 @@ def produce_batch(count: int = 7, dry_run: bool = False, language: str = "en") -
 
     # used_topics.json'u git'e commit et (batch sonrası kalıcı dedup)
     try:
+        subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=False)
+        subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], check=False)
         subprocess.run(["git", "add", "used_topics.json"], check=True)
         diff_result = subprocess.run(["git", "diff", "--cached", "--quiet"])
         if diff_result.returncode != 0:  # Staged değişiklik varsa commit et
