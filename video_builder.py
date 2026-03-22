@@ -445,8 +445,9 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "yt-dlp",
                 f"ytsearch5:{query}",
                 "--match-filter", "license=Creative Commons",
-                # Birden fazla client dene: datacenter IP'lerde bot tespitini azaltır.
-                "--extractor-args", "youtube:player_client=ios,tv,mweb",
+                # mweb önce: datacenter IP'lerde en az bot tespiti
+                "--extractor-args", "youtube:player_client=mweb,tv,ios",
+                "--no-check-certificates",
                 "--format", "bestvideo[height>=480][ext=mp4]+bestaudio[ext=m4a]/best[height>=480][ext=mp4]/best[ext=mp4]/best",
                 "--merge-output-format", "mp4",
                 "--max-downloads", "1",
