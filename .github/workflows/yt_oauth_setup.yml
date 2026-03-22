@@ -1,10 +1,14 @@
-name: YouTube OAuth Token Kurulumu (pytubefix)
+name: YouTube Bağlantı Testi
 
 on:
-  workflow_dispatch:   # Sadece manuel tetikleme
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: 'Test edilecek video ID (varsayılan: jNQXAC9IVRw)'
+        default: 'jNQXAC9IVRw'
 
 jobs:
-  generate-token:
+  test-youtube:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -17,98 +21,169 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install pytubefix
-        run: pip install -U pytubefix
+      - name: Install dependencies
+        run: pip install -U yt-dlp pytubefix
 
-      - name: ">>> OAUTH BAŞLAT — Logları takip et! <<<"
+      - name: Write YouTube cookies
+        env:
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
         run: |
-          python3 << 'PYEOF'
-          import json, os, sys, time
-
-          try:
-              from pytubefix import YouTube
-          except ImportError:
-              print("pytubefix import hatası!")
-              sys.exit(1)
-
-          token_file = "/tmp/pytubefix_oauth.json"
-
-          # Özel verifier: input() yerine poll ile bekle.
-          # GitHub Actions'ta stdin yok, bu yüzden input() EOF verir.
-          # Bu callback sadece URL+kodu yazdırır, pytubefix arka planda
-          # Google'ın token endpoint'ini otomatik pollar.
-          def ci_oauth_verifier(verification_url, user_code):
-              print("")
-              print("=" * 55)
-              print("  TELEFONUNDA ŞUNU YAP:")
-              print("=" * 55)
-              print(f"  1) Bu URL'yi aç: {verification_url}")
-              print(f"  2) Bu kodu gir:  {user_code}")
-              print("  3) Google hesabınla izin ver")
-              print("=" * 55)
-              print("")
-              print("Onayını bekliyorum... (5 dakika süren var)")
-              print("")
-              # input() çağırmıyoruz — pytubefix kendi polling'ini yapacak
-
-          try:
-              yt = YouTube(
-                  "https://www.youtube.com/watch?v=jNQXAC9IVRw",
-                  client="ANDROID_TESTSUITE",
-                  use_oauth=True,
-                  allow_oauth_cache=True,
-                  token_file=token_file,
-                  oauth_verifier=ci_oauth_verifier,
-              )
-              # title'a erişim OAuth flow'u tamamlanmasını tetikler
-              title = yt.title
-              print(f"\nVideo başlığı: {title}")
-              print("OAuth BAŞARILI!")
-          except Exception as e:
-              print(f"\nOAuth hatası: {e}")
-              if not os.path.isfile(token_file):
-                  sys.exit(1)
-
-          if os.path.isfile(token_file):
-              with open(token_file) as f:
-                  data = f.read().strip()
-              print(f"\nToken dosyası oluşturuldu ({len(data)} byte)")
-          else:
-              print("Token dosyası oluşturulamadı!")
-              sys.exit(1)
-          PYEOF
-
-      - name: Token'ı Summary'ye yaz
-        run: |
-          if [ ! -f /tmp/pytubefix_oauth.json ]; then
-            echo "::error::Token dosyası bulunamadı!"
-            exit 1
+          if [ -n "$YT_COOKIES" ]; then
+            echo "$YT_COOKIES" > yt_cookies.txt
+            echo "Cookies yazıldı ($(wc -c < yt_cookies.txt) byte)"
+          else
+            echo "::warning::YT_COOKIES secret ayarlanmamış!"
           fi
 
-          cat >> "$GITHUB_STEP_SUMMARY" << 'HEADER'
-          ## YouTube OAuth Token Hazır
+      - name: Restore pytubefix OAuth token
+        env:
+          PYTUBEFIX_OAUTH_TOKEN: ${{ secrets.PYTUBEFIX_OAUTH_TOKEN }}
+        run: |
+          if [ -n "$PYTUBEFIX_OAUTH_TOKEN" ]; then
+            echo "$PYTUBEFIX_OAUTH_TOKEN" > .pytubefix_oauth.json
+            echo "pytubefix OAuth token restored."
+          fi
 
-          Aşağıdaki JSON'ı GitHub Secret olarak kaydet:
+      - name: "Test: pytubefix PO token"
+        id: po_token
+        continue-on-error: true
+        run: |
+          python3 << PYEOF
+          import sys
+          from pytubefix import YouTube
 
-          1. Bu repo → **Settings** → **Secrets and variables** → **Actions**
-          2. **New repository secret** tıkla
-          3. Name: `PYTUBEFIX_OAUTH_TOKEN`
-          4. Value: Aşağıdaki JSON'ı kopyala-yapıştır
-          5. **Add secret** tıkla
+          vid = "${{ inputs.video_id || 'jNQXAC9IVRw' }}"
+          url = f"https://www.youtube.com/watch?v={vid}"
 
-          ```json
-          HEADER
+          clients = ["ANDROID_TESTSUITE", "ANDROID_VR", "IOS", "TV", "MEDIA_CONNECT", "WEB"]
+          for client in clients:
+              print(f"\n--- {client} + PO token ---")
+              try:
+                  yt = YouTube(url, client=client, use_po_token=True)
+                  streams = yt.streams.filter(file_extension="mp4")
+                  print(f"  Başlık: {yt.title}")
+                  print(f"  Stream sayısı: {len(streams)}")
+                  if streams:
+                      s = streams.order_by("resolution").desc().first()
+                      print(f"  En iyi: {s.resolution} ({s.filesize_mb:.1f} MB)")
+                      print("PO_TOKEN_WORKS=true")
+                      sys.exit(0)
+              except Exception as e:
+                  print(f"  HATA: {str(e)[:120]}")
 
-          cat /tmp/pytubefix_oauth.json >> "$GITHUB_STEP_SUMMARY"
+          print("\nPO_TOKEN_WORKS=false")
+          sys.exit(1)
+          PYEOF
 
-          cat >> "$GITHUB_STEP_SUMMARY" << 'FOOTER'
-          ```
+      - name: "Test: pytubefix plain (auth'suz)"
+        id: plain
+        continue-on-error: true
+        run: |
+          python3 << PYEOF
+          import sys
+          from pytubefix import YouTube
 
-          > Token süresi dolunca bu workflow'u tekrar çalıştır.
-          FOOTER
+          vid = "${{ inputs.video_id || 'jNQXAC9IVRw' }}"
+          url = f"https://www.youtube.com/watch?v={vid}"
 
+          clients = ["ANDROID_TESTSUITE", "ANDROID_VR", "IOS", "TV", "MEDIA_CONNECT", "WEB"]
+          for client in clients:
+              print(f"\n--- {client} (plain) ---")
+              try:
+                  yt = YouTube(url, client=client)
+                  streams = yt.streams.filter(file_extension="mp4")
+                  print(f"  Başlık: {yt.title}")
+                  print(f"  Stream sayısı: {len(streams)}")
+                  if streams:
+                      s = streams.order_by("resolution").desc().first()
+                      print(f"  En iyi: {s.resolution} ({s.filesize_mb:.1f} MB)")
+                      print("PLAIN_WORKS=true")
+                      sys.exit(0)
+              except Exception as e:
+                  print(f"  HATA: {str(e)[:120]}")
+
+          print("\nPLAIN_WORKS=false")
+          sys.exit(1)
+          PYEOF
+
+      - name: "Test: yt-dlp + cookies"
+        id: ytdlp
+        continue-on-error: true
+        run: |
+          vid="${{ inputs.video_id || 'jNQXAC9IVRw' }}"
+          cookie_arg=""
+          if [ -f yt_cookies.txt ]; then
+            cookie_arg="--cookies yt_cookies.txt"
+          fi
+
+          for client in ios android web_creator web tv; do
+            echo ""
+            echo "--- yt-dlp $client ---"
+            yt-dlp \
+              --skip-download \
+              --print "title" \
+              --print "formats_table" \
+              --extractor-args "youtube:player_client=$client" \
+              --no-check-certificate \
+              $cookie_arg \
+              "https://www.youtube.com/watch?v=$vid" 2>&1 && exit 0 || true
+          done
+          exit 1
+
+      - name: Sonuçları özetle
+        if: always()
+        run: |
           echo ""
           echo "========================================"
-          echo " TOKEN HAZIR!"
-          echo " Summary sekmesine bak, JSON'ı kopyala."
+          echo "         YOUTUBE TEST SONUÇLARI"
           echo "========================================"
+          echo ""
+
+          po="${{ steps.po_token.outcome }}"
+          plain="${{ steps.plain.outcome }}"
+          ytdlp="${{ steps.ytdlp.outcome }}"
+
+          if [ "$po" = "success" ]; then
+            echo "✅ pytubefix + PO token  → ÇALIŞIYOR"
+            echo "   → Hiçbir setup'a gerek yok!"
+          else
+            echo "❌ pytubefix + PO token  → BAŞARISIZ"
+          fi
+
+          if [ "$plain" = "success" ]; then
+            echo "✅ pytubefix plain       → ÇALIŞIYOR"
+          else
+            echo "❌ pytubefix plain       → BAŞARISIZ"
+          fi
+
+          if [ "$ytdlp" = "success" ]; then
+            echo "✅ yt-dlp + cookies      → ÇALIŞIYOR"
+          else
+            echo "❌ yt-dlp + cookies      → BAŞARISIZ"
+          fi
+
+          echo ""
+
+          if [ "$po" = "success" ] || [ "$plain" = "success" ] || [ "$ytdlp" = "success" ]; then
+            echo "En az bir yöntem çalışıyor — pipeline YouTube'dan video indirebilir."
+          else
+            echo "⚠️  HİÇBİR YÖNTEM ÇALIŞMIYOR!"
+            echo ""
+            echo "Çözüm: YT_COOKIES secret'ını taze cookies ile güncelle."
+            echo "Tarayıcında YouTube'a gir → cookies'i export et → Secret'a yapıştır."
+            echo ""
+            echo "Chrome eklentisi: 'Get cookies.txt LOCALLY'"
+            echo "Firefox eklentisi: 'cookies.txt'"
+          fi
+          echo "========================================"
+
+          # Summary'ye de yaz
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          ## YouTube Test Sonuçları
+
+          | Yöntem | Sonuç |
+          |--------|-------|
+          | pytubefix + PO token | $([ "$po" = "success" ] && echo "✅ Çalışıyor" || echo "❌ Başarısız") |
+          | pytubefix plain | $([ "$plain" = "success" ] && echo "✅ Çalışıyor" || echo "❌ Başarısız") |
+          | yt-dlp + cookies | $([ "$ytdlp" = "success" ] && echo "✅ Çalışıyor" || echo "❌ Başarısız") |
+          EOF

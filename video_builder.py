@@ -515,10 +515,12 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
             ]
 
             # pytubefix OAuth token dosyası (GitHub Secret'tan restore edilir).
+            # CI'da input() patlamasını engelle.
             _PTF_TOKEN_FILE = os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
                 ".pytubefix_oauth.json",
             )
+            _noop_verifier = lambda url, code: None
 
             def _pick_stream(yt_obj):
                 """En iyi mp4 stream'i seç: progressive (mux'lu) tercih et."""
@@ -585,14 +587,11 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                     tag = f"ptf/{client}+oauth"
                     print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [{tag}]...")
                     try:
-                        # CI ortamında input() patlar; no-op verifier kullan.
-                        # Token zaten cache'den okunacak, yeni auth gerekmez.
-                        _noop = lambda url, code: None
                         yt_obj = PTYouTube(
                             _url, client=client,
                             use_oauth=True, allow_oauth_cache=True,
                             token_file=_PTF_TOKEN_FILE,
-                            oauth_verifier=_noop,
+                            oauth_verifier=_noop_verifier,
                         )
                         stream = _pick_stream(yt_obj)
                         if not stream:
