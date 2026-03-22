@@ -45,6 +45,7 @@ TARGET_H = 1920
 DVIDS_API = "https://api.dvidshub.net/search"
 ARCHIVE_API = "https://archive.org/advancedsearch.php"
 YT_COOKIES_PATH = os.environ.get("YT_COOKIES_PATH", "yt_cookies.txt")
+YT_PROXY = os.environ.get("YT_PROXY", "")  # e.g. socks5://localhost:1080
 
 # ─── YouTube CC Askeri Keyword Havuzu ────────────────────────────────────────
 
@@ -453,6 +454,7 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 f"https://www.youtube.com/results"
                 f"?search_query={encoded_q}&sp=EgIwAQ%3D%3D"
             )
+            proxy_args = ["--proxy", YT_PROXY] if YT_PROXY else []
             id_cmd = [
                 "yt-dlp",
                 yt_cc_url,
@@ -462,7 +464,7 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "--no-warnings",
                 "--no-progress",
                 "--extractor-args", "youtube:player_client=web_creator,web,default",
-            ] + cookie_args
+            ] + cookie_args + proxy_args
             id_result = subprocess.run(id_cmd, timeout=30, capture_output=True, text=True)
             video_ids = [l.strip() for l in id_result.stdout.splitlines()
                          if l.strip() and len(l.strip()) == 11]
@@ -506,6 +508,10 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 "ANDROID_TESTSUITE", "ANDROID_VR", "ANDROID",
                 "IOS", "TV", "MEDIA_CONNECT", "WEB",
             ]
+
+            # pytubefix proxy ayarı (WARP SOCKS5 veya HTTP proxy).
+            _ptf_proxies = ({"https": YT_PROXY, "http": YT_PROXY}
+                            if YT_PROXY else None)
 
             # yt-dlp client listesi (cookies ile son çare).
             _YTDLP_CLIENTS = [
@@ -560,7 +566,8 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                     print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [{tag}]...")
                     try:
                         yt_obj = PTYouTube(_url, client=client,
-                                           use_po_token=True)
+                                           use_po_token=True,
+                                           proxies=_ptf_proxies)
                         stream = _pick_stream(yt_obj)
                         if not stream:
                             print(f"[video_builder]   {vid_id} [{tag}] stream yok")
@@ -592,6 +599,7 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                             use_oauth=True, allow_oauth_cache=True,
                             token_file=_PTF_TOKEN_FILE,
                             oauth_verifier=_noop_verifier,
+                            proxies=_ptf_proxies,
                         )
                         stream = _pick_stream(yt_obj)
                         if not stream:
@@ -617,7 +625,8 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                     tag = f"ptf/{client}"
                     print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [{tag}]...")
                     try:
-                        yt_obj = PTYouTube(_url, client=client)
+                        yt_obj = PTYouTube(_url, client=client,
+                                           proxies=_ptf_proxies)
                         stream = _pick_stream(yt_obj)
                         if not stream:
                             print(f"[video_builder]   {vid_id} [{tag}] stream yok")
@@ -655,6 +664,7 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                         "no_check_certificate": True,
                         "cookiefile": cookie_file,
                         "extractor_args": {"youtube": _yt_args},
+                        **({"proxy": YT_PROXY} if YT_PROXY else {}),
                     }
                     tag = f"yt-dlp/{_client[0]}"
                     print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [{tag}]...")
