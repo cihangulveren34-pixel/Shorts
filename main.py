@@ -5,6 +5,15 @@ Kullanım:
   python main.py                    # Normal çalıştırma
   python main.py --dry-run          # Upload olmadan test
   python main.py --topic "..."      # Belirli konu ile çalıştır
+
+Yeni özellikler (v2):
+  - Akıllı script yeniden üretimi (düşük puanlı scriptler otomatik iyileştirilir)
+  - Viral trend tahmincisi (veri odaklı konu seçimi)
+  - Etkileşim güçlendirici (akıllı pinned yorumlar, anketler)
+  - İçerik serisi yönetimi (çok bölümlü videolar)
+  - A/B başlık üretici (her video için en iyi başlık seçimi)
+  - Duygu analizi (izleyici yorumlarından içerik stratejisi)
+  - Akıllı zamanlama (en uygun yayın saati hesabı)
 """
 
 import argparse
@@ -14,7 +23,7 @@ import sys
 import traceback
 from datetime import date  # noqa: F401 (used by topic_selector)
 
-from script_gen import generate_script, save_script
+from script_gen import save_script
 from tts import generate_audio
 from video_builder import build_video
 from thumbnail import generate_thumbnail
@@ -38,8 +47,20 @@ from subtitle_translator import translate_and_upload_captions
 from auto_reply import reply_to_comments
 from topic_expander import expand_if_low
 from rss_monitor import monitor_and_update as rss_update
-from script_scorer import score_or_warn, SCORE_WARN
 from poster_facebook import post_reel as facebook_post
+
+# ─── Yeni v2 modülleri ──────────────────────────────────────────────────────
+from smart_regenerator import smart_generate
+from trend_predictor import predict_viral_score
+from engagement_booster import generate_engagement_pack
+from series_manager import (
+    has_series_potential, detect_and_plan_series, start_series,
+    get_active_series, get_series_topic_override, advance_series,
+    enrich_script_with_series, get_series_cta,
+)
+from ab_title_generator import pick_best_title
+from sentiment_analyzer import load_content_suggestions
+from smart_scheduler import should_upload_now
 
 
 OUTPUT_DIR = "output"
@@ -53,13 +74,18 @@ USE_QUEUE = os.environ.get("USE_QUEUE", "false").lower() == "true"
 
 # Adım adları — hata bildirimlerinde kullanılır
 STEP_NAMES = {
-    "script":    "Script üretimi (Gemini)",
-    "tts":       "Ses üretimi (Edge TTS)",
-    "video":     "Video montajı (MoviePy)",
-    "thumbnail": "Thumbnail (Pillow)",
-    "validate":  "Kalite kontrolü",
-    "upload":    "YouTube upload",
-    "notify":    "Telegram bildirimi",
+    "script":      "Script üretimi (Gemini)",
+    "tts":         "Ses üretimi (Edge TTS)",
+    "video":       "Video montajı (MoviePy)",
+    "thumbnail":   "Thumbnail (Pillow)",
+    "validate":    "Kalite kontrolü",
+    "upload":      "YouTube upload",
+    "notify":      "Telegram bildirimi",
+    "trend":       "Viral trend analizi",
+    "engagement":  "Etkileşim paketi üretimi",
+    "series":      "Seri yönetimi",
+    "ab_title":    "A/B başlık üretimi",
+    "sentiment":   "Duygu analizi",
 }
 
 
@@ -111,8 +137,15 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     cleanup_outputs()
 
     print("=" * 52)
-    print("⚔️   WAR SHORTS — Pipeline Başlatıldı")
+    print("⚔️   WAR SHORTS v2 — Pipeline Başlatıldı")
     print("=" * 52)
+
+    # 0) Akıllı zamanlama kontrolü
+    if not dry_run and not topic_override:
+        if should_upload_now():
+            print("[main] ✅ Yayın zamanı uygun — devam ediliyor.")
+        else:
+            print("[main] ⏰ Yayın zamanı optimal değil — yine de devam ediliyor.")
 
     # Güncel savaş/jeopolitik haberlerinden konu üret
     print("\n[main] RSS haberleri taranıyor...")
@@ -133,6 +166,14 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     # Pool düşükse Gemini ile otomatik genişlet
     expand_if_low()
 
+    # İzleyici duygu analizinden içerik önerileri al
+    try:
+        suggestions = load_content_suggestions()
+        if suggestions and not topic_override:
+            print(f"[main] 💡 İzleyici talepleri: {', '.join(suggestions[:3])}")
+    except Exception:
+        pass
+
     # Kuyruk modu: batch_producer'dan önceden üretilmiş video kullan
     queued = get_next_queued() if USE_QUEUE and not topic_override else None
 
@@ -151,6 +192,13 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         duration_sec = clip.duration
         clip.close()
     else:
+        # 0) Aktif seri varsa, sıradaki bölümü override olarak kullan
+        if not topic_override:
+            series_topic = get_series_topic_override()
+            if series_topic:
+                topic_override = series_topic
+                print(f"[main] 📺 Seri modu — {series_topic[:60]}...")
+
         # 1) Trending konu seç
         topic, used_data = pick_trending_topic(topic_override)
         save_used(used_data)
@@ -162,16 +210,51 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         else:
             print(f"\n[main] Konu: {topic}")
 
-        # 2) Script (her zaman news_analysis formatı)
-        print(f"\n[main] Script üretiliyor (dil: {LANGUAGE})...")
-        script = _step("script", lambda: generate_script(topic, LANGUAGE), topic)
-        save_script(script)
-        print(f"[main] Başlık: {script['title']}")
+        # 1b) Viral trend skoru hesapla
+        print("\n[main] Viral trend skoru hesaplanıyor...")
+        try:
+            viral_score = predict_viral_score(topic)
+            print(f"[main] 📊 Viral skor: {viral_score.total}/100 ({viral_score.tier})")
+            for reason in viral_score.reasons[:3]:
+                print(f"[main]   {reason}")
+        except Exception as e:
+            print(f"[main] Trend tahmini hatası (kritik değil): {e}")
 
-        # 2b) Script kalite skoru
-        score_bd = score_or_warn(script)
-        if score_bd.total < SCORE_WARN:
-            print(f"[main] ⚠️  Script skoru düşük ({score_bd.total}/100) — yine de devam ediliyor.")
+        # 1c) Seri potansiyeli kontrolü — ilk bölümü otomatik başlat
+        active_series = get_active_series()
+        if not active_series and has_series_potential(topic):
+            print("\n[main] 📺 Seri potansiyeli tespit edildi!")
+            try:
+                plan = detect_and_plan_series(topic)
+                if plan:
+                    active_series_obj = start_series(topic, plan)
+                    print(f"[main] Seri başlatıldı: '{plan['series_title']}' ({len(plan['parts'])} bölüm)")
+            except Exception as e:
+                print(f"[main] Seri planı oluşturulamadı (kritik değil): {e}")
+
+        # 2) Script — akıllı yeniden üretim ile (düşük puanlı scriptler otomatik iyileştirilir)
+        print(f"\n[main] Script üretiliyor (akıllı mod, dil: {LANGUAGE})...")
+        script, score_bd = _step("script", lambda: smart_generate(topic, LANGUAGE), topic)
+        save_script(script)
+        print(f"[main] Başlık: {script['title']} (skor: {score_bd.total}/100)")
+
+        # 2b) Aktif seri varsa script'e seri bilgisi ekle
+        active_series = get_active_series()
+        if active_series:
+            try:
+                script = enrich_script_with_series(script, active_series)
+                save_script(script)
+                print(f"[main] 📺 Script seri bilgisiyle zenginleştirildi")
+            except Exception as e:
+                print(f"[main] Seri zenginleştirme hatası (kritik değil): {e}")
+
+        # 2c) A/B başlık optimizasyonu — en iyi başlığı seç
+        print("\n[main] A/B başlık varyantları üretiliyor...")
+        try:
+            best_title = pick_best_title(script)
+            save_script(script)  # güncellenmiş başlıkla kaydet
+        except Exception as e:
+            print(f"[main] A/B başlık üretilemedi (kritik değil): {e}")
 
         # 3) TTS + VTT
         print("\n[main] Ses üretiliyor...")
@@ -289,26 +372,48 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     except Exception as e:
         print(f"[main] Playlist eklenemedi (kritik değil): {e}")
 
-    # 8) Pinned yorum gönder
-    print("\n[main] Pinned yorum gönderiliyor...")
+    # 8) Etkileşim paketi üret ve uygula (akıllı pinned yorum + anket + tartışma)
+    print("\n[main] Etkileşim paketi üretiliyor...")
+    engagement_pack = None
+    try:
+        engagement_pack = generate_engagement_pack(script)
+    except Exception as e:
+        print(f"[main] Etkileşim paketi üretilemedi (kritik değil): {e}")
+
+    # 8a) Akıllı pinned yorum gönder
+    print("\n[main] Akıllı pinned yorum gönderiliyor...")
     try:
         from uploader import _get_credentials
         from googleapiclient.discovery import build as yt_build
         creds = _get_credentials()
         yt = yt_build("youtube", "v3", credentials=creds)
-        post_pinned_comment(
-            yt, video_id,
-            "What do you think happens next? 👇 Drop your prediction below!"
-        )
+
+        # Seri aktifse seri CTA'sı kullan, değilse etkileşim paketinden al
+        active_series = get_active_series()
+        if active_series:
+            pinned_text = get_series_cta(active_series)
+        elif engagement_pack:
+            pinned_text = engagement_pack["pinned_comment"]
+        else:
+            pinned_text = "What do you think happens next? 👇 Drop your prediction below!"
+
+        post_pinned_comment(yt, video_id, pinned_text)
     except Exception as e:
         print(f"[main] Yorum gönderilemedi (kritik değil): {e}")
 
-    # 8b) Community tab duyurusu
+    # 8b) Community tab duyurusu (anket formatında)
     print("\n[main] YouTube Community gönderisi yapılıyor...")
     try:
         post_community_update(video_id, script)
     except Exception as e:
         print(f"[main] Community gönderisi yapılamadı (kritik değil): {e}")
+
+    # 8c) Seri ilerlet (aktif seri varsa)
+    if get_active_series():
+        try:
+            advance_series(video_id)
+        except Exception as e:
+            print(f"[main] Seri ilerletme hatası (kritik değil): {e}")
 
     # 9) Instagram Reels cross-post
     if os.environ.get("INSTAGRAM_ACCESS_TOKEN"):
@@ -390,8 +495,11 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         print(f"[main] Discord bildirimi gönderilemedi (kritik değil): {e}")
 
     print("\n" + "=" * 52)
-    print(f"✅  TAMAMLANDI!")
+    print(f"✅  TAMAMLANDI! (WAR SHORTS v2)")
     print(f"   https://youtube.com/shorts/{video_id}")
+    if get_active_series():
+        s = get_active_series()
+        print(f"   📺 Seri: '{s['title']}' — Bölüm {s['current_part']}/{s['total_parts']}")
     print("=" * 52)
 
 
