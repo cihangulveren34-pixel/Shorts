@@ -638,6 +638,10 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                           "IP muhtemelen engelli.")
                     break
 
+                # Zaten kullanılan videoyu atla (indirmeden önce kontrol)
+                if f"ytcc_{cc_video_id}" in seen_ids:
+                    continue
+
                 result = (
                     _try_pytubefix_plain(cc_video_id)
                     or _try_ytdlp_cookies(cc_video_id)
