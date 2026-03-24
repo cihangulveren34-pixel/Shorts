@@ -420,10 +420,16 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
     random.shuffle(yt_pool)
 
     script_queries = []
-    for kw in keywords[:3]:
-        script_queries.append(f"{kw} footage")
+    for kw in keywords[:5]:
+        # Zaten "footage" içeriyorsa tekrar ekleme
+        if "footage" in kw.lower() or "operations" in kw.lower():
+            script_queries.append(kw)
+        else:
+            script_queries.append(f"{kw} footage")
     if len(keywords) >= 2:
-        script_queries.append(f"{keywords[0]} {keywords[1]} footage")
+        combined = f"{keywords[0]} {keywords[1]}"
+        if combined not in script_queries:
+            script_queries.append(f"{combined} footage")
 
     all_queries = script_queries + yt_pool
     seen_queries = set()
@@ -2268,12 +2274,18 @@ def build_video(
     style = _generate_style_profile(script)
 
     # 1) Çoklu klip indir (YouTube CC + DVIDS + Archive)
-    # search_keywords + title'dan ek keyword'ler çıkar
-    keywords = list(script.get("search_keywords", []))
-    title_words = _extract_title_keywords(script.get("title", ""))
-    for tw in title_words:
-        if tw not in " ".join(keywords).lower():
-            keywords.append(tw)
+    # Akıllı footage eşleştirme: Gemini + ülke/silah tespiti ile spesifik sorgular
+    try:
+        from smart_footage_matcher import get_prioritized_keywords
+        keywords = get_prioritized_keywords(script)
+        print(f"[video_builder] Akıllı footage matcher: {len(keywords)} öncelikli sorgu")
+    except Exception as e:
+        print(f"[video_builder] Akıllı matcher kullanılamadı ({e}), fallback kullanılıyor")
+        keywords = list(script.get("search_keywords", []))
+        title_words = _extract_title_keywords(script.get("title", ""))
+        for tw in title_words:
+            if tw not in " ".join(keywords).lower():
+                keywords.append(tw)
     clip_paths = _fetch_clips(keywords, n=10, seen_ids=seen_ids)
 
     # 1b) Araya eklenecek resimler (5 Wikimedia + 5 Pexels)
