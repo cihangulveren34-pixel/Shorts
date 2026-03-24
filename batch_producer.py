@@ -17,12 +17,23 @@ import sys
 import time
 from datetime import date, timedelta
 
-from script_gen import generate_script, save_script
+from script_gen import save_script
 from tts import generate_audio
 from video_builder import build_video
 from thumbnail import generate_thumbnail
 from topic_selector import pick_trending_topic
 from notifier import _send
+
+# ─── v2 modülleri ──────────────────────────────────────────────────────
+from smart_regenerator import smart_generate
+from trend_predictor import rank_topics
+from engagement_booster import generate_engagement_pack
+from series_manager import (
+    has_series_potential, detect_and_plan_series, start_series,
+    get_active_series, get_series_topic_override, advance_series,
+    enrich_script_with_series,
+)
+from ab_title_generator import pick_best_title
 
 
 QUEUE_PATH = "scheduled_queue.json"
@@ -81,13 +92,44 @@ def produce_batch(count: int = 7, dry_run: bool = False, language: str = "en") -
         print(f"\n[{i+1}/{count}] Tarih: {slot_date}")
 
         try:
-            # 1) Konu seç
-            topic, used_data = pick_trending_topic()
+            # 1) Konu seç (seri modu veya trending)
+            series_topic = get_series_topic_override()
+            if series_topic:
+                topic, used_data = pick_trending_topic(series_topic)
+                print(f"  📺 Seri konusu: {topic}")
+            else:
+                topic, used_data = pick_trending_topic()
+                print(f"  Konu: {topic}")
             _save_used(used_data)
-            print(f"  Konu: {topic}")
 
-            # 2) Script üret
-            script = generate_script(topic, language)
+            # 2) Script üret — akıllı yeniden üretim ile
+            script, score_bd = smart_generate(topic, language)
+            print(f"  Script skor: {score_bd.total}/100")
+
+            # 2b) Seri bilgisi ekle
+            active_series = get_active_series()
+            if active_series:
+                try:
+                    script = enrich_script_with_series(script, active_series)
+                except Exception as e:
+                    print(f"  ⚠️ Seri zenginleştirme hatası: {e}", file=sys.stderr)
+
+            # 2c) Seri potansiyeli kontrolü — ilk bölümü otomatik başlat
+            if not active_series and has_series_potential(topic):
+                try:
+                    plan = detect_and_plan_series(topic)
+                    if plan:
+                        start_series(topic, plan)
+                        print(f"  📺 Seri başlatıldı: '{plan['series_title']}'")
+                except Exception as e:
+                    print(f"  ⚠️ Seri planı hatası: {e}", file=sys.stderr)
+
+            # 2d) A/B başlık optimizasyonu
+            try:
+                pick_best_title(script)
+            except Exception as e:
+                print(f"  ⚠️ A/B başlık hatası: {e}", file=sys.stderr)
+
             script_path = os.path.join(video_dir, "script.json")
             with open(script_path, "w", encoding="utf-8") as f:
                 json.dump(script, f, indent=2, ensure_ascii=False)
@@ -128,6 +170,20 @@ def produce_batch(count: int = 7, dry_run: bool = False, language: str = "en") -
                 output_path=os.path.join(video_dir, "thumbnail.png"),
             )
 
+            # 6) Etkileşim paketi üret (upload sırasında kullanılacak)
+            engagement = None
+            try:
+                engagement = generate_engagement_pack(script)
+            except Exception as e:
+                print(f"  ⚠️ Etkileşim paketi hatası: {e}", file=sys.stderr)
+
+            # 6b) Seri ilerlet
+            if get_active_series():
+                try:
+                    advance_series(f"batch-{slot_date}")
+                except Exception as e:
+                    print(f"  ⚠️ Seri ilerletme hatası: {e}", file=sys.stderr)
+
             produced.append({
                 "scheduled_date": str(slot_date),
                 "topic": topic,
@@ -138,9 +194,11 @@ def produce_batch(count: int = 7, dry_run: bool = False, language: str = "en") -
                 "thumbnail_path": thumb_path,
                 "language": language,
                 "published": False,
+                "engagement_pack": engagement,
+                "score": score_bd.total,
             })
 
-            print(f"  ✅ Video hazır: {video_path}")
+            print(f"  ✅ Video hazır: {video_path} (skor: {score_bd.total}/100)")
 
         except Exception as e:
             print(f"  ❌ Hata: {e}", file=sys.stderr)
