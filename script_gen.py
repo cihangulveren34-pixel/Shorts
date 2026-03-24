@@ -100,12 +100,47 @@ VİRALLİK KURALLARI:
   "search_keywords": [...], "mood": "...", "format": "news_analysis"
 }""",
     },
+
+    "ar": {
+        "news_analysis": """أنت محلل عسكري على يوتيوب شورتس تحلل الأحداث الجارية.
+
+أسلوبك: محلل استخباراتي هادئ لكن حاد. تشرح لماذا يهم الأمر، وليس فقط ما حدث. فكّر كأنك "محلل غرفة حرب يقدم إحاطة للرئيس."
+
+صيغ الخطاف (اختر الأقوى):
+- الاستعجال: "[الدولة] فعلت للتو ما يغير كل شيء."
+- المخاطبة المباشرة: "إذا لم تنتبه لـ[الحدث]، فعليك ذلك الآن."
+- التداعي المخيف: "ما فعلته [الدولة] يجب أن يُرعب [الدولة الأخرى]."
+- المعنى الخفي: "الجميع يتحدث عن [الحدث]. لا أحد يتحدث عمّا يعنيه حقاً."
+
+هيكل السيناريو (50-55 ثانية):
+0-3 ث الخطاف: الحدث + لماذا يجب أن يهتم المشاهد. أقصى درجات الإلحاح.
+3-12 ث السياق: ما الذي حدث، في 2-3 جمل موجزة. أسماء محددة، أسلحة، مواقع.
+12-25 ث لماذا يهم: التداعيات الإقليمية/العالمية. "إليك ما لا يخبرك به أحد..."
+25-40 ث التصعيد: ما قد يحدث بعد ذلك. ارسم السيناريو المخيف. "إذا استمر هذا..."
+40-50 ث التنبؤ: رأيك الجريء. "إليك ما أعتقد أنه يجري فعلاً..."
+50-55 ث CTA: "تابعنا للحصول على إحاطات استخباراتية عسكرية يومية."
+
+قواعد الانتشار:
+- تحدث كأن إحاطة سرية تُسرَّب للعموم
+- استخدم أسماء أسلحة محددة، أعداد وحدات، مبالغ بالدولار
+- أوجد الإلحاح: هذا يحدث الآن
+- اجعل المشاهد يشعر بأنه يتلقى معلومات سرية
+- جمل قصيرة وقوية. المضارع. كإحاطة حقيقية.
+
+150-180 كلمة عربية. search_keywords باللغة الإنجليزية.
+{
+  "title": "...", "hook": "...", "narration": "...",
+  "tags": [...], "thumbnail_text": "...",
+  "search_keywords": [...], "mood": "...", "format": "news_analysis"
+}""",
+    },
 }
 
 # TTS ses eşleştirmesi
 TTS_VOICES = {
     "en": "en-US-GuyNeural",
     "tr": "tr-TR-AhmetNeural",
+    "ar": "ar-SA-HamedNeural",
 }
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
@@ -297,6 +332,8 @@ def generate_script(topic: str, language: str = "en", forced_format: str = None)
         titles_str = "\n".join(f"- {t}" for t in recent_titles[-10:])
         if lang == "tr":
             avoid_note = f"\n\nÖNEMLİ: Aşağıdaki başlıklar daha önce üretildi, bunlarla aynı veya çok benzer bir konu/başlık ÜRETME:\n{titles_str}"
+        elif lang == "ar":
+            avoid_note = f"\n\nمهم: العناوين التالية تم إنتاجها مسبقاً، لا تنتج عنواناً مماثلاً أو مشابهاً جداً:\n{titles_str}"
         else:
             avoid_note = f"\n\nIMPORTANT: The following titles were already produced. Do NOT generate a title or topic that is the same or very similar to these:\n{titles_str}"
 
@@ -308,9 +345,12 @@ def generate_script(topic: str, language: str = "en", forced_format: str = None)
         "tr": {
             "news_analysis": f"Bugünün tarihi: {today_str}. Bu konu için askeri analiz YouTube Shorts senaryosu yaz: {topic}. Tarih narrasyona doğal şekilde dahil edilsin (örn. '{today_str} itibarıyla...'). Başlık da tarihi içermeli (örn. '18 Mart — ...'). Ne oldu, neden önemli ve sırada ne var? Gizli istihbarat brifingiymiş gibi yaz.{avoid_note}",
         },
+        "ar": {
+            "news_analysis": f"اليوم هو {today_str}. اكتب سيناريو تحليل عسكري لـ YouTube Shorts عن: {topic}. أدرج تاريخ اليوم بشكل طبيعي في السرد (مثل 'اعتباراً من {today_str}...'). يجب أن يتضمن العنوان التاريخ أيضاً. حلل ما حدث ولماذا يهم وما سيأتي. اكتب كأنها إحاطة استخباراتية سرية.{avoid_note}",
+        },
     }
 
-    user_prompt = user_prompts[lang][script_format]
+    user_prompt = user_prompts.get(lang, user_prompts["en"])[script_format]
 
     # Model fallback zinciri
     models = ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-1.5-flash"]
@@ -334,7 +374,7 @@ def generate_script(topic: str, language: str = "en", forced_format: str = None)
                     raise ValueError("Narration is empty")
 
                 script["language"] = lang
-                script["tts_voice"] = TTS_VOICES[lang]
+                script["tts_voice"] = TTS_VOICES.get(lang, TTS_VOICES["en"])
                 # Format ve mood'u garanti et
                 script.setdefault("format", script_format)
                 script.setdefault("mood", "epic")

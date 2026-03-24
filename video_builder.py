@@ -352,9 +352,30 @@ def _pick_music(script: dict) -> str:
 
 # ─── Font yardımcısı ─────────────────────────────────────────────────────────
 
+ARABIC_FONT_PATH = "assets/fonts/NotoNaskhArabic-Bold.ttf"
+
+
+def _prepare_text(text: str) -> str:
+    """Arapça metin için harf birleşimi (reshaper) ve RTL yönü (bidi) uygular."""
+    try:
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+        reshaped = arabic_reshaper.reshape(text)
+        return get_display(reshaped)
+    except ImportError:
+        return text
+
+
+def _is_arabic(text: str) -> bool:
+    """Metnin Arapça karakter içerip içermediğini kontrol eder."""
+    return any("\u0600" <= ch <= "\u06FF" for ch in text)
+
+
 def _load_font(size: int) -> ImageFont.FreeTypeFont:
     for path in [
         FONT_PATH,
+        ARABIC_FONT_PATH,
+        "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     ]:
@@ -364,6 +385,21 @@ def _load_font(size: int) -> ImageFont.FreeTypeFont:
             except OSError:
                 continue
     return ImageFont.load_default()
+
+
+def _load_font_for_text(text: str, size: int) -> ImageFont.FreeTypeFont:
+    """Metne göre uygun fontu yükler: Arapça ise Noto Naskh, değilse varsayılan."""
+    if _is_arabic(text):
+        for path in [
+            ARABIC_FONT_PATH,
+            "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf",
+        ]:
+            if os.path.exists(path):
+                try:
+                    return ImageFont.truetype(path, size)
+                except OSError:
+                    continue
+    return _load_font(size)
 
 
 # ─── Klip indirme ────────────────────────────────────────────────────────────
@@ -2035,7 +2071,8 @@ def _build_background(clip_paths: list, total_duration: float,
 # ─── Altyazı ─────────────────────────────────────────────────────────────────
 
 def _render_subtitle_image(text: str) -> np.ndarray:
-    font = _load_font(46)
+    text = _prepare_text(text)
+    font = _load_font_for_text(text, 46)
     dummy = Image.new("RGBA", (1, 1))
     dd = ImageDraw.Draw(dummy)
     bbox = dd.textbbox((0, 0), text, font=font)
@@ -2088,7 +2125,8 @@ def _make_fallback_subtitle_clips(narration: str, audio_duration: float) -> list
 # ─── Hook overlay ────────────────────────────────────────────────────────────
 
 def _make_hook_clip(hook_text: str, duration: float = 3.0) -> ImageClip:
-    font = _load_font(64)
+    hook_text = _prepare_text(hook_text)
+    font = _load_font_for_text(hook_text, 64)
     max_w = TARGET_W - 80
     words = hook_text.split()
     lines, current = [], []

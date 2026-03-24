@@ -9,3 +9,5 @@ google-auth-oauthlib>=1.1.0
 pytrends>=4.9.2
 yt-dlp>=2025.1.1
 pytubefix>=6.0.0
+arabic-reshaper>=3.0.0
+python-bidi>=0.4.2
