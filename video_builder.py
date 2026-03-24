@@ -367,8 +367,13 @@ def _prepare_text(text: str) -> str:
 
 
 def _is_arabic(text: str) -> bool:
-    """Metnin Arapça karakter içerip içermediğini kontrol eder."""
-    return any("\u0600" <= ch <= "\u06FF" for ch in text)
+    """Metnin Arapça karakter içerip içermediğini kontrol eder (presentation forms dahil)."""
+    return any(
+        "\u0600" <= ch <= "\u06FF"    # Basic Arabic
+        or "\uFB50" <= ch <= "\uFDFF"  # Arabic Presentation Forms-A
+        or "\uFE70" <= ch <= "\uFEFF"  # Arabic Presentation Forms-B
+        for ch in text
+    )
 
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont:
@@ -2169,8 +2174,28 @@ def _make_hook_clip(hook_text: str, duration: float = 3.0) -> ImageClip:
 
 # ─── CTA bitiş ekranı ────────────────────────────────────────────────────────
 
-def _make_cta_clip(total_duration: float, duration: float = CTA_DURATION) -> list:
+_CTA_TEXTS = {
+    "ar": {
+        "follow":  "تابعنا",
+        "sub":     "للمزيد من التحليلات!",
+        "arrow":   "اضغط متابعة  ^",
+    },
+    "tr": {
+        "follow":  "TAKİP ET",
+        "sub":     "DAHA FAZLASI İÇİN!",
+        "arrow":   "TAKİP ET  ^",
+    },
+    "en": {
+        "follow":  "FOLLOW",
+        "sub":     "FOR MORE WHAT-IFS!",
+        "arrow":   "TAP FOLLOW  ^",
+    },
+}
+
+
+def _make_cta_clip(total_duration: float, duration: float = CTA_DURATION, language: str = "en") -> list:
     start = total_duration - duration
+    cta = _CTA_TEXTS.get(language, _CTA_TEXTS["en"])
 
     bg = (
         ColorClip(size=(TARGET_W, TARGET_H), color=(0, 0, 0))
@@ -2187,10 +2212,9 @@ def _make_cta_clip(total_duration: float, duration: float = CTA_DURATION) -> lis
         .set_position(("center", TARGET_H // 2 - 100))
     )
 
-    font_big = _load_font(80)
-    font_sub = _load_font(44)
-
-    def _text_img(text, font, color, outline=(0, 0, 0)):
+    def _cta_text_img(raw_text, size, color, outline=(0, 0, 0)):
+        text = _prepare_text(raw_text)
+        font = _load_font_for_text(text, size)
         dummy = Image.new("RGBA", (1, 1))
         dd = ImageDraw.Draw(dummy)
         bbox = dd.textbbox((0, 0), text, font=font)
@@ -2203,7 +2227,7 @@ def _make_cta_clip(total_duration: float, duration: float = CTA_DURATION) -> lis
         draw.text((10, 10), text, font=font, fill=(*color, 255))
         return np.array(img)
 
-    follow_arr = _text_img("FOLLOW", font_big, (255, 220, 0))
+    follow_arr = _cta_text_img(cta["follow"], 80, (255, 220, 0))
     fh, fw = follow_arr.shape[:2]
     follow_clip = (
         ImageClip(follow_arr).set_duration(duration).set_start(start)
@@ -2211,7 +2235,7 @@ def _make_cta_clip(total_duration: float, duration: float = CTA_DURATION) -> lis
         .crossfadein(0.4)
     )
 
-    sub_arr = _text_img("FOR MORE WHAT-IFS!", font_sub, (255, 255, 255))
+    sub_arr = _cta_text_img(cta["sub"], 44, (255, 255, 255))
     sh, sw = sub_arr.shape[:2]
     sub_clip = (
         ImageClip(sub_arr).set_duration(duration).set_start(start)
@@ -2219,7 +2243,7 @@ def _make_cta_clip(total_duration: float, duration: float = CTA_DURATION) -> lis
         .crossfadein(0.5)
     )
 
-    arrow_arr = _text_img("TAP FOLLOW  ^", font_sub, (200, 30, 30))
+    arrow_arr = _cta_text_img(cta["arrow"], 44, (200, 30, 30))
     ah, aw = arrow_arr.shape[:2]
     arrow_clip = (
         ImageClip(arrow_arr).set_duration(duration).set_start(start)
@@ -2493,7 +2517,7 @@ def build_video(
     # ─── Overlay System Sonu ──────────────────────────────────────────
 
     # CTA bitiş ekranı
-    layers.extend(_make_cta_clip(total_duration))
+    layers.extend(_make_cta_clip(total_duration, language=script.get("language", "en")))
 
     # Logo/watermark
     wm = _make_watermark_clip(total_duration)
