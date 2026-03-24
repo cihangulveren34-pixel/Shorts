@@ -694,7 +694,7 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 pass
 
             if cut_result.returncode == 0 and os.path.exists(segment_file.name) and os.path.getsize(segment_file.name) > 5000:
-                vid_id = f"ytcc_{hash(query)}_{len(downloaded)}"
+                vid_id = f"ytcc_{cc_video_id}"
                 if vid_id not in seen_ids:
                     seen_ids.add(vid_id)
                     downloaded.append(segment_file.name)
