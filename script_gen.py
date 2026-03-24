@@ -58,7 +58,11 @@ Output ONLY valid JSON:
 }
 
 CRITICAL:
-- search_keywords must have 6 items, SPECIFIC and VISUAL: "military command center screens" not "military"
+- search_keywords must have 6 items that are REAL YOUTUBE SEARCH QUERIES to find matching footage
+  GOOD: "KAAN TFX stealth fighter Turkey test flight", "Bayraktar TB2 drone strike combat footage"
+  BAD:  "military", "fighter jet", "stealth" (too generic!)
+  Each keyword MUST include: specific weapon/vehicle name + country/force name + action/context
+  Think: "What would I type on YouTube to find footage of THIS specific scene?"
 - This must feel like BREAKING ANALYSIS, not a history lesson
 - narration MUST be 150-180 words, present tense, short sentences""",
     },
