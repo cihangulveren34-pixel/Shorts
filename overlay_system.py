@@ -608,7 +608,7 @@ def create_format_overlays(format_type: str, duration: float, title: str) -> lis
             "data": ticker,
             "start": 0.0,
             "end": duration,
-            "position": ("center", TARGET_H - 100),
+            "position": ("center", TARGET_H - 300),
         })
 
     elif format_type == "countdown":

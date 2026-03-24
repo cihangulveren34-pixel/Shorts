@@ -261,7 +261,10 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         tts_voice = script.get("tts_voice")
         audio_path, vtt_path = _step(
             "tts",
-            lambda: generate_audio(script["narration"], voice=tts_voice),
+            lambda: generate_audio(
+                script.get("hook", "") + " ... " + script["narration"],
+                voice=tts_voice,
+            ),
             topic,
         )
 
