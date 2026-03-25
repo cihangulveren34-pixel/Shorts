@@ -475,7 +475,7 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
     random.shuffle(yt_pool)
 
     script_queries = []
-    for kw in keywords[:5]:
+    for kw in keywords[:10]:
         # Zaten "footage" içeriyorsa tekrar ekleme
         if "footage" in kw.lower() or "operations" in kw.lower():
             script_queries.append(kw)
@@ -1710,23 +1710,25 @@ def _fetch_unsplash_images(keywords: list, n: int, seen_ids: set) -> list[str]:
     return downloaded
 
 
-def _fetch_images(keywords: list) -> list[str]:
+def _fetch_images(keywords: list, seen_ids: set | None = None) -> list[str]:
     """Keyword'lere göre alakalı resimler indirir.
 
     Sadece Wikimedia Commons — keyword araması, lisanslı, metin/logo içermez.
+    seen_ids paylaşılırsa aynı resim farklı sahneler için iki kez indirilmez.
     """
-    seen_ids: set = set()
+    if seen_ids is None:
+        seen_ids = set()
     images: list[str] = []
-    target = 8
+    target = 5  # Sahne başına max 5 (3'ü kullanılacak)
 
     try:
         wiki_imgs = _fetch_wikimedia_images(keywords, target, seen_ids)
         images.extend(wiki_imgs)
-        print(f"[video_builder] Wikimedia resim: {len(wiki_imgs)}")
+        if wiki_imgs:
+            print(f"[video_builder] Wikimedia resim: {len(wiki_imgs)}")
     except Exception as e:
         print(f"[video_builder] Wikimedia resim hatası: {e}")
 
-    print(f"[video_builder] Toplam resim: {len(images)}")
     return images
 
 
@@ -1826,7 +1828,7 @@ def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> li
 
     print(f"[video_builder] Toplam: {len(video_paths)} video klip")
     _save_seen_ids(seen_ids)
-    random.shuffle(video_paths)
+    # Sıra korunur — alakalı kaynaklar (YouTube CC, DVIDS) başa gelir
     return video_paths[:n]
 
 
@@ -1994,9 +1996,8 @@ def _build_background(clip_paths: list, total_duration: float,
     """
     processed = []
     img_pool = list(image_paths) if image_paths else []
-    random.shuffle(img_pool)
+    # Klip ve resim sırası korunur — sahne bazlı alakalılık için karıştırılmaz
     clip_paths = list(clip_paths)
-    random.shuffle(clip_paths)
 
     for i, path in enumerate(clip_paths):
         kb = style.ken_burns_pool[i % len(style.ken_burns_pool)]
@@ -2353,23 +2354,41 @@ def build_video(
     # Style profile (her video benzersiz görünüm)
     style = _generate_style_profile(script)
 
-    # 1) Çoklu klip indir (YouTube CC + DVIDS + Archive)
-    # Akıllı footage eşleştirme: Gemini + ülke/silah tespiti ile spesifik sorgular
+    # 1) Sahne bazlı klip indirme — her sahne kendi keywords'üyle fetch edilir
+    # Bu sayede Sahne 1 görüntüsü Sahne 1 içeriğiyle, Sahne 2 Sahne 2 ile eşleşir
+    if seen_ids is None:
+        seen_ids = _load_seen_ids()
+
     try:
-        from smart_footage_matcher import get_prioritized_keywords
-        keywords = get_prioritized_keywords(script)
-        print(f"[video_builder] Akıllı footage matcher: {len(keywords)} öncelikli sorgu")
+        from smart_footage_matcher import get_scene_based_keywords
+        scene_keywords = get_scene_based_keywords(script)  # [[s1_kws], [s2_kws], [s3_kws]]
+        print(f"[video_builder] Sahne bazlı footage matcher aktif: {len(scene_keywords)} sahne")
     except Exception as e:
-        print(f"[video_builder] Akıllı matcher kullanılamadı ({e}), fallback kullanılıyor")
-        keywords = list(script.get("search_keywords", []))
+        print(f"[video_builder] Sahne matcher başarısız ({e}), fallback kullanılıyor")
+        fallback_kws = list(script.get("search_keywords", []))
         title_words = _extract_title_keywords(script.get("title", ""))
         for tw in title_words:
-            if tw not in " ".join(keywords).lower():
-                keywords.append(tw)
-    clip_paths = _fetch_clips(keywords, n=10, seen_ids=seen_ids)
+            if tw not in " ".join(fallback_kws).lower():
+                fallback_kws.append(tw)
+        scene_keywords = [fallback_kws, fallback_kws, fallback_kws]
 
-    # 1b) Araya eklenecek resimler (5 Wikimedia + 5 Pexels)
-    image_paths = _fetch_images(keywords)
+    # Sahne başına 4 klip (toplam ~12, video süresiyle orantılı)
+    # img_seen ayrı set — resimler klip seen_ids ile karışmasın ama kendi aralarında dedup olsun
+    img_seen: set = set()
+    clip_paths = []
+    image_paths = []
+    for i, scene_kws in enumerate(scene_keywords):
+        scene_clips = _fetch_clips(scene_kws, n=4, seen_ids=seen_ids)
+        clip_paths.extend(scene_clips)
+        # Her sahne için sahneye özgü resimler (paylaşılan img_seen ile dedup)
+        scene_imgs = _fetch_images(scene_kws, seen_ids=img_seen)
+        image_paths.extend(scene_imgs[:3])
+        first_kw = scene_kws[0][:55] if scene_kws else "—"
+        print(f"[video_builder] Sahne {i+1}: {len(scene_clips)} klip, "
+              f"{min(3, len(scene_imgs))} resim — '{first_kw}'")
+
+    if not clip_paths:
+        raise RuntimeError("Hiç video klip indirilemedi.")
 
     # 2) Ses süresi
     narration_audio = AudioFileClip(audio_path)
