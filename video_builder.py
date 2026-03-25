@@ -2028,8 +2028,12 @@ def _build_background(clip_paths: list, total_duration: float,
             except Exception as e:
                 print(f"[video_builder] Resim işleme hatası, atlanıyor: {e}")
 
+    if not processed:
+        print("[video_builder] Hiç klip işlenemedi, siyah arka plan kullanılıyor.")
+        return ColorClip(size=(TARGET_W, TARGET_H), color=(0, 0, 0)).set_duration(total_duration)
+
     if len(processed) == 1:
-        return processed[0]
+        return processed[0].set_duration(total_duration) if processed[0].duration < total_duration else processed[0].subclip(0, total_duration)
 
     # Geçiş uygulama
     tt = style.transition_type
@@ -2066,7 +2070,8 @@ def _build_background(clip_paths: list, total_duration: float,
 
     # Tam uzunluğa getir
     if bg.duration < total_duration:
-        bg = concatenate_videoclips([bg, bg]).subclip(0, total_duration)
+        n_loops = int(total_duration / bg.duration) + 2
+        bg = concatenate_videoclips([bg] * n_loops).subclip(0, total_duration)
     else:
         bg = bg.subclip(0, total_duration)
 
