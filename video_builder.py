@@ -357,6 +357,8 @@ ARABIC_FONT_PATH = "assets/fonts/NotoNaskhArabic-Bold.ttf"
 
 def _prepare_text(text: str) -> str:
     """Arapça metin için harf birleşimi (reshaper) ve RTL yönü (bidi) uygular."""
+    if not _is_arabic(text):
+        return text
     try:
         import arabic_reshaper
         from bidi.algorithm import get_display
@@ -379,8 +381,6 @@ def _is_arabic(text: str) -> bool:
 def _load_font(size: int) -> ImageFont.FreeTypeFont:
     for path in [
         FONT_PATH,
-        ARABIC_FONT_PATH,
-        "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     ]:
