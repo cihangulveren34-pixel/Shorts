@@ -353,7 +353,7 @@ def generate_script(topic: str, language: str = "en", forced_format: str = None)
     user_prompt = user_prompts.get(lang, user_prompts["en"])[script_format]
 
     # Model fallback zinciri
-    models = ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-1.5-flash"]
+    models = ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-2.0-flash"]
     last_error = None
 
     for model in models:

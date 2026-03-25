@@ -2364,6 +2364,11 @@ def build_video(
 
     # 2) Ses süresi
     narration_audio = AudioFileClip(audio_path)
+    MAX_SHORTS_DURATION = 59.5
+    max_narration = MAX_SHORTS_DURATION - CTA_DURATION - 0.3
+    if narration_audio.duration > max_narration:
+        print(f"[video_builder] Narrasyon çok uzun ({narration_audio.duration:.1f}s), {max_narration:.1f}s'ye kırpılıyor.")
+        narration_audio = narration_audio.subclip(0, max_narration)
     total_duration = narration_audio.duration + CTA_DURATION + 0.3
 
     # 3) Arka plan: çoklu klip + araya resimler + efektler + geçişler
