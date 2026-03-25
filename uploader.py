@@ -99,11 +99,14 @@ def upload_video(
     # Thumbnail yükle
     if thumbnail_path and os.path.exists(thumbnail_path):
         print("[uploader] Thumbnail yükleniyor...")
-        youtube.thumbnails().set(
-            videoId=video_id,
-            media_body=MediaFileUpload(thumbnail_path),
-        ).execute()
-        print("[uploader] Thumbnail yüklendi.")
+        try:
+            youtube.thumbnails().set(
+                videoId=video_id,
+                media_body=MediaFileUpload(thumbnail_path),
+            ).execute()
+            print("[uploader] Thumbnail yüklendi.")
+        except Exception as e:
+            print(f"[uploader] Thumbnail yüklenemedi (kritik değil): {e}")
 
     return video_id
 
