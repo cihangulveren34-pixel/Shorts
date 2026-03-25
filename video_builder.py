@@ -142,6 +142,16 @@ YT_MILITARY_KEYWORDS = {
         "military flag ceremony footage", "soldiers patrol footage",
         "military camp footage", "army barracks footage",
     ],
+    "conflict": [
+        "war zone footage", "frontline combat footage",
+        "military operation footage", "battlefield footage",
+        "troops advancing footage", "urban warfare footage",
+        "ceasefire footage", "military press conference footage",
+        "sanctions military news footage", "geopolitics military footage",
+        "war correspondent footage", "military checkpoint footage",
+        "soldiers in the field footage", "military base operations footage",
+        "troop deployment footage", "military strategy briefing footage",
+    ],
 }
 FONT_PATH = "assets/fonts/Montserrat-Bold.ttf"
 LOGO_PATH = "assets/logo.png"
@@ -433,13 +443,17 @@ def _pick_yt_category(keywords: list) -> str:
         "missiles": ["missile", "icbm", "hypersonic", "patriot", "s-400", "iron dome", "thaad", "nuclear", "nuke", "rocket"],
         "explosions": ["explosion", "bomb", "airstrike", "artillery", "howitzer", "demolition", "mortar"],
         "training": ["training", "exercise", "drill", "boot camp"],
+        "conflict": ["ceasefire", "negotiation", "sanction", "diplomacy", "talks", "agreement",
+                     "peace", "frontline", "war zone", "occupation", "offensive", "invasion",
+                     "blockade", "embargo", "ultimatum", "tension", "escalat", "geopolit"],
     }
 
     for cat, hints in category_hints.items():
         if any(h in kw_lower for h in hints):
             return cat
 
-    return random.choice(list(YT_MILITARY_KEYWORDS.keys()))
+    # Eşleşme yoksa: script'in konusunu anlamlandıran genel savaş/çatışma havuzu
+    return "conflict"
 
 
 def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
