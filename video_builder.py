@@ -968,7 +968,7 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
                         "-i", hls_url,
                         # Alt %12'yi kes (lower-thirds / isim-rütbe barları), orijinal boyuta scale et
                         "-vf", "crop=iw:trunc(ih*0.88/2)*2:0:0,scale=iw:ih",
-                        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20",
+                        "-c:v", "libx264", "-preset", "medium", "-crf", "18",
                         "-an",               # ses yok (B-roll)
                         "-t", "30",           # max 30 saniye
                         "-loglevel", "error",
@@ -1169,7 +1169,7 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
                                 [
                                     "ffmpeg", "-y", "-i", tmp.name,
                                     "-vf", "crop=iw:trunc(ih*0.88/2)*2:0:0,scale=iw:ih",
-                                    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20",
+                                    "-c:v", "libx264", "-preset", "medium", "-crf", "18",
                                     "-an", "-loglevel", "error", cropped.name,
                                 ],
                                 timeout=120, capture_output=True,
@@ -2650,8 +2650,9 @@ def build_video(
         audio_codec="aac",
         temp_audiofile=os.path.join(os.path.dirname(output_path), "temp_audio.m4a"),
         remove_temp=True,
-        threads=2,
-        preset="fast",
+        threads=4,
+        preset="medium",
+        ffmpeg_params=["-crf", "18", "-b:a", "192k", "-movflags", "+faststart"],
         verbose=False,
         logger=None,
     )
