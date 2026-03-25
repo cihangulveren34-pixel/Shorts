@@ -321,61 +321,59 @@ def create_map_overlay(country: str, base_map_path: str = MAP_PATH) -> np.ndarra
 
 def create_stat_card(value: str, label: str) -> np.ndarray:
     """
-    Koyu tema istatistik kartı oluşturur.
-    Returns: 500x300 RGBA numpy array.
+    Modern glassmorphism istatistik kartı.
+    Returns: 460x200 RGBA numpy array.
     """
-    w, h = 500, 300
+    w, h = 460, 200
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Arka plan — yarı saydam koyu
-    draw.rounded_rectangle([(0, 0), (w, h)], radius=16, fill=(15, 15, 25, 200))
+    # Arka plan: koyu yarı saydam, yuvarlak köşeli
+    draw.rounded_rectangle([(0, 0), (w, h)], radius=20,
+                            fill=(12, 12, 20, 210))
 
-    # Üst kırmızı çizgi
-    draw.rectangle([(0, 0), (w, 6)], fill=(220, 30, 30, 255))
+    # Sol kenar aksan çizgisi (kırmızı dikey)
+    draw.rounded_rectangle([(0, 0), (5, h)], radius=4,
+                            fill=(220, 40, 40, 255))
 
-    # Büyük beyaz sayı
-    font_big = _load_font(72)
-    # Değeri sığdır — çok uzunsa küçült
-    bbox = draw.textbbox((0, 0), value, font=font_big)
-    text_w = bbox[2] - bbox[0]
-    if text_w > w - 40:
-        font_big = _load_font(52)
-        bbox = draw.textbbox((0, 0), value, font=font_big)
-        text_w = bbox[2] - bbox[0]
+    # Üst ince çizgi (soluk beyaz — glass efekti)
+    draw.rectangle([(5, 0), (w, 1)], fill=(255, 255, 255, 30))
 
-    vx = (w - text_w) // 2
-    vy = 60
-
-    # Gölge
-    draw.text((vx + 2, vy + 2), value, font=font_big, fill=(0, 0, 0, 150))
-    draw.text((vx, vy), value, font=font_big, fill=(255, 255, 255, 255))
-
-    # Küçük kırmızı etiket
+    # Etiket — küçük, kırmızı, üstte
     label_map = {
         "currency": "ECONOMIC VALUE",
         "military": "MILITARY FORCE",
         "speed": "SPEED",
         "percentage": "PERCENTAGE",
-        "distance": "RANGE / DISTANCE",
+        "distance": "RANGE",
         "weight": "WEIGHT",
-        "year": "YEAR",
-        "number": "FIGURE",
+        "number": "KEY FIGURE",
     }
     label_text = label_map.get(label, label.upper())
-    font_small = _load_font(26)
-    lbbox = draw.textbbox((0, 0), label_text, font=font_small)
+    font_label = _load_font(22)
+    lbbox = draw.textbbox((0, 0), label_text, font=font_label)
     lw = lbbox[2] - lbbox[0]
-    lx = (w - lw) // 2
-    ly = vy + (bbox[3] - bbox[1]) + 30
+    draw.text((28, 22), label_text, font=font_label, fill=(200, 50, 50, 230))
 
-    draw.text((lx, ly), label_text, font=font_small, fill=(220, 60, 60, 255))
+    # Etiket altında ince seperatör
+    draw.rectangle([(28, 50), (w - 28, 51)], fill=(255, 255, 255, 18))
 
-    # Alt dekoratif çizgi
-    line_w = min(lw + 40, w - 60)
-    line_x = (w - line_w) // 2
-    draw.rectangle([(line_x, ly + 40), (line_x + line_w, ly + 42)],
-                   fill=(220, 60, 60, 120))
+    # Büyük değer metni
+    font_big = _load_font(68)
+    bbox = draw.textbbox((0, 0), value, font=font_big)
+    text_w = bbox[2] - bbox[0]
+    if text_w > w - 56:
+        font_big = _load_font(50)
+        bbox = draw.textbbox((0, 0), value, font=font_big)
+        text_w = bbox[2] - bbox[0]
+
+    vx = (w - text_w) // 2
+    vy = 64
+
+    # Hafif gölge
+    draw.text((vx + 2, vy + 2), value, font=font_big, fill=(0, 0, 0, 120))
+    # Beyaz ana değer
+    draw.text((vx, vy), value, font=font_big, fill=(255, 255, 255, 255))
 
     return np.array(img)
 

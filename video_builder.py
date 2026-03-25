@@ -2091,20 +2091,56 @@ def _build_background(clip_paths: list, total_duration: float,
 # ─── Altyazı ─────────────────────────────────────────────────────────────────
 
 def _render_subtitle_image(text: str) -> np.ndarray:
+    """Modern altyazı: büyük beyaz metin + kalın siyah outline, arka plan yok."""
     text = _prepare_text(text)
-    font = _load_font_for_text(text, 46)
+    font_size = 78
+    font = _load_font_for_text(text, font_size)
+
+    # Ölçüm için dummy canvas
     dummy = Image.new("RGBA", (1, 1))
     dd = ImageDraw.Draw(dummy)
-    bbox = dd.textbbox((0, 0), text, font=font)
-    text_w = bbox[2] - bbox[0] + 40
-    text_h = bbox[3] - bbox[1] + 24
 
-    img = Image.new("RGBA", (text_w, text_h), (0, 0, 0, 0))
+    # Uzun metni satırlara böl (max 22 karakter)
+    MAX_LINE_CHARS = 22
+    words = text.split()
+    lines = []
+    current = ""
+    for word in words:
+        test = (current + " " + word).strip()
+        if len(test) > MAX_LINE_CHARS and current:
+            lines.append(current)
+            current = word
+        else:
+            current = test
+    if current:
+        lines.append(current)
+
+    # Her satır için boyut hesapla
+    line_bboxes = [dd.textbbox((0, 0), ln, font=font) for ln in lines]
+    max_w = max((b[2] - b[0]) for b in line_bboxes) if lines else 100
+    line_h = max((b[3] - b[1]) for b in line_bboxes) if lines else font_size
+    padding_x, padding_y = 28, 18
+    img_w = max_w + padding_x * 2
+    img_h = line_h * len(lines) + padding_y * 2 + (len(lines) - 1) * 8
+
+    img = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    draw.rectangle([(0, 0), (text_w, text_h)], fill=(0, 0, 0, 160))
-    for dx, dy in [(-2, -2), (2, 2), (-2, 2), (2, -2)]:
-        draw.text((20 + dx, 12 + dy), text, font=font, fill=(0, 0, 0, 255))
-    draw.text((20, 12), text, font=font, fill=(255, 255, 255, 255))
+
+    # Outline kalınlığı (3px) — DVD tarzı kutu yok, sadece outline
+    outline = 3
+    for i, line in enumerate(lines):
+        bx = line_bboxes[i]
+        lw = bx[2] - bx[0]
+        x = (img_w - lw) // 2
+        y = padding_y + i * (line_h + 8)
+        # Siyah outline (8 yön)
+        for ox, oy in [(-outline, 0), (outline, 0), (0, -outline), (0, outline),
+                       (-outline, -outline), (outline, -outline),
+                       (-outline, outline), (outline, outline)]:
+            draw.text((x + ox, y + oy), line, font=font, fill=(0, 0, 0, 255))
+        # Beyaz ana metin
+        draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))
+
     return np.array(img)
 
 
@@ -2122,7 +2158,7 @@ def _make_subtitle_clips(chunks: list, total_duration: float) -> list:
             ImageClip(img_arr, ismask=False)
             .set_duration(dur)
             .set_start(start)
-            .set_position(((TARGET_W - w) // 2, TARGET_H - h - 320))
+            .set_position(((TARGET_W - w) // 2, TARGET_H - h - 260))
         )
     return clips
 
@@ -2452,9 +2488,10 @@ def build_video(
             except Exception as e:
                 print(f"[video_builder] Harita overlay hatası: {e}")
 
-            # 2) İstatistik kartları (max 4 stat)
+            # 2) İstatistik kartları (max 4 stat) — yıl tipi atlanır (anlamsız)
             try:
-                stats = extract_statistics_with_timing(narration_text, vtt_chunks)
+                stats = [s for s in extract_statistics_with_timing(narration_text, vtt_chunks)
+                         if s.get("label") != "year"]
                 for entry in stats[:4]:
                     card_arr = create_stat_card(entry["value"], entry["label"])
                     h, w = card_arr.shape[:2]
