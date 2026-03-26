@@ -599,15 +599,7 @@ def create_format_overlays(format_type: str, duration: float, title: str) -> lis
                 "position": ("center", 0),
             })
 
-        # Kayan haber ticker (alt) — video boyunca
-        ticker = create_news_ticker(title, duration)
-        overlays.append({
-            "type": "ticker",
-            "data": ticker,
-            "start": 0.0,
-            "end": duration,
-            "position": ("center", TARGET_H - 300),
-        })
+        # Kayan haber ticker kaldırıldı — altyazıyla çakışıyordu
 
     elif format_type == "countdown":
         # Büyük sayılar — 3, 2, 1
