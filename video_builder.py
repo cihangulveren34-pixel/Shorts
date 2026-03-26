@@ -142,6 +142,16 @@ YT_MILITARY_KEYWORDS = {
         "military flag ceremony footage", "soldiers patrol footage",
         "military camp footage", "army barracks footage",
     ],
+    "conflict": [
+        "war zone footage", "frontline combat footage",
+        "military operation footage", "battlefield footage",
+        "troops advancing footage", "urban warfare footage",
+        "ceasefire footage", "military press conference footage",
+        "sanctions military news footage", "geopolitics military footage",
+        "war correspondent footage", "military checkpoint footage",
+        "soldiers in the field footage", "military base operations footage",
+        "troop deployment footage", "military strategy briefing footage",
+    ],
 }
 FONT_PATH = "assets/fonts/Montserrat-Bold.ttf"
 LOGO_PATH = "assets/logo.png"
@@ -433,13 +443,17 @@ def _pick_yt_category(keywords: list) -> str:
         "missiles": ["missile", "icbm", "hypersonic", "patriot", "s-400", "iron dome", "thaad", "nuclear", "nuke", "rocket"],
         "explosions": ["explosion", "bomb", "airstrike", "artillery", "howitzer", "demolition", "mortar"],
         "training": ["training", "exercise", "drill", "boot camp"],
+        "conflict": ["ceasefire", "negotiation", "sanction", "diplomacy", "talks", "agreement",
+                     "peace", "frontline", "war zone", "occupation", "offensive", "invasion",
+                     "blockade", "embargo", "ultimatum", "tension", "escalat", "geopolit"],
     }
 
     for cat, hints in category_hints.items():
         if any(h in kw_lower for h in hints):
             return cat
 
-    return random.choice(list(YT_MILITARY_KEYWORDS.keys()))
+    # Eşleşme yoksa: script'in konusunu anlamlandıran genel savaş/çatışma havuzu
+    return "conflict"
 
 
 def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
@@ -461,7 +475,7 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
     random.shuffle(yt_pool)
 
     script_queries = []
-    for kw in keywords[:5]:
+    for kw in keywords[:10]:
         # Zaten "footage" içeriyorsa tekrar ekleme
         if "footage" in kw.lower() or "operations" in kw.lower():
             script_queries.append(kw)
@@ -954,7 +968,7 @@ def _fetch_dvids_clips(keywords: list, api_key: str, n: int, seen_ids: set) -> l
                         "-i", hls_url,
                         # Alt %12'yi kes (lower-thirds / isim-rütbe barları), orijinal boyuta scale et
                         "-vf", "crop=iw:trunc(ih*0.88/2)*2:0:0,scale=iw:ih",
-                        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20",
+                        "-c:v", "libx264", "-preset", "medium", "-crf", "18",
                         "-an",               # ses yok (B-roll)
                         "-t", "30",           # max 30 saniye
                         "-loglevel", "error",
@@ -1155,7 +1169,7 @@ def _fetch_archive_clips(keywords: list, n: int, seen_ids: set) -> list:
                                 [
                                     "ffmpeg", "-y", "-i", tmp.name,
                                     "-vf", "crop=iw:trunc(ih*0.88/2)*2:0:0,scale=iw:ih",
-                                    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20",
+                                    "-c:v", "libx264", "-preset", "medium", "-crf", "18",
                                     "-an", "-loglevel", "error", cropped.name,
                                 ],
                                 timeout=120, capture_output=True,
@@ -1696,23 +1710,25 @@ def _fetch_unsplash_images(keywords: list, n: int, seen_ids: set) -> list[str]:
     return downloaded
 
 
-def _fetch_images(keywords: list) -> list[str]:
+def _fetch_images(keywords: list, seen_ids: set | None = None) -> list[str]:
     """Keyword'lere göre alakalı resimler indirir.
 
     Sadece Wikimedia Commons — keyword araması, lisanslı, metin/logo içermez.
+    seen_ids paylaşılırsa aynı resim farklı sahneler için iki kez indirilmez.
     """
-    seen_ids: set = set()
+    if seen_ids is None:
+        seen_ids = set()
     images: list[str] = []
-    target = 8
+    target = 5  # Sahne başına max 5 (3'ü kullanılacak)
 
     try:
         wiki_imgs = _fetch_wikimedia_images(keywords, target, seen_ids)
         images.extend(wiki_imgs)
-        print(f"[video_builder] Wikimedia resim: {len(wiki_imgs)}")
+        if wiki_imgs:
+            print(f"[video_builder] Wikimedia resim: {len(wiki_imgs)}")
     except Exception as e:
         print(f"[video_builder] Wikimedia resim hatası: {e}")
 
-    print(f"[video_builder] Toplam resim: {len(images)}")
     return images
 
 
@@ -1812,7 +1828,7 @@ def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> li
 
     print(f"[video_builder] Toplam: {len(video_paths)} video klip")
     _save_seen_ids(seen_ids)
-    random.shuffle(video_paths)
+    # Sıra korunur — alakalı kaynaklar (YouTube CC, DVIDS) başa gelir
     return video_paths[:n]
 
 
@@ -1980,9 +1996,8 @@ def _build_background(clip_paths: list, total_duration: float,
     """
     processed = []
     img_pool = list(image_paths) if image_paths else []
-    random.shuffle(img_pool)
+    # Klip ve resim sırası korunur — sahne bazlı alakalılık için karıştırılmaz
     clip_paths = list(clip_paths)
-    random.shuffle(clip_paths)
 
     for i, path in enumerate(clip_paths):
         kb = style.ken_burns_pool[i % len(style.ken_burns_pool)]
@@ -2081,20 +2096,56 @@ def _build_background(clip_paths: list, total_duration: float,
 # ─── Altyazı ─────────────────────────────────────────────────────────────────
 
 def _render_subtitle_image(text: str) -> np.ndarray:
+    """Modern altyazı: büyük beyaz metin + kalın siyah outline, arka plan yok."""
     text = _prepare_text(text)
-    font = _load_font_for_text(text, 46)
+    font_size = 78
+    font = _load_font_for_text(text, font_size)
+
+    # Ölçüm için dummy canvas
     dummy = Image.new("RGBA", (1, 1))
     dd = ImageDraw.Draw(dummy)
-    bbox = dd.textbbox((0, 0), text, font=font)
-    text_w = bbox[2] - bbox[0] + 40
-    text_h = bbox[3] - bbox[1] + 24
 
-    img = Image.new("RGBA", (text_w, text_h), (0, 0, 0, 0))
+    # Uzun metni satırlara böl (max 22 karakter)
+    MAX_LINE_CHARS = 22
+    words = text.split()
+    lines = []
+    current = ""
+    for word in words:
+        test = (current + " " + word).strip()
+        if len(test) > MAX_LINE_CHARS and current:
+            lines.append(current)
+            current = word
+        else:
+            current = test
+    if current:
+        lines.append(current)
+
+    # Her satır için boyut hesapla
+    line_bboxes = [dd.textbbox((0, 0), ln, font=font) for ln in lines]
+    max_w = max((b[2] - b[0]) for b in line_bboxes) if lines else 100
+    line_h = max((b[3] - b[1]) for b in line_bboxes) if lines else font_size
+    padding_x, padding_y = 28, 18
+    img_w = max_w + padding_x * 2
+    img_h = line_h * len(lines) + padding_y * 2 + (len(lines) - 1) * 8
+
+    img = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    draw.rectangle([(0, 0), (text_w, text_h)], fill=(0, 0, 0, 160))
-    for dx, dy in [(-2, -2), (2, 2), (-2, 2), (2, -2)]:
-        draw.text((20 + dx, 12 + dy), text, font=font, fill=(0, 0, 0, 255))
-    draw.text((20, 12), text, font=font, fill=(255, 255, 255, 255))
+
+    # Outline kalınlığı (3px) — DVD tarzı kutu yok, sadece outline
+    outline = 3
+    for i, line in enumerate(lines):
+        bx = line_bboxes[i]
+        lw = bx[2] - bx[0]
+        x = (img_w - lw) // 2
+        y = padding_y + i * (line_h + 8)
+        # Siyah outline (8 yön)
+        for ox, oy in [(-outline, 0), (outline, 0), (0, -outline), (0, outline),
+                       (-outline, -outline), (outline, -outline),
+                       (-outline, outline), (outline, outline)]:
+            draw.text((x + ox, y + oy), line, font=font, fill=(0, 0, 0, 255))
+        # Beyaz ana metin
+        draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))
+
     return np.array(img)
 
 
@@ -2112,7 +2163,7 @@ def _make_subtitle_clips(chunks: list, total_duration: float) -> list:
             ImageClip(img_arr, ismask=False)
             .set_duration(dur)
             .set_start(start)
-            .set_position(((TARGET_W - w) // 2, TARGET_H - h - 320))
+            .set_position(((TARGET_W - w) // 2, TARGET_H - h - 260))
         )
     return clips
 
@@ -2344,23 +2395,41 @@ def build_video(
     # Style profile (her video benzersiz görünüm)
     style = _generate_style_profile(script)
 
-    # 1) Çoklu klip indir (YouTube CC + DVIDS + Archive)
-    # Akıllı footage eşleştirme: Gemini + ülke/silah tespiti ile spesifik sorgular
+    # 1) Sahne bazlı klip indirme — her sahne kendi keywords'üyle fetch edilir
+    # Bu sayede Sahne 1 görüntüsü Sahne 1 içeriğiyle, Sahne 2 Sahne 2 ile eşleşir
+    if seen_ids is None:
+        seen_ids = _load_seen_ids()
+
     try:
-        from smart_footage_matcher import get_prioritized_keywords
-        keywords = get_prioritized_keywords(script)
-        print(f"[video_builder] Akıllı footage matcher: {len(keywords)} öncelikli sorgu")
+        from smart_footage_matcher import get_scene_based_keywords
+        scene_keywords = get_scene_based_keywords(script)  # [[s1_kws], [s2_kws], [s3_kws]]
+        print(f"[video_builder] Sahne bazlı footage matcher aktif: {len(scene_keywords)} sahne")
     except Exception as e:
-        print(f"[video_builder] Akıllı matcher kullanılamadı ({e}), fallback kullanılıyor")
-        keywords = list(script.get("search_keywords", []))
+        print(f"[video_builder] Sahne matcher başarısız ({e}), fallback kullanılıyor")
+        fallback_kws = list(script.get("search_keywords", []))
         title_words = _extract_title_keywords(script.get("title", ""))
         for tw in title_words:
-            if tw not in " ".join(keywords).lower():
-                keywords.append(tw)
-    clip_paths = _fetch_clips(keywords, n=10, seen_ids=seen_ids)
+            if tw not in " ".join(fallback_kws).lower():
+                fallback_kws.append(tw)
+        scene_keywords = [fallback_kws, fallback_kws, fallback_kws]
 
-    # 1b) Araya eklenecek resimler (5 Wikimedia + 5 Pexels)
-    image_paths = _fetch_images(keywords)
+    # Sahne başına 4 klip (toplam ~12, video süresiyle orantılı)
+    # img_seen ayrı set — resimler klip seen_ids ile karışmasın ama kendi aralarında dedup olsun
+    img_seen: set = set()
+    clip_paths = []
+    image_paths = []
+    for i, scene_kws in enumerate(scene_keywords):
+        scene_clips = _fetch_clips(scene_kws, n=4, seen_ids=seen_ids)
+        clip_paths.extend(scene_clips)
+        # Her sahne için sahneye özgü resimler (paylaşılan img_seen ile dedup)
+        scene_imgs = _fetch_images(scene_kws, seen_ids=img_seen)
+        image_paths.extend(scene_imgs[:3])
+        first_kw = scene_kws[0][:55] if scene_kws else "—"
+        print(f"[video_builder] Sahne {i+1}: {len(scene_clips)} klip, "
+              f"{min(3, len(scene_imgs))} resim — '{first_kw}'")
+
+    if not clip_paths:
+        raise RuntimeError("Hiç video klip indirilemedi.")
 
     # 2) Ses süresi
     narration_audio = AudioFileClip(audio_path)
@@ -2429,9 +2498,10 @@ def build_video(
             except Exception as e:
                 print(f"[video_builder] Harita overlay hatası: {e}")
 
-            # 2) İstatistik kartları (max 4 stat)
+            # 2) İstatistik kartları (max 4 stat) — yıl tipi atlanır (anlamsız)
             try:
-                stats = extract_statistics_with_timing(narration_text, vtt_chunks)
+                stats = [s for s in extract_statistics_with_timing(narration_text, vtt_chunks)
+                         if s.get("label") != "year"]
                 for entry in stats[:4]:
                     card_arr = create_stat_card(entry["value"], entry["label"])
                     h, w = card_arr.shape[:2]
@@ -2593,6 +2663,9 @@ def build_video(
         threads=2,
         preset="medium",
         ffmpeg_params=["-crf", "17"],
+        threads=4,
+        preset="medium",
+        ffmpeg_params=["-crf", "18", "-b:a", "192k", "-movflags", "+faststart"],
         verbose=False,
         logger=None,
     )
