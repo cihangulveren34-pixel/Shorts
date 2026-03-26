@@ -2660,12 +2660,9 @@ def build_video(
         audio_codec="aac",
         temp_audiofile=os.path.join(os.path.dirname(output_path), "temp_audio.m4a"),
         remove_temp=True,
-        threads=2,
-        preset="medium",
-        ffmpeg_params=["-crf", "17"],
         threads=4,
         preset="medium",
-        ffmpeg_params=["-crf", "18", "-b:a", "192k", "-movflags", "+faststart"],
+        ffmpeg_params=["-crf", "17", "-b:a", "192k", "-movflags", "+faststart"],
         verbose=False,
         logger=None,
     )
