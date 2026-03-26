@@ -2223,7 +2223,8 @@ def _make_hook_clip(hook_text: str, duration: float = 3.0) -> ImageClip:
         ImageClip(np.array(img))
         .set_duration(duration)
         .set_start(0)
-        .set_position(("center", TARGET_H // 2 - h // 2))
+        .set_position(("center", 80))
+        .crossfadein(0.4)
         .crossfadeout(0.5)
     )
 

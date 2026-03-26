@@ -599,14 +599,14 @@ def create_format_overlays(format_type: str, duration: float, title: str) -> lis
                 "position": ("center", 0),
             })
 
-        # Kayan haber ticker (alt) — video boyunca
+        # Ticker banner'ın hemen altında (y=200) — video boyunca
         ticker = create_news_ticker(title, duration)
         overlays.append({
             "type": "ticker",
             "data": ticker,
             "start": 0.0,
             "end": duration,
-            "position": ("center", TARGET_H - 300),
+            "position": ("center", 200),
         })
 
     elif format_type == "countdown":
