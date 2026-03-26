@@ -1,9 +1,7 @@
-name: WAR SHORTS — Arabic Daily Pipeline
+name: WAR SHORTS — Arabic Batch
 
 on:
-  schedule:
-    - cron: '0 12 * * *'   # Her gün 12:00 UTC
-  workflow_dispatch:        # Manuel tetikleme
+  workflow_dispatch:        # Sadece manuel tetikleme
 
 jobs:
   run-arabic-pipeline:
@@ -99,8 +97,8 @@ jobs:
       - name: Download Arabic font
         run: python -c "from setup_assets import download_arabic_font; download_arabic_font()"
 
-      - name: Run Arabic pipeline
-        run: python main.py
+      - name: Run Arabic pipeline (no upload)
+        run: python main.py --dry-run
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
