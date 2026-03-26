@@ -2172,7 +2172,7 @@ def _make_hook_clip(hook_text: str, duration: float = 3.0) -> ImageClip:
         ImageClip(np.array(img))
         .set_duration(duration)
         .set_start(0)
-        .set_position(("center", TARGET_H // 2 - h // 2))
+        .set_position(("center", "center"))
         .crossfadeout(0.5)
     )
 
@@ -2308,8 +2308,8 @@ def _make_watermark_clip(total_duration: float) -> ImageClip | None:
 def _build_sfx_audio(audio_duration: float) -> list:
     timings = {
         "hook":   0.1,
-        "twist":  15.0,
-        "payoff": 40.0,
+        "twist":  min(15.0, audio_duration * 0.4),
+        "payoff": max(0, audio_duration - 4.0),
         "cta":    max(0, audio_duration - 0.5),
     }
     sfx_clips = []
@@ -2364,7 +2364,7 @@ def build_video(
 
     # 2) Ses süresi
     narration_audio = AudioFileClip(audio_path)
-    MAX_SHORTS_DURATION = 59.5
+    MAX_SHORTS_DURATION = 40.0
     max_narration = MAX_SHORTS_DURATION - CTA_DURATION - 0.3
     if narration_audio.duration > max_narration:
         print(f"[video_builder] Narrasyon çok uzun ({narration_audio.duration:.1f}s), {max_narration:.1f}s'ye kırpılıyor.")
@@ -2500,9 +2500,9 @@ def build_video(
         except Exception as e:
             print(f"[video_builder] Format overlay hatası: {e}")
 
-        # 5) Kırmızı alarm flash'ları (15sn twist + 40sn payoff)
+        # 5) Kırmızı alarm flash'ları (twist + payoff)
         try:
-            flash_times = [15.0, 40.0]
+            flash_times = [min(15.0, total_duration * 0.35), max(0, total_duration - 6.0)]
             flash_dur = 0.3
             for ft in flash_times:
                 if ft + flash_dur > total_duration:
@@ -2591,7 +2591,8 @@ def build_video(
         temp_audiofile=os.path.join(os.path.dirname(output_path), "temp_audio.m4a"),
         remove_temp=True,
         threads=2,
-        preset="fast",
+        preset="medium",
+        ffmpeg_params=["-crf", "17"],
         verbose=False,
         logger=None,
     )

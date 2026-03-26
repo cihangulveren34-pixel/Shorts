@@ -29,13 +29,12 @@ HOOK FORMULA (pick the best):
 - Scary implication: "What [country] just did should terrify [other country]."
 - Hidden meaning: "Everyone's talking about [event]. Nobody's talking about what it actually means."
 
-SCRIPT STRUCTURE (50-55 seconds):
+SCRIPT STRUCTURE (35-38 seconds):
 0-3s HOOK: The event + why the viewer MUST care. Maximum urgency.
-3-12s CONTEXT: What happened, in 2-3 punchy sentences. Specific names, weapons, locations.
-12-25s WHY IT MATTERS: The regional/global implications. "Here's what nobody is telling you..."
-25-40s ESCALATION: What could happen next. Paint the scary scenario. "If this continues..."
-40-50s PREDICTION: Your bold take on what happens next. "Here's what I think is really going on..."
-50-55s CTA: "Follow for daily military intelligence briefings."
+3-10s CONTEXT: What happened, in 2-3 punchy sentences. Specific names, weapons, locations.
+10-20s WHY IT MATTERS: The regional/global implications. "Here's what nobody is telling you..."
+20-30s ESCALATION: What could happen next. Paint the scary scenario. "If this continues..."
+30-37s PREDICTION + CTA: Your bold take, then "Follow for daily military intelligence briefings."
 
 VIRALITY RULES:
 - Sound like a TOP SECRET briefing being leaked to the public
@@ -49,7 +48,7 @@ Output ONLY valid JSON:
 {
   "title": "Analysis title (max 60 chars)",
   "hook": "Breaking urgency opener (max 15 words)",
-  "narration": "Full 150-180 word analysis script",
+  "narration": "Full 80-90 word analysis script",
   "tags": ["military", "analysis", "geopolitics", "breaking", "shorts", "specific_tag1"],
   "thumbnail_text": "4 WORD SHOCK CAPS",
   "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6"],
@@ -64,7 +63,8 @@ CRITICAL:
   Each keyword MUST include: specific weapon/vehicle name + country/force name + action/context
   Think: "What would I type on YouTube to find footage of THIS specific scene?"
 - This must feel like BREAKING ANALYSIS, not a history lesson
-- narration MUST be 150-180 words, present tense, short sentences""",
+- narration MUST be 80-90 words, present tense, short sentences
+- Start narration DIRECTLY with the hook content — NO date, NO "Today is...", NO preamble""",
     },
 
     "tr": {
@@ -78,13 +78,12 @@ HOOK FORMÜLLERI (en güçlüsünü seç):
 - Korkutucu sonuç: "[Ülke]'nin yaptığı [diğer ülke]'yi korkutmalı."
 - Gizli anlam: "Herkes [olayı] konuşuyor. Kimse gerçekte ne anlama geldiğini konuşmuyor."
 
-SENARYO YAPISI (50-55 saniye):
+SENARYO YAPISI (35-38 saniye):
 0-3sn HOOK: Olay + izleyicinin NEDEN umursaması gerektiği. Maksimum aciliyet.
-3-12sn BAĞLAM: Ne oldu, 2-3 çarpıcı cümleyle. Spesifik isimler, silahlar, lokasyonlar.
-12-25sn NEDEN ÖNEMLİ: Bölgesel/küresel sonuçlar. "İşte kimsenin söylemediği..."
-25-40sn TIRMANMA: Sırada ne olabilir. Korkutucu senaryoyu çiz. "Bu devam ederse..."
-40-50sn TAHMİN: Cesur tahminin. "Bence aslında olan şu..."
-50-55sn CTA: "Günlük askeri istihbarat brifingleri için takip et."
+3-10sn BAĞLAM: Ne oldu, 2-3 çarpıcı cümleyle. Spesifik isimler, silahlar, lokasyonlar.
+10-20sn NEDEN ÖNEMLİ: Bölgesel/küresel sonuçlar. "İşte kimsenin söylemediği..."
+20-30sn TIRMANMA: Sırada ne olabilir. Korkutucu senaryoyu çiz. "Bu devam ederse..."
+30-37sn TAHMİN + CTA: Cesur tahminin ve "Günlük askeri istihbarat brifingleri için takip et."
 
 VİRALLİK KURALLARI:
 - GİZLİ bir brifing sızdırılıyormuş gibi konuş
@@ -93,7 +92,7 @@ VİRALLİK KURALLARI:
 - İzleyici içeriden bilgi alan biri gibi hissetmeli
 - Kısa çarpıcı cümleler. Geniş zaman. Gerçek brifing gibi.
 
-150-180 kelime. search_keywords İngilizce.
+80-90 kelime. Narrasyona DOĞRUDAN hook içeriğiyle başla — tarih yok, giriş yok. search_keywords İngilizce.
 {
   "title": "...", "hook": "...", "narration": "...",
   "tags": [...], "thumbnail_text": "...",
@@ -112,13 +111,12 @@ VİRALLİK KURALLARI:
 - التداعي المخيف: "ما فعلته [الدولة] يجب أن يُرعب [الدولة الأخرى]."
 - المعنى الخفي: "الجميع يتحدث عن [الحدث]. لا أحد يتحدث عمّا يعنيه حقاً."
 
-هيكل السيناريو (50-55 ثانية):
+هيكل السيناريو (35-38 ثانية):
 0-3 ث الخطاف: الحدث + لماذا يجب أن يهتم المشاهد. أقصى درجات الإلحاح.
-3-12 ث السياق: ما الذي حدث، في 2-3 جمل موجزة. أسماء محددة، أسلحة، مواقع.
-12-25 ث لماذا يهم: التداعيات الإقليمية/العالمية. "إليك ما لا يخبرك به أحد..."
-25-40 ث التصعيد: ما قد يحدث بعد ذلك. ارسم السيناريو المخيف. "إذا استمر هذا..."
-40-50 ث التنبؤ: رأيك الجريء. "إليك ما أعتقد أنه يجري فعلاً..."
-50-55 ث CTA: "تابعنا للحصول على إحاطات استخباراتية عسكرية يومية."
+3-10 ث السياق: ما الذي حدث، في 2-3 جمل موجزة. أسماء محددة، أسلحة، مواقع.
+10-20 ث لماذا يهم: التداعيات الإقليمية/العالمية. "إليك ما لا يخبرك به أحد..."
+20-30 ث التصعيد: ما قد يحدث بعد ذلك. ارسم السيناريو المخيف. "إذا استمر هذا..."
+30-37 ث التنبؤ + CTA: رأيك الجريء ثم "تابعنا للحصول على إحاطات استخباراتية عسكرية يومية."
 
 قواعد الانتشار:
 - تحدث كأن إحاطة سرية تُسرَّب للعموم
@@ -127,7 +125,7 @@ VİRALLİK KURALLARI:
 - اجعل المشاهد يشعر بأنه يتلقى معلومات سرية
 - جمل قصيرة وقوية. المضارع. كإحاطة حقيقية.
 
-150-180 كلمة عربية. search_keywords باللغة الإنجليزية.
+80-90 كلمة عربية. ابدأ السرد مباشرةً بمحتوى الخطاف — بدون تاريخ، بدون مقدمة. search_keywords باللغة الإنجليزية.
 {
   "title": "...", "hook": "...", "narration": "...",
   "tags": [...], "thumbnail_text": "...",
@@ -337,16 +335,15 @@ def generate_script(topic: str, language: str = "en", forced_format: str = None)
         else:
             avoid_note = f"\n\nIMPORTANT: The following titles were already produced. Do NOT generate a title or topic that is the same or very similar to these:\n{titles_str}"
 
-    today_str = date.today().strftime("%B %d, %Y")  # e.g. "March 18, 2026"
     user_prompts = {
         "en": {
-            "news_analysis": f"Today is {today_str}. Write a military analysis YouTube Shorts script about: {topic}. Include today's date naturally in the narration (e.g. 'As of {today_str}...' or 'Today, {today_str}...'). The title must also include the date (e.g. 'March 18 — ...'). Break down what just happened, why it matters, and what happens next. Sound like a classified intelligence briefing.{avoid_note}",
+            "news_analysis": f"Write a military analysis YouTube Shorts script about: {topic}. Start the narration IMMEDIATELY with the hook — no date, no 'Today is...', no preamble. Break down what just happened, why it matters, and what happens next. Sound like a classified intelligence briefing.{avoid_note}",
         },
         "tr": {
-            "news_analysis": f"Bugünün tarihi: {today_str}. Bu konu için askeri analiz YouTube Shorts senaryosu yaz: {topic}. Tarih narrasyona doğal şekilde dahil edilsin (örn. '{today_str} itibarıyla...'). Başlık da tarihi içermeli (örn. '18 Mart — ...'). Ne oldu, neden önemli ve sırada ne var? Gizli istihbarat brifingiymiş gibi yaz.{avoid_note}",
+            "news_analysis": f"Bu konu için askeri analiz YouTube Shorts senaryosu yaz: {topic}. Narrasyona DOĞRUDAN hook cümlesiyle başla — tarih yok, 'Bugün...' yok, giriş yok. Ne oldu, neden önemli ve sırada ne var? Gizli istihbarat brifingiymiş gibi yaz.{avoid_note}",
         },
         "ar": {
-            "news_analysis": f"اليوم هو {today_str}. اكتب سيناريو تحليل عسكري لـ YouTube Shorts عن: {topic}. أدرج تاريخ اليوم بشكل طبيعي في السرد (مثل 'اعتباراً من {today_str}...'). يجب أن يتضمن العنوان التاريخ أيضاً. حلل ما حدث ولماذا يهم وما سيأتي. اكتب كأنها إحاطة استخباراتية سرية.{avoid_note}",
+            "news_analysis": f"اكتب سيناريو تحليل عسكري لـ YouTube Shorts عن: {topic}. ابدأ السرد مباشرةً بجملة الخطاف — بدون تاريخ، بدون 'اليوم هو...'، بدون مقدمة. حلل ما حدث ولماذا يهم وما سيأتي. اكتب كأنها إحاطة استخباراتية سرية.{avoid_note}",
         },
     }
 
