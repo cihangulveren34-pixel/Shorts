@@ -581,7 +581,33 @@ def create_format_overlays(format_type: str, duration: float, title: str) -> lis
     overlays = []
 
     if format_type == "news_analysis":
-        pass  # Banner ve ticker kaldırıldı — altyazı ve hook ile çakışıyordu
+        # Kırmızı BREAKING banner (üst) — ilk 5 saniye + son 5 saniye
+        banner = create_breaking_banner(duration)
+        overlays.append({
+            "type": "banner",
+            "data": banner,
+            "start": 0.0,
+            "end": min(5.0, duration),
+            "position": ("center", 0),
+        })
+        if duration > 15:
+            overlays.append({
+                "type": "banner",
+                "data": banner,
+                "start": max(0, duration - 8.0),
+                "end": duration,
+                "position": ("center", 0),
+            })
+
+        # Ticker banner'ın hemen altında (y=200) — video boyunca
+        ticker = create_news_ticker(title, duration)
+        overlays.append({
+            "type": "ticker",
+            "data": ticker,
+            "start": 0.0,
+            "end": duration,
+            "position": ("center", 200),
+        })
 
     elif format_type == "countdown":
         # Büyük sayılar — 3, 2, 1
