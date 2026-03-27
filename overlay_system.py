@@ -27,6 +27,9 @@ MAP_PATH = "assets/maps/world_base.png"
 
 # ─── Font yardımcısı ─────────────────────────────────────────────────────────
 
+ARABIC_FONT_PATH = "assets/fonts/NotoNaskhArabic-Bold.ttf"
+
+
 def _load_font(size: int) -> ImageFont.FreeTypeFont:
     for path in [
         FONT_PATH,
@@ -39,6 +42,36 @@ def _load_font(size: int) -> ImageFont.FreeTypeFont:
             except OSError:
                 continue
     return ImageFont.load_default()
+
+
+def _is_arabic(text: str) -> bool:
+    return any(
+        "\u0600" <= ch <= "\u06FF"
+        or "\uFB50" <= ch <= "\uFDFF"
+        or "\uFE70" <= ch <= "\uFEFF"
+        for ch in text
+    )
+
+
+def _prepare_arabic_text(text: str) -> str:
+    if not _is_arabic(text):
+        return text
+    try:
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+        return get_display(arabic_reshaper.reshape(text))
+    except ImportError:
+        return text
+
+
+def _load_arabic_font(size: int) -> ImageFont.FreeTypeFont:
+    for path in [ARABIC_FONT_PATH, "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf"]:
+        if os.path.exists(path):
+            try:
+                return ImageFont.truetype(path, size)
+            except OSError:
+                continue
+    return _load_font(size)
 
 
 # ─── Ülke Veritabanı ─────────────────────────────────────────────────────────
@@ -494,13 +527,28 @@ def create_news_ticker(text: str, duration: float) -> np.ndarray:
     # Üst kırmızı çizgi
     draw.rectangle([(0, 0), (w, 4)], fill=(220, 30, 30, 255))
 
-    # Metin
-    font = _load_font(26)
-    ticker_text = f"    {text}    |    MILITARY INTELLIGENCE REPORT    |    {text}    "
-    # Metni merkeze yerleştir (statik — kayan efekt MoviePy'de yapılır)
-    bbox = draw.textbbox((0, 0), ticker_text, font=font)
-    ty = (h - (bbox[3] - bbox[1])) // 2
-    draw.text((20, ty), ticker_text, font=font, fill=(200, 200, 210, 255))
+    # Metin — Arapça ve Latin ayrı fontlarla çizilir
+    ty_base = None
+    if _is_arabic(text):
+        ar_font = _load_arabic_font(26)
+        lat_font = _load_font(24)
+        lat_text = "MILITARY INTELLIGENCE REPORT"
+        ar_display = _prepare_arabic_text(text)
+        # Latin metin solda
+        lat_bbox = draw.textbbox((0, 0), lat_text, font=lat_font)
+        ty_base = (h - (lat_bbox[3] - lat_bbox[1])) // 2
+        draw.text((20, ty_base), lat_text, font=lat_font, fill=(200, 200, 210, 255))
+        # Arapça metin sağda
+        ar_bbox = draw.textbbox((0, 0), ar_display, font=ar_font)
+        ar_x = w - (ar_bbox[2] - ar_bbox[0]) - 20
+        ar_ty = (h - (ar_bbox[3] - ar_bbox[1])) // 2
+        draw.text((ar_x, ar_ty), ar_display, font=ar_font, fill=(200, 200, 210, 255))
+    else:
+        font = _load_font(26)
+        ticker_text = f"    {text}    |    MILITARY INTELLIGENCE REPORT    |    {text}    "
+        bbox = draw.textbbox((0, 0), ticker_text, font=font)
+        ty_base = (h - (bbox[3] - bbox[1])) // 2
+        draw.text((20, ty_base), ticker_text, font=font, fill=(200, 200, 210, 255))
 
     return np.array(img)
 
