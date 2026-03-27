@@ -365,10 +365,24 @@ def _pick_music(script: dict) -> str:
 ARABIC_FONT_PATH = "assets/fonts/NotoNaskhArabic-Bold.ttf"
 
 
+def _sanitize_for_arabic_font(text: str) -> str:
+    """Arapça fontunda bulunmayan özel Unicode karakterleri temizler."""
+    replacements = {
+        "\u2018": "'", "\u2019": "'",   # curly single quotes → straight
+        "\u201C": '"', "\u201D": '"',   # curly double quotes → straight
+        "\u2013": "-", "\u2014": "-",   # en/em dash → hyphen
+        "\u2026": "...",                # ellipsis → dots
+    }
+    for src, dst in replacements.items():
+        text = text.replace(src, dst)
+    return text
+
+
 def _prepare_text(text: str) -> str:
     """Arapça metin için harf birleşimi (reshaper) ve RTL yönü (bidi) uygular."""
     if not _is_arabic(text):
         return text
+    text = _sanitize_for_arabic_font(text)
     try:
         import arabic_reshaper
         from bidi.algorithm import get_display
@@ -405,10 +419,15 @@ def _load_font(size: int) -> ImageFont.FreeTypeFont:
 def _load_font_for_text(text: str, size: int) -> ImageFont.FreeTypeFont:
     """Metne göre uygun fontu yükler: Arapça ise Noto Naskh, değilse varsayılan."""
     if _is_arabic(text):
-        for path in [
+        import glob as _glob
+        candidate_paths = [
             ARABIC_FONT_PATH,
             "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf",
-        ]:
+            "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
+        ]
+        candidate_paths += sorted(_glob.glob("/usr/share/fonts/**/*Arabic*Bold*.ttf", recursive=True))
+        candidate_paths += sorted(_glob.glob("/usr/share/fonts/**/*Arabic*.ttf", recursive=True))
+        for path in candidate_paths:
             if os.path.exists(path):
                 try:
                     return ImageFont.truetype(path, size)
@@ -2097,7 +2116,6 @@ def _build_background(clip_paths: list, total_duration: float,
 
 def _render_subtitle_image(text: str) -> np.ndarray:
     """Modern altyazı: büyük beyaz metin + kalın siyah outline, arka plan yok."""
-    text = _prepare_text(text)
     font_size = 78
     font = _load_font_for_text(text, font_size)
 
@@ -2105,20 +2123,23 @@ def _render_subtitle_image(text: str) -> np.ndarray:
     dummy = Image.new("RGBA", (1, 1))
     dd = ImageDraw.Draw(dummy)
 
-    # Uzun metni satırlara böl (max 22 karakter)
+    # Uzun metni satırlara böl (max 22 karakter) — önce böl, sonra bidi uygula
     MAX_LINE_CHARS = 22
     words = text.split()
-    lines = []
+    word_groups = []
     current = ""
     for word in words:
         test = (current + " " + word).strip()
         if len(test) > MAX_LINE_CHARS and current:
-            lines.append(current)
+            word_groups.append(current)
             current = word
         else:
             current = test
     if current:
-        lines.append(current)
+        word_groups.append(current)
+
+    # Her satırı ayrı ayrı bidi dönüştür
+    lines = [_prepare_text(g) for g in word_groups]
 
     # Her satır için boyut hesapla
     line_bboxes = [dd.textbbox((0, 0), ln, font=font) for ln in lines]
@@ -2186,23 +2207,26 @@ def _make_fallback_subtitle_clips(narration: str, audio_duration: float) -> list
 # ─── Hook overlay ────────────────────────────────────────────────────────────
 
 def _make_hook_clip(hook_text: str, duration: float = 3.0) -> ImageClip:
-    hook_text = _prepare_text(hook_text)
     font = _load_font_for_text(hook_text, 64)
     max_w = TARGET_W - 80
     words = hook_text.split()
-    lines, current = [], []
+    word_groups, current = [], []
     dummy = Image.new("RGBA", (1, 1))
     dd = ImageDraw.Draw(dummy)
 
     for word in words:
         test = " ".join(current + [word])
-        if dd.textbbox((0, 0), test, font=font)[2] > max_w and current:
-            lines.append(" ".join(current))
+        test_display = _prepare_text(test)
+        if dd.textbbox((0, 0), test_display, font=font)[2] > max_w and current:
+            word_groups.append(" ".join(current))
             current = [word]
         else:
             current.append(word)
     if current:
-        lines.append(" ".join(current))
+        word_groups.append(" ".join(current))
+
+    # Her satırı ayrı ayrı bidi dönüştür
+    lines = [_prepare_text(g) for g in word_groups]
 
     line_h = 76
     h = line_h * len(lines) + 30
