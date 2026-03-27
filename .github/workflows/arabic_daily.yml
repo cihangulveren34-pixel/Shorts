@@ -98,7 +98,7 @@ jobs:
         run: python -c "from setup_assets import download_arabic_font; download_arabic_font()"
 
       - name: Run Arabic pipeline (no upload)
-        run: python main.py --dry-run
+        run: python main.py --dry-run --topic "Iran Israel war latest breaking news"
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
