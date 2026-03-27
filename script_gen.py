@@ -64,7 +64,8 @@ CRITICAL:
   Think: "What would I type on YouTube to find footage of THIS specific scene?"
 - This must feel like BREAKING ANALYSIS, not a history lesson
 - narration MUST be 80-90 words, present tense, short sentences
-- Start narration DIRECTLY with the hook content — NO date, NO "Today is...", NO preamble""",
+- Start narration DIRECTLY with the hook content — NO date, NO "Today is...", NO preamble
+- NEVER use placeholder brackets like [Country], [Leader], [Event] — always use real specific names from the topic""",
     },
 
     "tr": {
@@ -93,6 +94,7 @@ VİRALLİK KURALLARI:
 - Kısa çarpıcı cümleler. Geniş zaman. Gerçek brifing gibi.
 
 80-90 kelime. Narrasyona DOĞRUDAN hook içeriğiyle başla — tarih yok, giriş yok. search_keywords İngilizce.
+YASAK: [Ülke], [Lider], [Olay] gibi köşeli parantez içinde yer tutucu kullanma — her zaman konudaki gerçek isimleri yaz.
 {
   "title": "...", "hook": "...", "narration": "...",
   "tags": [...], "thumbnail_text": "...",
@@ -105,11 +107,11 @@ VİRALLİK KURALLARI:
 
 أسلوبك: محلل استخباراتي هادئ لكن حاد. تشرح لماذا يهم الأمر، وليس فقط ما حدث. فكّر كأنك "محلل غرفة حرب يقدم إحاطة للرئيس."
 
-صيغ الخطاف (اختر الأقوى):
-- الاستعجال: "[الدولة] فعلت للتو ما يغير كل شيء."
-- المخاطبة المباشرة: "إذا لم تنتبه لـ[الحدث]، فعليك ذلك الآن."
-- التداعي المخيف: "ما فعلته [الدولة] يجب أن يُرعب [الدولة الأخرى]."
-- المعنى الخفي: "الجميع يتحدث عن [الحدث]. لا أحد يتحدث عمّا يعنيه حقاً."
+صيغ الخطاف (أمثلة — استبدل بالأسماء الحقيقية من الموضوع):
+- الاستعجال: "روسيا فعلت للتو ما يغير كل شيء."
+- المخاطبة المباشرة: "إذا لم تنتبه لهجوم حزب الله هذا، فعليك ذلك الآن."
+- التداعي المخيف: "ما فعلته الصين يجب أن يُرعب تايوان."
+- المعنى الخفي: "الجميع يتحدث عن وقف إطلاق النار. لا أحد يتحدث عمّا يعنيه حقاً."
 
 هيكل السيناريو (35-38 ثانية):
 0-3 ث الخطاف: الحدث + لماذا يجب أن يهتم المشاهد. أقصى درجات الإلحاح.
@@ -124,6 +126,8 @@ VİRALLİK KURALLARI:
 - أوجد الإلحاح: هذا يحدث الآن
 - اجعل المشاهد يشعر بأنه يتلقى معلومات سرية
 - جمل قصيرة وقوية. المضارع. كإحاطة حقيقية.
+
+حرام مطلق: لا تستخدم أبداً أسماء بين أقواس مثل [الدولة] أو [الحدث] أو [القائد]. استخدم دائماً الأسماء الحقيقية الواردة في الموضوع.
 
 80-90 كلمة عربية. ابدأ السرد مباشرةً بمحتوى الخطاف — بدون تاريخ، بدون مقدمة. search_keywords باللغة الإنجليزية.
 {
