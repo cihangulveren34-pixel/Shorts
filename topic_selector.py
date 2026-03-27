@@ -162,6 +162,17 @@ def pick_trending_topic(override: str = None) -> tuple[str, dict]:
 
     available, used_data = _load_available_topics()
 
+    # Keyword filtresi (örn. TOPIC_KEYWORDS=Iran,Israel)
+    topic_keywords_env = os.environ.get("TOPIC_KEYWORDS", "").strip()
+    if topic_keywords_env:
+        keywords = [k.strip().lower() for k in topic_keywords_env.split(",") if k.strip()]
+        filtered = [t for t in available if any(k in t.lower() for k in keywords)]
+        if filtered:
+            available = filtered
+            print(f"[topic_selector] Keyword filtresi aktif ({topic_keywords_env}): {len(available)} eşleşen konu")
+        else:
+            print(f"[topic_selector] ⚠️  Keyword filtresi için eşleşme yok ({topic_keywords_env}), tüm konular kullanılıyor")
+
     if len(available) == 1:
         topic = available[0]
     else:
