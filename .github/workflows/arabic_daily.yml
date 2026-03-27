@@ -163,10 +163,10 @@ jobs:
           git pull --rebase origin $(git rev-parse --abbrev-ref HEAD) || true
           git push origin HEAD || true
 
-      - name: Upload output artifacts (debug)
-        if: failure()
+      - name: Upload output artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: arabic-pipeline-output-${{ github.run_id }}
           path: output/
-          retention-days: 3
+          retention-days: 7
