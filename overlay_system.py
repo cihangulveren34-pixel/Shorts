@@ -65,7 +65,15 @@ def _prepare_arabic_text(text: str) -> str:
 
 
 def _load_arabic_font(size: int) -> ImageFont.FreeTypeFont:
-    for path in [ARABIC_FONT_PATH, "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf"]:
+    import glob as _glob
+    candidate_paths = [
+        ARABIC_FONT_PATH,
+        "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf",
+        "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
+    ]
+    candidate_paths += sorted(_glob.glob("/usr/share/fonts/**/*Arabic*Bold*.ttf", recursive=True))
+    candidate_paths += sorted(_glob.glob("/usr/share/fonts/**/*Arabic*.ttf", recursive=True))
+    for path in candidate_paths:
         if os.path.exists(path):
             try:
                 return ImageFont.truetype(path, size)

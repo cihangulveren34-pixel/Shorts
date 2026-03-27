@@ -365,10 +365,24 @@ def _pick_music(script: dict) -> str:
 ARABIC_FONT_PATH = "assets/fonts/NotoNaskhArabic-Bold.ttf"
 
 
+def _sanitize_for_arabic_font(text: str) -> str:
+    """Arapça fontunda bulunmayan özel Unicode karakterleri temizler."""
+    replacements = {
+        "\u2018": "'", "\u2019": "'",   # curly single quotes → straight
+        "\u201C": '"', "\u201D": '"',   # curly double quotes → straight
+        "\u2013": "-", "\u2014": "-",   # en/em dash → hyphen
+        "\u2026": "...",                # ellipsis → dots
+    }
+    for src, dst in replacements.items():
+        text = text.replace(src, dst)
+    return text
+
+
 def _prepare_text(text: str) -> str:
     """Arapça metin için harf birleşimi (reshaper) ve RTL yönü (bidi) uygular."""
     if not _is_arabic(text):
         return text
+    text = _sanitize_for_arabic_font(text)
     try:
         import arabic_reshaper
         from bidi.algorithm import get_display
@@ -405,10 +419,15 @@ def _load_font(size: int) -> ImageFont.FreeTypeFont:
 def _load_font_for_text(text: str, size: int) -> ImageFont.FreeTypeFont:
     """Metne göre uygun fontu yükler: Arapça ise Noto Naskh, değilse varsayılan."""
     if _is_arabic(text):
-        for path in [
+        import glob as _glob
+        candidate_paths = [
             ARABIC_FONT_PATH,
             "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf",
-        ]:
+            "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
+        ]
+        candidate_paths += sorted(_glob.glob("/usr/share/fonts/**/*Arabic*Bold*.ttf", recursive=True))
+        candidate_paths += sorted(_glob.glob("/usr/share/fonts/**/*Arabic*.ttf", recursive=True))
+        for path in candidate_paths:
             if os.path.exists(path):
                 try:
                     return ImageFont.truetype(path, size)
