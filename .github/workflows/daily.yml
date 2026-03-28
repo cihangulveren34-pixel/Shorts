@@ -2,9 +2,7 @@ name: WAR SHORTS — Daily Pipeline
 
 on:
   schedule:
-    - cron: '0  9 * * *'   # Her gün 09:00 UTC
-    - cron: '0 18 * * *'   # Her gün 18:00 UTC
-    - cron: '0  0 * * *'   # Her gün 00:00 UTC (gece yarısı)
+    - cron: '0 2 * * *'    # Her gün 02:00 UTC = 21:00 EST (ABD prime time)
   workflow_dispatch:        # Manuel tetikleme
 
 jobs:
@@ -113,6 +111,7 @@ jobs:
           INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
           TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
           LANGUAGE: ${{ vars.LANGUAGE || 'en' }}
+          TOPIC_KEYWORDS: "Israel,Gaza,Hamas,Hezbollah,IDF,West Bank,Jerusalem"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USE_QUEUE: ${{ vars.USE_QUEUE || 'false' }}
           GOOGLE_DRIVE_BACKUP: ${{ vars.GOOGLE_DRIVE_BACKUP || 'false' }}
