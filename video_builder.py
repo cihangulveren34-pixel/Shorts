@@ -386,8 +386,12 @@ def _prepare_text(text: str) -> str:
     try:
         import arabic_reshaper
         from bidi.algorithm import get_display
+        import re as _re
         reshaped = arabic_reshaper.reshape(text)
-        return get_display(reshaped)
+        display = get_display(reshaped)
+        # PIL bidi kontrol karakterlerini işleyemiyor — temizle
+        display = _re.sub(r'[\u200e\u200f\u202a-\u202e\u2066-\u2069]', '', display)
+        return display
     except ImportError:
         return text
 
