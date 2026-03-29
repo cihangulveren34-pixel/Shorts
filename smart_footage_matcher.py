@@ -32,46 +32,71 @@ GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model
 
 # Ülke → askeri terminoloji eşleşmesi
 COUNTRY_MILITARY_TERMS = {
-    "turkey": ["Turkish Armed Forces", "TSK", "Turkey military", "Bayraktar", "KAAN", "Akinci", "TAI", "Turkish defense"],
-    "russia": ["Russian military", "Russian Armed Forces", "Spetsnaz", "S-400", "Su-57", "T-90", "Wagner", "Russian Navy"],
-    "usa": ["US military", "Pentagon", "US Armed Forces", "USAF", "US Navy", "Marines", "US Army"],
-    "china": ["PLA", "Chinese military", "PLAN", "Chinese navy", "J-20", "DF-41", "Chinese defense"],
-    "iran": ["IRGC", "Iranian military", "Iranian missile", "Shahed drone", "Iran navy", "Iranian defense"],
-    "israel": ["IDF", "Israel Defense Forces", "Iron Dome", "Israeli Air Force", "Mossad", "Israeli military"],
-    "ukraine": ["Ukrainian military", "Ukrainian Armed Forces", "Ukraine frontline", "Ukrainian drone", "Ukraine war"],
-    "nato": ["NATO forces", "NATO exercise", "NATO military", "Allied forces", "NATO deployment"],
-    "north korea": ["DPRK military", "North Korean missile", "Korean People's Army", "North Korea military"],
-    "india": ["Indian military", "Indian Armed Forces", "Indian Navy", "Tejas fighter", "Indian Army"],
-    "pakistan": ["Pakistan military", "Pakistan Armed Forces", "JF-17", "Pakistan Navy"],
-    "uk": ["British military", "Royal Navy", "RAF", "British Armed Forces", "SAS"],
-    "france": ["French military", "French Armed Forces", "Rafale fighter", "French Navy", "Legion"],
-    "germany": ["Bundeswehr", "German military", "Leopard tank", "German defense"],
-    "japan": ["JSDF", "Japan Self-Defense Forces", "Japanese military", "Japanese Navy"],
-    "south korea": ["ROK military", "South Korean military", "K2 tank", "KF-21 fighter"],
+    "turkey": ["Turkish Armed Forces", "TSK", "Turkey military", "Bayraktar", "KAAN", "Akinci", "TAI", "Turkish defense", "Turkish Army", "Turkish Navy", "Turkish Air Force"],
+    "russia": ["Russian military", "Russian Armed Forces", "Spetsnaz", "S-400", "Su-57", "T-90", "Wagner", "Russian Navy", "Russian airstrike", "Russian troops", "Moscow military"],
+    "usa": ["US military", "Pentagon", "US Armed Forces", "USAF", "US Navy", "Marines", "US Army", "American troops", "US warship", "US airstrike", "US defense"],
+    "china": ["PLA", "Chinese military", "PLAN", "Chinese navy", "J-20", "DF-41", "Chinese defense", "Chinese troops", "PLA Navy", "Chinese missile", "Beijing military"],
+    "iran": ["IRGC", "Iranian military", "Iranian missile", "Shahed drone", "Iran navy", "Iranian defense", "Iranian proxy", "Iran ballistic missile", "IRGC navy"],
+    "israel": ["IDF", "Israel Defense Forces", "Iron Dome", "Israeli Air Force", "Mossad", "Israeli military", "Israeli airstrike", "IDF ground forces", "Israeli tank", "Merkava tank", "Israeli Navy", "IDF operation", "Israeli F-35", "Israeli strike", "Iron Beam"],
+    "palestine": ["Gaza Strip", "Palestinian territory", "Gaza war", "Hamas fighters", "Gaza airstrike", "Gaza bombardment", "West Bank violence", "Palestinian conflict", "Rafah operation", "Gaza ground invasion"],
+    "hamas": ["Hamas military wing", "Al-Qassam Brigades", "Hamas rocket launch", "Hamas tunnel", "Hamas attack", "Hamas fighters footage"],
+    "hezbollah": ["Hezbollah fighters", "Hezbollah missile launch", "Lebanon Hezbollah", "Hezbollah drone", "Hezbollah attack", "southern Lebanon conflict"],
+    "ukraine": ["Ukrainian military", "Ukrainian Armed Forces", "Ukraine frontline", "Ukrainian drone", "Ukraine war", "Ukrainian troops", "Kyiv defense", "Ukrainian artillery", "Ukraine battlefield"],
+    "nato": ["NATO forces", "NATO exercise", "NATO military", "Allied forces", "NATO deployment", "NATO troops", "NATO warship", "NATO air defense"],
+    "north korea": ["DPRK military", "North Korean missile", "Korean People's Army", "North Korea military", "Kim Jong Un military", "ICBM North Korea"],
+    "india": ["Indian military", "Indian Armed Forces", "Indian Navy", "Tejas fighter", "Indian Army", "Indian Air Force", "India defense"],
+    "pakistan": ["Pakistan military", "Pakistan Armed Forces", "JF-17", "Pakistan Navy", "Pakistan Army"],
+    "uk": ["British military", "Royal Navy", "RAF", "British Armed Forces", "SAS", "British troops", "UK warship"],
+    "france": ["French military", "French Armed Forces", "Rafale fighter", "French Navy", "French Foreign Legion"],
+    "germany": ["Bundeswehr", "German military", "Leopard tank", "German defense", "German troops"],
+    "japan": ["JSDF", "Japan Self-Defense Forces", "Japanese military", "Japanese Navy", "Japan defense"],
+    "south korea": ["ROK military", "South Korean military", "K2 tank", "KF-21 fighter", "Korean military"],
+    "saudi arabia": ["Saudi military", "Royal Saudi Air Force", "Saudi Arabia defense", "Saudi airstrike", "Arab coalition"],
+    "houthi": ["Houthi rebels", "Houthi drone attack", "Houthi missile launch", "Yemen Houthi", "Ansarallah fighters"],
+    "jordan": ["Jordanian military", "Jordan Armed Forces", "Jordan air force"],
+    "egypt": ["Egyptian military", "Egypt Armed Forces", "Egyptian Navy"],
+    "syria": ["Syrian military", "Syria conflict", "Syrian civil war", "Damascus military"],
+    "iraq": ["Iraqi military", "Iraq Armed Forces", "Iraqi PMF", "Iraq conflict"],
+    "lebanon": ["Lebanese military", "Lebanon conflict", "Lebanon border", "south Lebanon"],
 }
 
 # Silah sistemi → spesifik arama terimleri
 WEAPON_SEARCH_TERMS = {
-    "f-35": ["F-35 Lightning II", "F-35 takeoff", "F-35 stealth fighter operations"],
-    "f-22": ["F-22 Raptor", "F-22 air superiority", "F-22 formation flight"],
-    "su-57": ["Su-57 Felon", "Sukhoi Su-57", "Russian stealth fighter Su-57"],
-    "kaan": ["KAAN fighter jet Turkey", "TFX KAAN stealth", "Turkish KAAN 5th gen fighter"],
-    "bayraktar": ["Bayraktar TB2 drone", "Bayraktar combat footage", "Turkish Bayraktar UAV"],
-    "akinci": ["Bayraktar Akinci UCAV", "Akinci drone Turkey", "Turkish Akinci combat drone"],
-    "s-400": ["S-400 missile system", "S-400 air defense", "S-400 Triumf deployment"],
-    "patriot": ["Patriot missile system", "MIM-104 Patriot", "Patriot air defense launch"],
-    "iron dome": ["Iron Dome interception", "Iron Dome missile defense", "Israel Iron Dome"],
-    "abrams": ["M1 Abrams tank", "Abrams tank live fire", "M1A2 Abrams operations"],
-    "leopard": ["Leopard 2 tank", "Leopard tank operations", "Leopard 2A7 combat"],
-    "himars": ["HIMARS rocket system", "M142 HIMARS launch", "HIMARS Ukraine"],
-    "javelin": ["FGM-148 Javelin", "Javelin anti-tank missile", "Javelin missile firing"],
-    "hypersonic": ["hypersonic missile test", "hypersonic weapon launch", "hypersonic glide vehicle"],
-    "nuclear": ["nuclear missile launch test", "nuclear submarine", "ICBM test launch"],
-    "aircraft carrier": ["aircraft carrier operations", "carrier flight deck", "carrier strike group"],
-    "submarine": ["submarine surfacing", "submarine missile launch", "nuclear submarine operations"],
-    "drone": ["military drone operations", "combat UAV footage", "drone surveillance military"],
-    "helicopter": ["attack helicopter operations", "military helicopter combat", "helicopter gunship footage"],
-    "tank": ["tank live fire exercise", "armored warfare footage", "tank combat operations"],
+    "f-35": ["F-35 Lightning II flight", "F-35 stealth fighter takeoff", "F-35 combat operations footage", "Israeli F-35 airstrike"],
+    "f-22": ["F-22 Raptor dogfight", "F-22 air superiority maneuver", "F-22 formation flight footage"],
+    "f-16": ["F-16 Fighting Falcon combat", "F-16 airstrike footage", "F-16 fighter jet operations"],
+    "su-57": ["Su-57 Felon stealth fighter", "Sukhoi Su-57 test flight", "Russian 5th gen fighter"],
+    "su-35": ["Su-35 Flanker-E dogfight", "Su-35 combat maneuver", "Russian Su-35 operations"],
+    "kaan": ["KAAN fighter jet Turkey", "TFX KAAN stealth fighter", "Turkish 5th generation jet"],
+    "bayraktar": ["Bayraktar TB2 drone strike", "Bayraktar combat footage Ukraine", "Turkish drone warfare footage"],
+    "akinci": ["Bayraktar Akinci UCAV", "Akinci combat drone footage", "Turkish unmanned combat aircraft"],
+    "shahed": ["Shahed drone attack footage", "Iranian kamikaze drone", "Shahed-136 strike footage"],
+    "s-400": ["S-400 missile system deployment", "S-400 Triumf launch footage", "Russian air defense S-400"],
+    "s-300": ["S-300 missile launch footage", "S-300 air defense system", "anti-aircraft S-300"],
+    "patriot": ["Patriot missile intercept", "MIM-104 Patriot battery", "Patriot air defense live fire"],
+    "iron dome": ["Iron Dome intercept footage", "Israel Iron Dome missile defense", "Iron Dome rockets incoming"],
+    "iron beam": ["Iron Beam laser defense Israel", "Israeli laser weapon system", "directed energy weapon Israel"],
+    "merkava": ["Merkava tank Israel", "IDF Merkava battle tank", "Israeli tank operations Gaza"],
+    "abrams": ["M1 Abrams tank combat", "Abrams tank live fire range", "M1A2 Abrams armor operations"],
+    "leopard": ["Leopard 2 tank combat", "Leopard 2A7 operations", "German tank battle footage"],
+    "himars": ["HIMARS rocket system launch", "M142 HIMARS Ukraine footage", "precision rocket artillery HIMARS"],
+    "javelin": ["Javelin anti-tank missile firing", "FGM-148 Javelin strike", "portable anti-tank weapon"],
+    "qassam": ["Qassam rocket launch Gaza", "Hamas rocket fire Israel", "Palestinian rocket attack footage"],
+    "kornet": ["Kornet anti-tank missile", "ATGM Kornet strike footage", "missile vs tank footage"],
+    "rpg": ["RPG anti-tank rocket footage", "rocket propelled grenade combat", "RPG urban warfare footage"],
+    "hypersonic": ["hypersonic missile test launch", "hypersonic glide vehicle footage", "Mach 5 missile test"],
+    "nuclear": ["nuclear missile ICBM launch test", "nuclear submarine patrol", "nuclear warhead footage"],
+    "aircraft carrier": ["aircraft carrier flight operations", "carrier strike group underway", "carrier deck fighter launch"],
+    "warship": ["warship naval operations footage", "destroyer missile launch at sea", "frigate naval combat footage"],
+    "submarine": ["submarine surfacing footage", "submarine missile salvo launch", "nuclear submarine dive footage"],
+    "drone": ["military drone strike footage", "combat UAV surveillance footage", "loitering munition attack footage"],
+    "helicopter": ["attack helicopter gunship footage", "Apache helicopter combat", "military helicopter assault footage"],
+    "tank": ["tank battle live fire exercise", "armored column advance footage", "main battle tank combat operations"],
+    "artillery": ["howitzer artillery barrage footage", "self-propelled artillery firing", "rocket artillery salvo footage"],
+    "missile": ["ballistic missile launch footage", "cruise missile strike footage", "anti-ship missile test"],
+    "radar": ["military radar system footage", "air defense radar tracking", "early warning radar installation"],
+    "tunnel": ["Hamas tunnel Gaza footage", "military tunnel complex", "underground tunnel warfare footage"],
+    "sniper": ["military sniper footage", "special forces sniper operations", "long range precision shooting footage"],
 }
 
 
@@ -165,21 +190,30 @@ def _detect_weapons(text: str) -> list[str]:
 
 # Olay tipi → ilgili görsel arama terimleri (CC'de gerçekten bulunan içerik)
 EVENT_VISUAL_TERMS = {
-    "ceasefire":     ["ceasefire agreement signing", "peace talks military", "war zone aftermath footage"],
-    "negotiation":   ["military diplomacy footage", "peace summit leaders", "military negotiations footage"],
-    "sanction":      ["military sanctions footage", "arms embargo news", "economic warfare footage"],
-    "nuclear":       ["nuclear facility footage", "nuclear missile launch test", "nuclear submarine operations"],
-    "missile":       ["missile launch footage", "ballistic missile test", "cruise missile strike footage"],
-    "airstrike":     ["airstrike footage", "precision bombing footage", "fighter jet bombing run"],
-    "invasion":      ["military invasion footage", "troops crossing border", "armored column advance"],
-    "offensive":     ["military offensive footage", "troops advancing combat", "battlefield offensive"],
-    "blockade":      ["naval blockade footage", "warship blockade operations", "maritime blockade footage"],
-    "deployment":    ["troops deployment footage", "military deployment airfield", "soldiers boarding aircraft"],
-    "exercise":      ["joint military exercise footage", "military drill footage", "war games exercise"],
-    "summit":        ["military summit footage", "defense ministers meeting", "NATO summit footage"],
-    "attack":        ["military attack footage", "combat operation footage", "military strike footage"],
-    "retreat":       ["military retreat footage", "troops withdrawal footage", "military pullback footage"],
-    "occupation":    ["military occupation footage", "soldiers checkpoint footage", "occupied territory footage"],
+    "ceasefire":        ["ceasefire agreement signing footage", "soldiers laying down arms footage", "war zone aftermath destruction", "military withdrawal footage", "troops returning base footage"],
+    "negotiation":      ["military diplomacy meeting footage", "peace summit defense ministers", "military negotiations table footage", "diplomatic talks security footage", "hostage deal negotiation footage"],
+    "sanction":         ["economic sanctions military footage", "arms embargo enforcement footage", "sanctioned military hardware footage", "weapons transfer blocked footage"],
+    "nuclear":          ["nuclear ICBM missile launch footage", "nuclear submarine operations footage", "nuclear warhead facility footage", "nuclear test explosion footage", "nuclear site satellite imagery"],
+    "missile":          ["ballistic missile launch pad footage", "cruise missile strike building footage", "missile salvo barrage footage", "missile interception footage", "missile trajectory footage"],
+    "airstrike":        ["airstrike explosion footage", "fighter jet bombing run footage", "precision guided bomb strike", "aerial bombardment footage", "building collapse airstrike footage"],
+    "invasion":         ["military invasion troops crossing border", "armored column advance footage", "amphibious assault landing footage", "paratroopers airborne invasion", "tanks crossing border footage"],
+    "offensive":        ["military offensive troops advancing", "infantry assault footage", "combined arms attack footage", "battlefield advance footage", "armored offensive footage"],
+    "blockade":         ["naval blockade warship footage", "ships intercepted at sea footage", "maritime blockade enforcement", "coast guard intercept footage", "naval standoff footage"],
+    "deployment":       ["troops deployment airfield footage", "soldiers boarding aircraft footage", "military convoy deployment footage", "rapid deployment forces footage", "carrier strike group deployment"],
+    "exercise":         ["joint military exercise footage", "combined arms drill footage", "military war games exercise", "multinational exercise troops", "live fire exercise footage"],
+    "summit":           ["NATO summit footage", "defense ministers meeting footage", "military alliance summit footage", "security council meeting footage"],
+    "attack":           ["military attack operation footage", "combat strike footage", "surprise attack footage", "ambush military footage", "terrorist attack response footage"],
+    "retreat":          ["military retreat troops footage", "tactical withdrawal footage", "soldiers retreating footage", "military pullback convoy footage"],
+    "occupation":       ["military occupation checkpoint footage", "soldiers checkpoint city footage", "occupied territory patrol footage", "urban military occupation footage"],
+    "ground invasion":  ["ground invasion troops footage", "infantry urban warfare footage", "IDF ground operation Gaza", "urban combat footage", "soldiers entering city footage"],
+    "bombing":          ["bombing raid footage", "air bombardment explosion", "building bombed footage", "bomb damage aerial footage", "precision bombing footage"],
+    "assassination":    ["military targeted killing footage", "drone strike assassination footage", "special forces operation footage"],
+    "hostage":          ["hostage rescue operation footage", "kidnapped soldiers footage", "POW prisoner exchange footage"],
+    "humanitarian":     ["humanitarian corridor footage", "civilian evacuation war zone", "refugee camp footage", "aid trucks war zone footage", "civilian casualties war footage"],
+    "protest":          ["anti-war protest footage", "military protest rally footage", "soldiers protest footage"],
+    "border":           ["border military standoff footage", "troops border deployment footage", "border crossing military footage", "border tension soldiers footage"],
+    "urban warfare":    ["urban combat footage", "street fighting footage", "soldiers clearing building footage", "infantry city warfare footage", "house to house combat footage"],
+    "conflict":         ["military conflict footage", "frontline combat footage", "war zone footage", "active combat footage", "battlefield warfare footage"],
 }
 
 def _extract_news_entities(text: str) -> dict:
@@ -286,28 +320,31 @@ def _generate_scene_queries(scene_text: str, scene_index: int, full_context: str
         if parts:
             entity_hint = "\nKey entities: " + " | ".join(parts)
 
-    system = """You are a military video editor finding B-roll footage on YouTube.
-Given a scene from a news analysis video, generate YouTube search queries to find
+    system = """You are an expert military video editor sourcing B-roll footage on YouTube for a news analysis short.
+Given a scene from a military news video, generate highly specific YouTube search queries to find
 VISUALLY MATCHING Creative Commons or public domain footage.
 
 CRITICAL RULES:
-1. Generate queries that ACTUALLY EXIST on YouTube (real footage, not imagined)
-2. Prioritize: official military channels, news agencies, government sources
-3. For diplomatic/political events: use footage of military presence, troops, equipment in that region
-4. For specific weapons: use exact model names + "footage" or "test" or "operations"
-5. For negotiations/sanctions: show military buildup, naval presence, troops at border
-6. Add location or country to make queries specific
-7. Mix: 2 very specific queries + 2 moderately specific + 1 general fallback
+1. Queries must target footage that ACTUALLY EXISTS on YouTube — real events, real military hardware
+2. Prioritize: official military/government channels, Reuters, AP, AFP, Al Jazeera, BBC footage
+3. Use EXACT military terminology: unit names, weapon model numbers, operation names, locations
+4. For airstrikes/bombardment: include explosion, smoke, damage aftermath queries
+5. For ground operations: include infantry advance, armored column, urban combat queries
+6. For specific weapons: use exact model name + action (e.g. "Iron Dome missile intercept footage")
+7. For negotiations/diplomacy: use military buildup, naval presence, troops at border as visual proxy
+8. Include the specific country/region in EVERY query for maximum relevance
+9. Mix query types: very specific (weapon+country+action) + moderately specific (event+location) + visual fallback
 
-Reply ONLY in JSON:
-{"queries": ["query 1", "query 2", "query 3", "query 4", "query 5"]}"""
+Reply ONLY in JSON — no explanation:
+{"queries": ["query 1", "query 2", "query 3", "query 4", "query 5", "query 6", "query 7", "query 8", "query 9", "query 10"]}"""
 
     prompt = (
-        f"Scene {scene_index + 1}:\n\"{scene_text}\"\n"
-        f"Full video context: {full_context[:250]}"
+        f"Scene {scene_index + 1} text:\n\"{scene_text}\"\n\n"
+        f"Full video context: {full_context[:300]}"
         f"{entity_hint}\n\n"
-        f"Generate 5 YouTube search queries for B-roll footage matching this scene. "
-        f"Focus on footage that visually represents this event (even if indirect — e.g., troops, ships, aircraft relevant to the story)."
+        f"Generate 10 YouTube B-roll search queries for this scene. "
+        f"Be extremely specific — include country names, weapon models, location names, military unit names. "
+        f"Think about what a viewer would see on screen that best represents this scene visually."
     )
 
     raw = _call_gemini(prompt, system)
@@ -406,7 +443,7 @@ def generate_smart_queries(script: dict) -> list[FootageQuery]:
               f"olay={entities.get('event_type', '-')}, silahlar={entities.get('weapons', [])}")
 
     # 2) Narasyonu sahnelere böl
-    scenes = _split_narration_to_scenes(narration, num_scenes=3)
+    scenes = _split_narration_to_scenes(narration, num_scenes=5)
     print(f"[footage_matcher] {len(scenes)} sahne")
 
     # 3) Her sahne için çok katmanlı sorgu üretimi
@@ -459,8 +496,8 @@ def get_prioritized_keywords(script: dict) -> list[str]:
     """
     queries = generate_smart_queries(script)
 
-    # İlk 15 sorguyu keyword olarak döndür
-    keywords = [q.query for q in queries[:15]]
+    # İlk 30 sorguyu keyword olarak döndür
+    keywords = [q.query for q in queries[:30]]
 
     if not keywords:
         # Fallback: orijinal search_keywords
@@ -469,7 +506,7 @@ def get_prioritized_keywords(script: dict) -> list[str]:
     return keywords
 
 
-def get_scene_based_keywords(script: dict, min_per_scene: int = 8) -> list[list[str]]:
+def get_scene_based_keywords(script: dict, min_per_scene: int = 20) -> list[list[str]]:
     """
     Sahne bazlı keyword grupları döndürür.
     Her grup bir video klibi için kullanılır.
@@ -484,7 +521,7 @@ def get_scene_based_keywords(script: dict, min_per_scene: int = 8) -> list[list[
     queries = generate_smart_queries(script)
 
     # Sahne bazlı grupla, her sahne kendi içinde relevance'a göre sıralı
-    scene_groups: list[list[str]] = [[], [], []]
+    scene_groups: list[list[str]] = [[], [], [], [], []]
     for q in sorted(queries, key=lambda x: x.relevance, reverse=True):
         idx = min(q.scene_index, 2)
         scene_groups[idx].append(q.query)
