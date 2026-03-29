@@ -119,6 +119,26 @@ RSS_FEEDS = [
         "keywords": ["israel", "iran", "strike", "missile", "hezbollah", "hamas", "iron dome"],
     },
     {
+        "name": "Google News — Iran vs USA",
+        "url": "https://news.google.com/rss/search?q=Iran+United+States+military+confrontation+nuclear+sanctions&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["iran", "united states", "us", "nuclear deal", "sanctions", "irgc", "hormuz", "confrontation", "american", "pentagon iran"],
+    },
+    {
+        "name": "Google News — Iran vs Israel",
+        "url": "https://news.google.com/rss/search?q=Iran+Israel+war+attack+retaliation+missile+drone&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["iran", "israel", "retaliation", "attack", "missile", "drone", "idf", "mossad", "nuclear", "shadow war", "proxy"],
+    },
+    {
+        "name": "Google News — Iran Nuclear Program",
+        "url": "https://news.google.com/rss/search?q=Iran+nuclear+program+enrichment+IAEA+weapon&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["iran", "nuclear", "enrichment", "iaea", "uranium", "bomb", "weapon grade", "natanz", "fordow"],
+    },
+    {
+        "name": "Google News — Iran IRGC Proxy",
+        "url": "https://news.google.com/rss/search?q=IRGC+Iran+proxy+Hezbollah+Houthi+Hamas+attack&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["irgc", "iran", "proxy", "hezbollah", "houthi", "hamas", "axis of resistance", "revolutionary guard"],
+    },
+    {
         "name": "Google News — NATO Defense",
         "url": "https://news.google.com/rss/search?q=NATO+defense+military+spending+weapon&hl=en-US&gl=US&ceid=US:en",
         "keywords": ["nato", "defense", "military", "alliance", "spending"],
