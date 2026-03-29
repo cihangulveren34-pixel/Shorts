@@ -35,8 +35,8 @@ except ImportError:
 
 TIMEOUT = 15
 MONITOR_STATE_PATH = "rss_state.json"
-# Kaç saatlik haberler işlensin (varsayılan: son 8 saat — son dakika odaklı)
-NEWS_MAX_AGE_HOURS = int(os.environ.get("NEWS_MAX_AGE_HOURS", "8"))
+# Kaç saatlik haberler işlensin (varsayılan: son 48 saat — günlük pipeline uyumlu)
+NEWS_MAX_AGE_HOURS = int(os.environ.get("NEWS_MAX_AGE_HOURS", "48"))
 
 _YEAR = str(datetime.now().year)
 

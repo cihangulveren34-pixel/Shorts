@@ -171,7 +171,25 @@ def pick_trending_topic(override: str = None) -> tuple[str, dict]:
             available = filtered
             print(f"[topic_selector] Keyword filtresi aktif ({topic_keywords_env}): {len(available)} eşleşen konu")
         else:
-            print(f"[topic_selector] ⚠️  Keyword filtresi için eşleşme yok ({topic_keywords_env}), tüm konular kullanılıyor")
+            # [NEWS] konularda eşleşme yok — RSS'yi daha geniş zaman aralığıyla yenile ve tekrar dene
+            print(f"[topic_selector] ⚠️  Keyword filtresi için eşleşme yok ({topic_keywords_env}), RSS yenileniyor...")
+            try:
+                import os as _os
+                _os.environ["NEWS_MAX_AGE_HOURS"] = "96"  # 4 günlük pencereyle yeniden dene
+                from rss_monitor import monitor_and_update
+                monitor_and_update(max_topics=10)
+            except Exception as e:
+                print(f"[topic_selector] RSS yenileme hatası: {e}")
+            available2, _ = _load_available_topics()
+            filtered2 = [t for t in available2 if any(k in t.lower() for k in keywords)]
+            if filtered2:
+                available = filtered2
+                print(f"[topic_selector] RSS yenileme sonrası {len(available)} eşleşen konu bulundu")
+            else:
+                raise RuntimeError(
+                    f"TOPIC_KEYWORDS={topic_keywords_env!r} için hiç konu bulunamadı. "
+                    f"RSS feed'lerinde eşleşen haber yok."
+                )
 
     if len(available) == 1:
         topic = available[0]
