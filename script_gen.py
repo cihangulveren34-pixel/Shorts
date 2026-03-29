@@ -342,13 +342,34 @@ def generate_script(topic: str, language: str = "en", forced_format: str = None)
 
     user_prompts = {
         "en": {
-            "news_analysis": f"Write a military analysis YouTube Shorts script about: {topic}. Start the narration IMMEDIATELY with the hook — no date, no 'Today is...', no preamble. Break down what just happened, why it matters, and what happens next. Sound like a classified intelligence briefing.{avoid_note}",
+            "news_analysis": f"""Write a military analysis YouTube Shorts script about: {topic}.
+
+RETENTION RULES (follow exactly):
+1. Start the narration IMMEDIATELY with the hook — no date, no 'Today is...', no preamble.
+2. Around the midpoint, add a curiosity loop: "But here's what nobody is talking about..." or "And this changes everything..." to keep viewers watching.
+3. End the narration with a forward-tension closer like "Stay tuned — what comes next will surprise you." or "The next 72 hours will determine everything."
+4. Sound like a classified intelligence briefing throughout.
+{avoid_note}""",
         },
         "tr": {
-            "news_analysis": f"Bu konu için askeri analiz YouTube Shorts senaryosu yaz: {topic}. Narrasyona DOĞRUDAN hook cümlesiyle başla — tarih yok, 'Bugün...' yok, giriş yok. Ne oldu, neden önemli ve sırada ne var? Gizli istihbarat brifingiymiş gibi yaz.{avoid_note}",
+            "news_analysis": f"""Bu konu için askeri analiz YouTube Shorts senaryosu yaz: {topic}.
+
+RETENTION KURALLARI (tam olarak uygula):
+1. Narrasyona DOĞRUDAN hook cümlesiyle başla — tarih yok, 'Bugün...' yok, giriş yok.
+2. Ortada merak döngüsü kur: "Ama kimsenin konuşmadığı şey şu..." veya "Ve bu her şeyi değiştiriyor..." gibi bir cümleyle izleyiciyi ekranda tut.
+3. Narrasyonu ileriye dönük gerilimle bitir: "Sonraki 72 saat her şeyi belirleyecek." veya "Sırada ne olduğunu tahmin edemezsiniz."
+4. Tüm metin gizli istihbarat brifingiymiş gibi olsun.
+{avoid_note}""",
         },
         "ar": {
-            "news_analysis": f"اكتب سيناريو تحليل عسكري لـ YouTube Shorts عن: {topic}. ابدأ السرد مباشرةً بجملة الخطاف — بدون تاريخ، بدون 'اليوم هو...'، بدون مقدمة. حلل ما حدث ولماذا يهم وما سيأتي. اكتب كأنها إحاطة استخباراتية سرية.{avoid_note}",
+            "news_analysis": f"""اكتب سيناريو تحليل عسكري لـ YouTube Shorts عن: {topic}.
+
+قواعد الاستبقاء (طبّقها بدقة):
+1. ابدأ السرد مباشرةً بجملة الخطاف — بدون تاريخ، بدون مقدمة.
+2. في المنتصف، أضف حلقة فضول: "لكن ما لا يتحدث عنه أحد هو..." أو "وهذا يغيّر كل شيء..." لإبقاء المشاهد أمام الشاشة.
+3. اختم السرد بتوتر مستقبلي: "الـ72 ساعة القادمة ستحدد كل شيء." أو "ما سيحدث بعد ذلك سيفاجئكم."
+4. اكتب كأنها إحاطة استخباراتية سرية طوال الوقت.
+{avoid_note}""",
         },
     }
 

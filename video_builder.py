@@ -239,7 +239,7 @@ KB_EFFECTS = ["zoom_in", "zoom_out", "pan_right", "pan_left", "pan_down", "diago
 TRANSITION_TYPES = ["crossfade", "fade_black", "hard_cut", "slide"]
 
 # Klip ve resim süreleri
-VIDEO_CLIP_DURATION = 4.0   # Her video klip süresi (saniye)
+VIDEO_CLIP_DURATION = 2.5   # Her video klip süresi (saniye)
 IMAGE_CLIP_DURATION = 2.0   # Araya eklenen resim süresi (saniye)
 
 
@@ -2115,62 +2115,41 @@ def _build_background(clip_paths: list, total_duration: float,
 # ─── Altyazı ─────────────────────────────────────────────────────────────────
 
 def _render_subtitle_image(text: str) -> np.ndarray:
-    """Modern altyazı: büyük beyaz metin + kalın siyah outline, arka plan yok."""
-    font_size = 78
-    font = _load_font_for_text(text, font_size)
+    """Tek satır altyazı: beyaz metin + siyah outline, gradient arka plan."""
+    MAX_W = TARGET_W - 80
 
-    # Ölçüm için dummy canvas
-    dummy = Image.new("RGBA", (1, 1))
-    dd = ImageDraw.Draw(dummy)
+    # Font boyutunu metne göre otomatik küçült (tek satıra sığdır)
+    for font_size in [68, 58, 50, 42]:
+        font = _load_font_for_text(text, font_size)
+        display = _prepare_text(text)
+        dummy = Image.new("RGBA", (1, 1))
+        dd = ImageDraw.Draw(dummy)
+        bbox = dd.textbbox((0, 0), display, font=font)
+        text_w = bbox[2] - bbox[0]
+        if text_w <= MAX_W:
+            break
 
-    # Uzun metni satırlara böl (max 22 karakter) — önce böl, sonra bidi uygula
-    MAX_LINE_CHARS = 22
-    words = text.split()
-    word_groups = []
-    current = ""
-    for word in words:
-        test = (current + " " + word).strip()
-        if len(test) > MAX_LINE_CHARS and current:
-            word_groups.append(current)
-            current = word
-        else:
-            current = test
-    if current:
-        word_groups.append(current)
-
-    # Her satırı ayrı ayrı bidi dönüştür
-    lines = [_prepare_text(g) for g in word_groups]
-
-    # Her satır için boyut hesapla
-    line_bboxes = [dd.textbbox((0, 0), ln, font=font) for ln in lines]
-    max_w = max((b[2] - b[0]) for b in line_bboxes) if lines else 100
-    line_h = max((b[3] - b[1]) for b in line_bboxes) if lines else font_size
-    padding_x, padding_y = 28, 18
-    img_w = max_w + padding_x * 2
-    img_h = line_h * len(lines) + padding_y * 2 + (len(lines) - 1) * 8
+    padding_x, padding_y = 28, 16
+    line_h = bbox[3] - bbox[1]
+    img_w = min(text_w + padding_x * 2, TARGET_W)
+    img_h = line_h + padding_y * 2
 
     img = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # CNN/BBC stili — yarı saydam koyu gradient arka plan çubuğu
+    # Gradient arka plan çubuğu
     for row in range(img_h):
         bar_alpha = int(170 - (row / max(img_h, 1)) * 70)
         draw.line([(0, row), (img_w, row)], fill=(5, 5, 15, bar_alpha))
 
-    # Outline kalınlığı (3px)
+    x = (img_w - text_w) // 2
+    y = padding_y
     outline = 3
-    for i, line in enumerate(lines):
-        bx = line_bboxes[i]
-        lw = bx[2] - bx[0]
-        x = (img_w - lw) // 2
-        y = padding_y + i * (line_h + 8)
-        # Siyah outline (8 yön)
-        for ox, oy in [(-outline, 0), (outline, 0), (0, -outline), (0, outline),
-                       (-outline, -outline), (outline, -outline),
-                       (-outline, outline), (outline, outline)]:
-            draw.text((x + ox, y + oy), line, font=font, fill=(0, 0, 0, 255))
-        # Beyaz ana metin
-        draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))
+    for ox, oy in [(-outline, 0), (outline, 0), (0, -outline), (0, outline),
+                   (-outline, -outline), (outline, -outline),
+                   (-outline, outline), (outline, outline)]:
+        draw.text((x + ox, y + oy), display, font=font, fill=(0, 0, 0, 255))
+    draw.text((x, y), display, font=font, fill=(255, 255, 255, 255))
 
     return np.array(img)
 
@@ -2189,7 +2168,7 @@ def _make_subtitle_clips(chunks: list, total_duration: float) -> list:
             ImageClip(img_arr, ismask=False)
             .set_duration(dur)
             .set_start(start)
-            .set_position(((TARGET_W - w) // 2, TARGET_H - h - 260))
+            .set_position(((TARGET_W - w) // 2, int(TARGET_H * 0.62)))
         )
     return clips
 
@@ -2465,18 +2444,12 @@ def build_video(
 
     # Sahne başına 4 klip (toplam ~12, video süresiyle orantılı)
     # img_seen ayrı set — resimler klip seen_ids ile karışmasın ama kendi aralarında dedup olsun
-    img_seen: set = set()
     clip_paths = []
-    image_paths = []
     for i, scene_kws in enumerate(scene_keywords):
         scene_clips = _fetch_clips(scene_kws, n=4, seen_ids=seen_ids)
         clip_paths.extend(scene_clips)
-        # Her sahne için sahneye özgü resimler (paylaşılan img_seen ile dedup)
-        scene_imgs = _fetch_images(scene_kws, seen_ids=img_seen)
-        image_paths.extend(scene_imgs[:3])
         first_kw = scene_kws[0][:55] if scene_kws else "—"
-        print(f"[video_builder] Sahne {i+1}: {len(scene_clips)} klip, "
-              f"{min(3, len(scene_imgs))} resim — '{first_kw}'")
+        print(f"[video_builder] Sahne {i+1}: {len(scene_clips)} klip — '{first_kw}'")
 
     if not clip_paths:
         raise RuntimeError("Hiç video klip indirilemedi.")
@@ -2491,7 +2464,7 @@ def build_video(
     total_duration = narration_audio.duration + CTA_DURATION + 0.3
 
     # 3) Arka plan: çoklu klip + araya resimler + efektler + geçişler
-    bg = _build_background(clip_paths, total_duration, style, image_paths=image_paths)
+    bg = _build_background(clip_paths, total_duration, style, image_paths=[])
 
     # 4) Overlay katmanları
     layers = [bg]
@@ -2622,7 +2595,12 @@ def build_video(
 
         # 5) Kırmızı alarm flash'ları (twist + payoff)
         try:
-            flash_times = [min(15.0, total_duration * 0.35), max(0, total_duration - 6.0)]
+            flash_times = [
+                total_duration * 0.20,
+                total_duration * 0.45,
+                total_duration * 0.70,
+                max(0, total_duration - 5.0),
+            ]
             flash_dur = 0.3
             for ft in flash_times:
                 if ft + flash_dur > total_duration:
