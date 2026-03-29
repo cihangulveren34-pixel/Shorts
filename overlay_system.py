@@ -59,7 +59,11 @@ def _prepare_arabic_text(text: str) -> str:
     try:
         import arabic_reshaper
         from bidi.algorithm import get_display
-        return get_display(arabic_reshaper.reshape(text))
+        import re as _re
+        display = get_display(arabic_reshaper.reshape(text))
+        # PIL bidi kontrol karakterlerini işleyemiyor — temizle
+        display = _re.sub(r'[\u200e\u200f\u202a-\u202e\u2066-\u2069]', '', display)
+        return display
     except ImportError:
         return text
 
@@ -511,14 +515,16 @@ def create_breaking_banner(duration: float, title: str = "") -> np.ndarray:
 
     # Script başlığı (altın rengi, ikinci satır)
     if title:
-        font_title = _load_font(26)
+        is_ar = _is_arabic(title)
+        font_title = _load_arabic_font(26) if is_ar else _load_font(26)
         title_short = (title[:55] + "…") if len(title) > 58 else title
-        t2_bbox = draw.textbbox((0, 0), title_short, font=font_title)
+        title_display = _prepare_arabic_text(title_short) if is_ar else title_short
+        t2_bbox = draw.textbbox((0, 0), title_display, font=font_title)
         t2w = t2_bbox[2] - t2_bbox[0]
         t2x = (w - t2w) // 2
         t2y = ty + (bbox[3] - bbox[1]) + 8
-        draw.text((t2x + 1, t2y + 1), title_short, font=font_title, fill=(0, 0, 0, 160))
-        draw.text((t2x, t2y), title_short, font=font_title, fill=(255, 220, 0, 240))
+        draw.text((t2x + 1, t2y + 1), title_display, font=font_title, fill=(0, 0, 0, 160))
+        draw.text((t2x, t2y), title_display, font=font_title, fill=(255, 220, 0, 240))
 
     # Alt altın çizgi
     draw.rectangle([(40, h - 8), (w - 40, h - 4)], fill=(255, 220, 0, 200))
@@ -599,9 +605,14 @@ def create_lower_third(title: str, label: str = "MILITARY ANALYSIS") -> np.ndarr
     draw.text((18, 14), label.upper(), font=font_label, fill=(200, 50, 50, 230))
 
     # Script başlığı (beyaz, büyük, alt)
-    font_title = _load_font(32)
+    is_ar = _is_arabic(title)
+    font_title = _load_arabic_font(32) if is_ar else _load_font(32)
     title_short = (title[:52] + "…") if len(title) > 55 else title
-    draw.text((18, 52), title_short, font=font_title, fill=(255, 255, 255, 240))
+    title_display = _prepare_arabic_text(title_short) if is_ar else title_short
+    t_bbox = draw.textbbox((0, 0), title_display, font=font_title)
+    # Arapça: sağdan hizala; Latin: soldan hizala
+    tx = w - 18 - (t_bbox[2] - t_bbox[0]) if is_ar else 18
+    draw.text((tx, 52), title_display, font=font_title, fill=(255, 255, 255, 240))
 
     # Alt ince kırmızı çizgi
     draw.rectangle([(0, h - 3), (w, h)], fill=(220, 30, 30, 180))
