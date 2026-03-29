@@ -194,26 +194,25 @@ def pick_trending_topic(override: str = None) -> tuple[str, dict]:
     if len(available) == 1:
         topic = available[0]
     else:
-        # [NEWS] konuları varsa Trends'e gitmeden direkt seç — son dakika önceliği
-        news_topics = [t for t in available if t.startswith("[NEWS] ")]
-        if news_topics:
-            topic = random.choice(news_topics[:3])
-            print(f"[topic_selector] Son dakika haberi seçildi: '{topic}'")
-        else:
-            print(f"[topic_selector] {len(available)} konu mevcut, Trends sorgulanıyor...")
-            scores = _score_with_trends(available)
+        print(f"[topic_selector] {len(available)} konu mevcut, Trends sorgulanıyor...")
+        scores = _score_with_trends(available)
 
-            if scores:
-                # Top-5 trending'den rastgele seç (çeşitlilik için)
-                sorted_topics = sorted(scores, key=scores.get, reverse=True)
-                top_n = sorted_topics[:min(5, len(sorted_topics))]
-                topic = random.choice(top_n)
-                top_score = scores[topic]
-                print(f"[topic_selector] Top-5'ten rastgele seçildi: '{topic}' (skor: {top_score:.1f})")
+        if scores:
+            # Top-5 trending'den rastgele seç (çeşitlilik için)
+            sorted_topics = sorted(scores, key=scores.get, reverse=True)
+            top_n = sorted_topics[:min(5, len(sorted_topics))]
+            topic = random.choice(top_n)
+            top_score = scores[topic]
+            print(f"[topic_selector] Top-5'ten seçildi: '{topic}' (skor: {top_score:.1f})")
+        else:
+            # Trends kullanılamadı — [NEWS] konular öncelikli, sonra static
+            news_topics = [t for t in available if t.startswith("[NEWS] ")]
+            if news_topics:
+                topic = random.choice(news_topics[:5])
+                print(f"[topic_selector] Trends yok, son dakika haberi seçildi: '{topic}'")
             else:
-                # Fallback: rastgele konu seç
                 topic = random.choice(available)
-                print(f"[topic_selector] Trends kullanılamadı, rastgele: '{topic}'")
+                print(f"[topic_selector] Trends yok, rastgele: '{topic}'")
 
     used_data.setdefault("used", []).append(topic)
     used_data["last_run"] = str(date.today())
