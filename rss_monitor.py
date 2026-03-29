@@ -35,8 +35,8 @@ except ImportError:
 
 TIMEOUT = 15
 MONITOR_STATE_PATH = "rss_state.json"
-# Kaç saatlik haberler işlensin (varsayılan: son 8 saat — son dakika odaklı)
-NEWS_MAX_AGE_HOURS = int(os.environ.get("NEWS_MAX_AGE_HOURS", "8"))
+# Kaç saatlik haberler işlensin (varsayılan: son 48 saat — günlük pipeline uyumlu)
+NEWS_MAX_AGE_HOURS = int(os.environ.get("NEWS_MAX_AGE_HOURS", "48"))
 
 _YEAR = str(datetime.now().year)
 
@@ -117,6 +117,26 @@ RSS_FEEDS = [
         "name": "Google News — Israel Middle East",
         "url": "https://news.google.com/rss/search?q=Israel+Iran+military+strike+missile+defense&hl=en-US&gl=US&ceid=US:en",
         "keywords": ["israel", "iran", "strike", "missile", "hezbollah", "hamas", "iron dome"],
+    },
+    {
+        "name": "Google News — Iran vs USA",
+        "url": "https://news.google.com/rss/search?q=Iran+United+States+military+confrontation+nuclear+sanctions&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["iran", "united states", "us", "nuclear deal", "sanctions", "irgc", "hormuz", "confrontation", "american", "pentagon iran"],
+    },
+    {
+        "name": "Google News — Iran vs Israel",
+        "url": "https://news.google.com/rss/search?q=Iran+Israel+war+attack+retaliation+missile+drone&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["iran", "israel", "retaliation", "attack", "missile", "drone", "idf", "mossad", "nuclear", "shadow war", "proxy"],
+    },
+    {
+        "name": "Google News — Iran Nuclear Program",
+        "url": "https://news.google.com/rss/search?q=Iran+nuclear+program+enrichment+IAEA+weapon&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["iran", "nuclear", "enrichment", "iaea", "uranium", "bomb", "weapon grade", "natanz", "fordow"],
+    },
+    {
+        "name": "Google News — Iran IRGC Proxy",
+        "url": "https://news.google.com/rss/search?q=IRGC+Iran+proxy+Hezbollah+Houthi+Hamas+attack&hl=en-US&gl=US&ceid=US:en",
+        "keywords": ["irgc", "iran", "proxy", "hezbollah", "houthi", "hamas", "axis of resistance", "revolutionary guard"],
     },
     {
         "name": "Google News — NATO Defense",
