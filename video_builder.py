@@ -2152,7 +2152,12 @@ def _render_subtitle_image(text: str) -> np.ndarray:
     img = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Outline kalınlığı (3px) — DVD tarzı kutu yok, sadece outline
+    # CNN/BBC stili — yarı saydam koyu gradient arka plan çubuğu
+    for row in range(img_h):
+        bar_alpha = int(170 - (row / max(img_h, 1)) * 70)
+        draw.line([(0, row), (img_w, row)], fill=(5, 5, 15, bar_alpha))
+
+    # Outline kalınlığı (3px)
     outline = 3
     for i, line in enumerate(lines):
         bx = line_bboxes[i]
@@ -2230,9 +2235,23 @@ def _make_hook_clip(hook_text: str, duration: float = 3.0) -> ImageClip:
 
     line_h = 76
     h = line_h * len(lines) + 30
-    img = Image.new("RGBA", (TARGET_W, h + 20), (0, 0, 0, 0))
+    total_h = h + 20
+    img = Image.new("RGBA", (TARGET_W, total_h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    draw.rectangle([(0, 0), (TARGET_W, h + 20)], fill=(0, 0, 0, 180))
+
+    # Sinematik gradient arka plan: kenarlardan soluklaşır, ortada yoğun
+    for row in range(total_h):
+        progress = row / total_h
+        if progress < 0.12:
+            alpha = int(progress / 0.12 * 165)
+        elif progress > 0.82:
+            alpha = int((1.0 - progress) / 0.18 * 165)
+        else:
+            alpha = 165
+        draw.line([(0, row), (TARGET_W, row)], fill=(0, 0, 0, alpha))
+
+    # Sol kırmızı aksan çizgisi
+    draw.rectangle([(0, 0), (6, total_h)], fill=(220, 30, 30, 230))
 
     for i, line in enumerate(lines):
         bbox = draw.textbbox((0, 0), line, font=font)
@@ -2338,10 +2357,17 @@ def _make_cta_clip(total_duration: float, duration: float = CTA_DURATION, langua
 
 def _make_progress_bar(total_duration: float, bar_h: int = 8) -> VideoClip:
     def make_frame(t):
-        w = int(TARGET_W * min(t / total_duration, 1.0))
+        w_filled = int(TARGET_W * min(t / total_duration, 1.0))
         frame = np.zeros((bar_h, TARGET_W, 3), dtype=np.uint8)
-        if w > 0:
-            frame[:, :w] = [200, 30, 30]
+        for x in range(w_filled):
+            ratio = x / max(w_filled, 1)
+            r = int(120 + ratio * 80)   # koyu kırmızı → parlak kırmızı
+            g = int(10 + ratio * 20)
+            b = int(10 + ratio * 10)
+            frame[:, x] = [r, g, b]
+        # Uç parlaklığı (beyaz glow)
+        if w_filled > 3:
+            frame[:, w_filled - 3:w_filled] = [255, 200, 200]
         return frame
 
     return (
@@ -2639,7 +2665,7 @@ def build_video(
     audio_tracks = [narration_audio]
     music_path = _pick_music(script)
     if music_path and os.path.exists(music_path):
-        music = AudioFileClip(music_path).volumex(0.135)
+        music = AudioFileClip(music_path).volumex(0.135).audio_fadein(0.8)
         if music.duration < total_duration:
             from moviepy.audio.fx.audio_loop import audio_loop
             music = audio_loop(music, nloops=int(total_duration / music.duration) + 1)
@@ -2685,8 +2711,9 @@ def build_video(
         temp_audiofile=os.path.join(os.path.dirname(output_path), "temp_audio.m4a"),
         remove_temp=True,
         threads=4,
-        preset="medium",
-        ffmpeg_params=["-crf", "17", "-b:a", "192k", "-movflags", "+faststart"],
+        preset="slow",
+        ffmpeg_params=["-crf", "17", "-b:a", "192k", "-movflags", "+faststart",
+                       "-profile:v", "high", "-level", "4.1", "-pix_fmt", "yuv420p"],
         verbose=False,
         logger=None,
     )

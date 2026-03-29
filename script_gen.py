@@ -51,17 +51,18 @@ Output ONLY valid JSON:
   "narration": "Full 80-90 word analysis script",
   "tags": ["military", "analysis", "geopolitics", "breaking", "shorts", "specific_tag1"],
   "thumbnail_text": "4 WORD SHOCK CAPS",
-  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6"],
+  "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6", "specific visual 7", "specific visual 8", "specific visual 9", "specific visual 10"],
   "mood": "dark|epic|mysterious|inspiring",
   "format": "news_analysis"
 }
 
 CRITICAL:
-- search_keywords must have 6 items that are REAL YOUTUBE SEARCH QUERIES to find matching footage
-  GOOD: "KAAN TFX stealth fighter Turkey test flight", "Bayraktar TB2 drone strike combat footage"
-  BAD:  "military", "fighter jet", "stealth" (too generic!)
-  Each keyword MUST include: specific weapon/vehicle name + country/force name + action/context
+- search_keywords must have 10 items that are REAL YOUTUBE SEARCH QUERIES to find matching footage
+  GOOD: "IDF Merkava tank Gaza ground operation footage", "Iron Dome intercept Hamas rocket footage", "Israeli airstrike Gaza building collapse"
+  BAD:  "military", "war footage", "explosion" (too generic!)
+  Each keyword MUST include: specific weapon/unit/location name + country/force name + action
   Think: "What would I type on YouTube to find footage of THIS specific scene?"
+  Cover different visual angles: aerial footage, ground troops, weapon systems, aftermath, command center
 - This must feel like BREAKING ANALYSIS, not a history lesson
 - narration MUST be 80-90 words, present tense, short sentences
 - Start narration DIRECTLY with the hook content — NO date, NO "Today is...", NO preamble
