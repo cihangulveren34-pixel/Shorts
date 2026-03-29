@@ -165,17 +165,35 @@ def _split_narration_to_scenes(narration: str, num_scenes: int = 3) -> list[str]
 
 # ─── Ülke/Silah Tespiti ──────────────────────────────────────────────────────
 
+# Arapça/Türkçe ülke adları → İngilizce key eşlemesi
+ARABIC_COUNTRY_ALIASES = {
+    "إيران": "iran", "إيراني": "iran", "الحرس الثوري": "iran", "الإيراني": "iran",
+    "إسرائيل": "israel", "إسرائيلي": "israel", "الجيش الإسرائيلي": "israel",
+    "أمريكا": "usa", "الولايات المتحدة": "usa", "أمريكي": "usa", "البنتاغون": "usa",
+    "روسيا": "russia", "روسي": "russia", "الكرملين": "russia",
+    "الصين": "china", "صيني": "china", "الجيش الصيني": "china",
+    "حزب الله": "hezbollah", "حماس": "hamas", "الحوثيون": "houthi", "الحوثي": "houthi",
+    "غزة": "palestine", "الضفة الغربية": "palestine", "فلسطين": "palestine",
+    "الإمارات": "uae", "السعودية": "saudi arabia", "تركيا": "turkey", "تركي": "turkey",
+    "لبنان": "lebanon", "سوريا": "syria", "العراق": "iraq", "اليمن": "houthi",
+    "أوكرانيا": "ukraine", "كوريا الشمالية": "north korea",
+}
+
 def _detect_countries(text: str) -> list[str]:
-    """Metinden bahsedilen ülkeleri tespit eder."""
+    """Metinden bahsedilen ülkeleri tespit eder (İngilizce + Arapça)."""
     text_lower = text.lower()
-    found = []
+    found = set()
+    # İngilizce eşleşme
     for country in COUNTRY_MILITARY_TERMS:
-        # Ülke adı veya askeri terimleri metinde geçiyor mu?
         if country in text_lower:
-            found.append(country)
+            found.add(country)
         elif any(term.lower() in text_lower for term in COUNTRY_MILITARY_TERMS[country][:2]):
-            found.append(country)
-    return found
+            found.add(country)
+    # Arapça alias eşleşme
+    for ar_name, en_key in ARABIC_COUNTRY_ALIASES.items():
+        if ar_name in text and en_key in COUNTRY_MILITARY_TERMS:
+            found.add(en_key)
+    return list(found)
 
 
 def _detect_weapons(text: str) -> list[str]:
@@ -229,12 +247,12 @@ def _extract_news_entities(text: str) -> dict:
 
     prompt = (
         f'Extract key entities from this military news text for YouTube footage search:\n"{text[:400]}"\n\n'
-        'Return JSON with these fields (strings, empty if not found):\n'
+        'Return JSON with these fields — ALL VALUES MUST BE IN ENGLISH regardless of input language:\n'
         '{"countries": ["country1", "country2"], '
         '"event_type": "one of: ceasefire/negotiation/sanction/nuclear/missile/airstrike/invasion/offensive/blockade/deployment/exercise/summit/attack/retreat/occupation/conflict", '
-        '"weapons": ["weapon1"], '
-        '"locations": ["city or region"], '
-        '"key_actors": ["military unit or leader"]}'
+        '"weapons": ["weapon1 in english"], '
+        '"locations": ["city or region in english"], '
+        '"key_actors": ["military unit or leader in english"]}'
     )
 
     raw = _call_gemini(prompt)
