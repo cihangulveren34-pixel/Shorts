@@ -239,7 +239,7 @@ KB_EFFECTS = ["zoom_in", "zoom_out", "pan_right", "pan_left", "pan_down", "diago
 TRANSITION_TYPES = ["crossfade", "fade_black", "hard_cut", "slide"]
 
 # Klip ve resim süreleri
-VIDEO_CLIP_DURATION = 4.0   # Her video klip süresi (saniye)
+VIDEO_CLIP_DURATION = 2.5   # Her video klip süresi (saniye)
 IMAGE_CLIP_DURATION = 2.0   # Araya eklenen resim süresi (saniye)
 
 
@@ -2444,18 +2444,12 @@ def build_video(
 
     # Sahne başına 4 klip (toplam ~12, video süresiyle orantılı)
     # img_seen ayrı set — resimler klip seen_ids ile karışmasın ama kendi aralarında dedup olsun
-    img_seen: set = set()
     clip_paths = []
-    image_paths = []
     for i, scene_kws in enumerate(scene_keywords):
         scene_clips = _fetch_clips(scene_kws, n=4, seen_ids=seen_ids)
         clip_paths.extend(scene_clips)
-        # Her sahne için sahneye özgü resimler (paylaşılan img_seen ile dedup)
-        scene_imgs = _fetch_images(scene_kws, seen_ids=img_seen)
-        image_paths.extend(scene_imgs[:3])
         first_kw = scene_kws[0][:55] if scene_kws else "—"
-        print(f"[video_builder] Sahne {i+1}: {len(scene_clips)} klip, "
-              f"{min(3, len(scene_imgs))} resim — '{first_kw}'")
+        print(f"[video_builder] Sahne {i+1}: {len(scene_clips)} klip — '{first_kw}'")
 
     if not clip_paths:
         raise RuntimeError("Hiç video klip indirilemedi.")
@@ -2470,7 +2464,7 @@ def build_video(
     total_duration = narration_audio.duration + CTA_DURATION + 0.3
 
     # 3) Arka plan: çoklu klip + araya resimler + efektler + geçişler
-    bg = _build_background(clip_paths, total_duration, style, image_paths=image_paths)
+    bg = _build_background(clip_paths, total_duration, style, image_paths=[])
 
     # 4) Overlay katmanları
     layers = [bg]
@@ -2601,7 +2595,12 @@ def build_video(
 
         # 5) Kırmızı alarm flash'ları (twist + payoff)
         try:
-            flash_times = [min(15.0, total_duration * 0.35), max(0, total_duration - 6.0)]
+            flash_times = [
+                total_duration * 0.20,
+                total_duration * 0.45,
+                total_duration * 0.70,
+                max(0, total_duration - 5.0),
+            ]
             flash_dur = 0.3
             for ft in flash_times:
                 if ft + flash_dur > total_duration:
