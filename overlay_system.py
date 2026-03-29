@@ -481,9 +481,10 @@ def create_flag_overlay(flag_path: str) -> np.ndarray | None:
 
 # ─── Format Bazlı Overlay'ler ─────────────────────────────────────────────────
 
-def create_breaking_banner(duration: float) -> np.ndarray:
+def create_breaking_banner(duration: float, title: str = "") -> np.ndarray:
     """
     Kırmızı 'BREAKING MILITARY ANALYSIS' banner (üst, 200px yükseklik).
+    title verilirse ikinci satırda altın rengiyle script başlığı gösterilir.
     Returns: RGBA numpy array.
     """
     w, h = TARGET_W, 200
@@ -497,25 +498,36 @@ def create_breaking_banner(duration: float) -> np.ndarray:
         draw.line([(0, y), (w, y)], fill=(r_val, 15, 15, alpha))
 
     # Ana metin
-    font = _load_font(42)
+    font = _load_font(38)
     text = "BREAKING MILITARY ANALYSIS"
     bbox = draw.textbbox((0, 0), text, font=font)
     tw = bbox[2] - bbox[0]
     tx = (w - tw) // 2
-    ty = 40
+    ty = 20
 
     # Gölge + metin
     draw.text((tx + 2, ty + 2), text, font=font, fill=(0, 0, 0, 180))
     draw.text((tx, ty), text, font=font, fill=(255, 255, 255, 255))
 
-    # Alt kırmızı çizgi
+    # Script başlığı (altın rengi, ikinci satır)
+    if title:
+        font_title = _load_font(26)
+        title_short = (title[:55] + "…") if len(title) > 58 else title
+        t2_bbox = draw.textbbox((0, 0), title_short, font=font_title)
+        t2w = t2_bbox[2] - t2_bbox[0]
+        t2x = (w - t2w) // 2
+        t2y = ty + (bbox[3] - bbox[1]) + 8
+        draw.text((t2x + 1, t2y + 1), title_short, font=font_title, fill=(0, 0, 0, 160))
+        draw.text((t2x, t2y), title_short, font=font_title, fill=(255, 220, 0, 240))
+
+    # Alt altın çizgi
     draw.rectangle([(40, h - 8), (w - 40, h - 4)], fill=(255, 220, 0, 200))
 
     # "LIVE" badge
     font_small = _load_font(24)
-    draw.rounded_rectangle([(30, ty + 60), (120, ty + 95)], radius=4,
+    draw.rounded_rectangle([(30, ty + 4), (110, ty + 38)], radius=4,
                            fill=(255, 30, 30, 255))
-    draw.text((48, ty + 63), "LIVE", font=font_small, fill=(255, 255, 255, 255))
+    draw.text((46, ty + 7), "LIVE", font=font_small, fill=(255, 255, 255, 255))
 
     return np.array(img)
 
@@ -557,6 +569,42 @@ def create_news_ticker(text: str, duration: float) -> np.ndarray:
         bbox = draw.textbbox((0, 0), ticker_text, font=font)
         ty_base = (h - (bbox[3] - bbox[1])) // 2
         draw.text((20, ty_base), ticker_text, font=font, fill=(200, 200, 210, 255))
+
+    return np.array(img)
+
+
+def create_lower_third(title: str, label: str = "MILITARY ANALYSIS") -> np.ndarray:
+    """
+    TV chyron (lower third) overlay — 1080x140px RGBA.
+    Sol kenardan sağa doğru azalan gradient arka plan + kırmızı aksan çizgileri.
+    Returns: RGBA numpy array.
+    """
+    w, h = TARGET_W, 140
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    # Gradient arka plan: sol opak → sağ yarı saydam
+    for x in range(w):
+        alpha = int(200 * max(0, 1.0 - (x / w) * 0.55))
+        draw.line([(x, 0), (x, h)], fill=(8, 8, 18, alpha))
+
+    # Sol kırmızı aksan çizgisi
+    draw.rectangle([(0, 0), (5, h)], fill=(220, 30, 30, 255))
+
+    # Üst ince kırmızı çizgi
+    draw.rectangle([(0, 0), (w, 3)], fill=(220, 30, 30, 220))
+
+    # Kategori etiketi (kırmızı, küçük, üst)
+    font_label = _load_font(22)
+    draw.text((18, 14), label.upper(), font=font_label, fill=(200, 50, 50, 230))
+
+    # Script başlığı (beyaz, büyük, alt)
+    font_title = _load_font(32)
+    title_short = (title[:52] + "…") if len(title) > 55 else title
+    draw.text((18, 52), title_short, font=font_title, fill=(255, 255, 255, 240))
+
+    # Alt ince kırmızı çizgi
+    draw.rectangle([(0, h - 3), (w, h)], fill=(220, 30, 30, 180))
 
     return np.array(img)
 
@@ -638,7 +686,7 @@ def create_format_overlays(format_type: str, duration: float, title: str) -> lis
 
     if format_type == "news_analysis":
         # Kırmızı BREAKING banner (üst) — ilk 5 saniye + son 5 saniye
-        banner = create_breaking_banner(duration)
+        banner = create_breaking_banner(duration, title=title)
         overlays.append({
             "type": "banner",
             "data": banner,
@@ -664,6 +712,19 @@ def create_format_overlays(format_type: str, duration: float, title: str) -> lis
             "end": duration,
             "position": ("center", 200),
         })
+
+        # Lower third chyron — hook sonrası (4s) ve video ortasında (ikişer kez)
+        lower = create_lower_third(title)
+        guard = duration - 7.0  # CTA bölgesine girmemek için
+        for lt in [4.0, duration * 0.5]:
+            if lt + 4.0 < guard:
+                overlays.append({
+                    "type": "lower_third",
+                    "data": lower,
+                    "start": lt,
+                    "end": lt + 4.0,
+                    "position": ("center", TARGET_H - 400),
+                })
 
     elif format_type == "countdown":
         # Büyük sayılar — 3, 2, 1
