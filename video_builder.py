@@ -359,16 +359,39 @@ def _generate_style_profile(script: dict) -> StyleProfile:
 
 # ─── Müzik seçimi ────────────────────────────────────────────────────────────
 
+_MILITARY_PRIORITY_TRACKS = {
+    "assets/music/dark_04_burn_the_world.mp3",
+    "assets/music/action_09_big_drumming.mp3",
+    "assets/music/suspense_07_stay_the_course.mp3",
+    "assets/music/dark_08_tyrant.mp3",
+    "assets/music/dark_12_feral_angel.mp3",
+}
+
+_MILITARY_KEYWORDS = {
+    "military", "war", "attack", "troops", "missile", "iran", "israel", "gaza",
+    "strike", "bomb", "nuclear", "army", "weapon", "conflict", "combat",
+    "hamas", "hezbollah", "idf", "irgc", "drone", "airstrike",
+}
+
+
 def _pick_music(script: dict) -> str:
-    """Script içeriğine göre en uygun arka plan müziğini seçer."""
+    """Script içeriğine göre en uygun arka plan müziğini seçer.
+    Askeri içerik için dark/action parçaları önceliklendirilir.
+    """
     text = (script.get("title", "") + " " + script.get("narration", "")).lower()
     keywords = [kw.lower() for kw in script.get("search_keywords", [])]
+    all_text = text + " " + " ".join(keywords)
+
+    is_military = any(kw in all_text for kw in _MILITARY_KEYWORDS)
 
     scores = []
     for path, mood_words in MUSIC_POOL:
         if not os.path.exists(path):
             continue
         score = sum(1 for mw in mood_words if mw in text or mw in " ".join(keywords))
+        # Askeri içerik: gerilimli/aksiyonlu parçalara +2 bonus
+        if is_military and path in _MILITARY_PRIORITY_TRACKS:
+            score += 2
         scores.append((path, score))
 
     if not scores:
@@ -379,9 +402,14 @@ def _pick_music(script: dict) -> str:
         best = [p for p, s in scores if s == max_score]
         pick = random.choice(best)
     else:
-        pick = random.choice([p for p, _ in scores])
+        # Askeri içerik ise yine de priority listesinden seç
+        if is_military:
+            priority = [p for p, _ in scores if p in _MILITARY_PRIORITY_TRACKS]
+            pick = random.choice(priority) if priority else random.choice([p for p, _ in scores])
+        else:
+            pick = random.choice([p for p, _ in scores])
 
-    print(f"[video_builder] Müzik seçildi: {os.path.basename(pick)}")
+    print(f"[video_builder] Müzik seçildi: {os.path.basename(pick)} (military={is_military})")
     return pick
 
 
@@ -2304,10 +2332,27 @@ def _make_hook_clip(hook_text: str, duration: float = 3.0) -> ImageClip:
             draw.text((x + dx, y + dy), line, font=font, fill=(0, 0, 0, 255))
         draw.text((x, y), line, font=font, fill=(255, 220, 0, 255))
 
+    arr = np.array(img)
+    h_arr, w_arr = arr.shape[:2]
+
+    # Punch-in: 0.35s içinde 1.22x → 1.0x scale (darbe hissi)
+    def _punch_frame(gf, t):
+        frame = gf(t)
+        if t >= 0.35:
+            return frame
+        scale = 1.22 - 0.22 * (t / 0.35)
+        fh, fw = frame.shape[:2]
+        new_h, new_w = int(fh * scale), int(fw * scale)
+        resized = np.array(Image.fromarray(frame).resize((new_w, new_h), Image.LANCZOS))
+        x_off = (new_w - fw) // 2
+        y_off = (new_h - fh) // 2
+        return resized[y_off:y_off + fh, x_off:x_off + fw]
+
     return (
-        ImageClip(np.array(img))
+        ImageClip(arr, ismask=False)
         .set_duration(duration)
         .set_start(0)
+        .fl(_punch_frame, apply_to='video')
         .set_position(("center", "center"))
         .crossfadeout(0.5)
     )
@@ -2508,6 +2553,14 @@ def _make_watermark_clip(total_duration: float) -> ImageClip | None:
 
 # ─── Ses efektleri ───────────────────────────────────────────────────────────
 
+_SFX_VOLUMES = {
+    "hook":   0.65,   # İlk darbe — en güçlü, izleyiciyi kilitler
+    "twist":  0.45,   # Orta bölüm
+    "payoff": 0.55,   # Patlama anı
+    "cta":    0.35,   # Bitti sesi
+}
+
+
 def _build_sfx_audio(audio_duration: float) -> list:
     timings = {
         "hook":   0.1,
@@ -2521,7 +2574,8 @@ def _build_sfx_audio(audio_duration: float) -> list:
         if not path or not os.path.exists(path):
             continue
         try:
-            sfx = AudioFileClip(path).volumex(0.35).set_start(t)
+            vol = _SFX_VOLUMES.get(key, 0.40)
+            sfx = AudioFileClip(path).volumex(vol).set_start(t)
             if t + sfx.duration > audio_duration + CTA_DURATION:
                 sfx = sfx.subclip(0, audio_duration + CTA_DURATION - t)
             sfx_clips.append(sfx)
@@ -2770,11 +2824,17 @@ def build_video(
     audio_tracks = [narration_audio]
     music_path = _pick_music(script)
     if music_path and os.path.exists(music_path):
-        music = AudioFileClip(music_path).volumex(0.135).audio_fadein(0.8)
+        music = AudioFileClip(music_path).audio_fadein(1.5)  # 1.5s sessizlik sonra giriş
         if music.duration < total_duration:
             from moviepy.audio.fx.audio_loop import audio_loop
             music = audio_loop(music, nloops=int(total_duration / music.duration) + 1)
         music = music.subclip(0, total_duration)
+        # Crescendo: 0.08 → 0.22 (video boyunca gerilim tırmanışı)
+        _td = total_duration
+        def _crescendo(gf, t):
+            vol = 0.08 + 0.14 * min(t / max(_td, 0.1), 1.0)
+            return gf(t) * vol
+        music = music.fl(_crescendo, apply_to='audio')
         audio_tracks.append(music)
 
     sfx_clips = _build_sfx_audio(narration_audio.duration)
