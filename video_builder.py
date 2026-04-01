@@ -2338,7 +2338,7 @@ def _make_hook_clip(hook_text: str, duration: float = 3.0) -> ImageClip:
     # Punch-in: 0.35s içinde 1.22x → 1.0x scale (darbe hissi)
     def _punch_frame(gf, t):
         frame = gf(t)
-        t_f = float(t) if not isinstance(t, float) else t
+        t_f = float(np.asarray(t).flat[0])
         if t_f >= 0.35:
             return frame
         scale = 1.22 - 0.22 * (t_f / 0.35)
@@ -2833,9 +2833,13 @@ def build_video(
         # Crescendo: 0.08 → 0.22 (video boyunca gerilim tırmanışı)
         _td = total_duration
         def _crescendo(gf, t):
-            t_f = float(t) if not isinstance(t, float) else t
-            vol = 0.08 + 0.14 * min(t_f / max(_td, 0.1), 1.0)
-            return gf(t) * vol
+            frames = gf(t)
+            t_arr = np.asarray(t, dtype=float)
+            vol = 0.08 + 0.14 * np.clip(t_arr / max(_td, 0.1), 0.0, 1.0)
+            if vol.ndim == 0:
+                return frames * float(vol)
+            # t array ise: (n_samples,) → (n_samples, 1) broadcast
+            return frames * vol[:, np.newaxis]
         music = music.fl(_crescendo, apply_to='audio')
         audio_tracks.append(music)
 
