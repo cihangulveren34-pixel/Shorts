@@ -158,7 +158,7 @@ LOGO_PATH = "assets/logo.png"
 INTRO_PATH = "assets/intro.mp4"
 OUTRO_PATH = "assets/outro.mp4"
 CROSSFADE_DUR = 0.4
-CTA_DURATION = 3.0
+CTA_DURATION = 2.0   # 3.0'dan kısaltıldı — % watched artışı için
 
 # Ses efekti dosyaları
 SFX = {
@@ -239,8 +239,33 @@ KB_EFFECTS = ["zoom_in", "zoom_out", "pan_right", "pan_left", "pan_down", "diago
 TRANSITION_TYPES = ["crossfade", "fade_black", "hard_cut", "slide"]
 
 # Klip ve resim süreleri
-VIDEO_CLIP_DURATION = 2.5   # Her video klip süresi (saniye)
+VIDEO_CLIP_DURATION = 6.0   # Her video klip süresi (saniye) — A/B test: 5-7s optimal
 IMAGE_CLIP_DURATION = 2.0   # Araya eklenen resim süresi (saniye)
+
+# ─── Power word sözlüğü (altyazıda sarı vurgu) ────────────────────────────────
+_POWER_WORDS: dict[str, set] = {
+    "en": {
+        "BREAKING", "URGENT", "SHOCKING", "WARNING", "CRITICAL", "REVEALED",
+        "SECRET", "JUST", "ALERT", "EXCLUSIVE", "CLASSIFIED", "TERROR",
+        "NUCLEAR", "ATTACK", "DANGER", "NOW", "DEAD", "KILL", "WAR",
+    },
+    "tr": {
+        "ACİL", "ŞOKE", "KRİTİK", "UYARI", "GİZLİ", "İŞTE", "ÖZEL", "SON",
+        "ALARM", "TEHLİKE", "SAVAŞ", "NÜKLEER", "SALDIRI", "ÖLÜM", "ŞIMDI",
+    },
+    "ar": {
+        "عاجل", "صادم", "خطير", "حصري", "مرعب", "كارثي", "سري", "الآن",
+        "تحذير", "هجوم", "نووي", "حرب", "موت", "مفاجئ", "عاجلاً",
+    },
+}
+
+def _is_power_word(word: str) -> bool:
+    """Kelimenin herhangi bir dildeki power word listesinde olup olmadığını kontrol eder."""
+    clean = word.strip(".,!?:;\"'()[]").upper()
+    for words in _POWER_WORDS.values():
+        if clean in words:
+            return True
+    return False
 
 
 # ─── Style Profile ───────────────────────────────────────────────────────────
@@ -334,16 +359,39 @@ def _generate_style_profile(script: dict) -> StyleProfile:
 
 # ─── Müzik seçimi ────────────────────────────────────────────────────────────
 
+_MILITARY_PRIORITY_TRACKS = {
+    "assets/music/dark_04_burn_the_world.mp3",
+    "assets/music/action_09_big_drumming.mp3",
+    "assets/music/suspense_07_stay_the_course.mp3",
+    "assets/music/dark_08_tyrant.mp3",
+    "assets/music/dark_12_feral_angel.mp3",
+}
+
+_MILITARY_KEYWORDS = {
+    "military", "war", "attack", "troops", "missile", "iran", "israel", "gaza",
+    "strike", "bomb", "nuclear", "army", "weapon", "conflict", "combat",
+    "hamas", "hezbollah", "idf", "irgc", "drone", "airstrike",
+}
+
+
 def _pick_music(script: dict) -> str:
-    """Script içeriğine göre en uygun arka plan müziğini seçer."""
+    """Script içeriğine göre en uygun arka plan müziğini seçer.
+    Askeri içerik için dark/action parçaları önceliklendirilir.
+    """
     text = (script.get("title", "") + " " + script.get("narration", "")).lower()
     keywords = [kw.lower() for kw in script.get("search_keywords", [])]
+    all_text = text + " " + " ".join(keywords)
+
+    is_military = any(kw in all_text for kw in _MILITARY_KEYWORDS)
 
     scores = []
     for path, mood_words in MUSIC_POOL:
         if not os.path.exists(path):
             continue
         score = sum(1 for mw in mood_words if mw in text or mw in " ".join(keywords))
+        # Askeri içerik: gerilimli/aksiyonlu parçalara +2 bonus
+        if is_military and path in _MILITARY_PRIORITY_TRACKS:
+            score += 2
         scores.append((path, score))
 
     if not scores:
@@ -354,9 +402,14 @@ def _pick_music(script: dict) -> str:
         best = [p for p, s in scores if s == max_score]
         pick = random.choice(best)
     else:
-        pick = random.choice([p for p, _ in scores])
+        # Askeri içerik ise yine de priority listesinden seç
+        if is_military:
+            priority = [p for p, _ in scores if p in _MILITARY_PRIORITY_TRACKS]
+            pick = random.choice(priority) if priority else random.choice([p for p, _ in scores])
+        else:
+            pick = random.choice([p for p, _ in scores])
 
-    print(f"[video_builder] Müzik seçildi: {os.path.basename(pick)}")
+    print(f"[video_builder] Müzik seçildi: {os.path.basename(pick)} (military={is_military})")
     return pick
 
 
@@ -2118,12 +2171,12 @@ def _build_background(clip_paths: list, total_duration: float,
 
 # ─── Altyazı ─────────────────────────────────────────────────────────────────
 
-def _render_subtitle_image(text: str) -> np.ndarray:
-    """Tek satır altyazı: beyaz metin + siyah outline, gradient arka plan."""
+def _render_subtitle_image(text: str, highlight: bool = False) -> np.ndarray:
+    """Tek satır altyazı: beyaz (veya sarı vurgulu) metin + siyah outline, gradient arka plan."""
     MAX_W = TARGET_W - 80
 
     # Font boyutunu metne göre otomatik küçült (tek satıra sığdır)
-    for font_size in [68, 58, 50, 42]:
+    for font_size in [80, 68, 58, 50]:
         font = _load_font_for_text(text, font_size)
         display = _prepare_text(text)
         dummy = Image.new("RGBA", (1, 1))
@@ -2141,11 +2194,13 @@ def _render_subtitle_image(text: str) -> np.ndarray:
     img = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Gradient arka plan çubuğu
+    # Gradient arka plan çubuğu — power word'lerde daha koyu/kırmızımsı
+    bg_color = (30, 5, 5) if highlight else (5, 5, 15)
     for row in range(img_h):
-        bar_alpha = int(170 - (row / max(img_h, 1)) * 70)
-        draw.line([(0, row), (img_w, row)], fill=(5, 5, 15, bar_alpha))
+        bar_alpha = int(200 - (row / max(img_h, 1)) * 80) if highlight else int(170 - (row / max(img_h, 1)) * 70)
+        draw.line([(0, row), (img_w, row)], fill=(*bg_color, bar_alpha))
 
+    text_color = (255, 232, 77, 255) if highlight else (255, 255, 255, 255)  # sarı vs beyaz
     x = (img_w - text_w) // 2
     y = padding_y
     outline = 3
@@ -2153,7 +2208,7 @@ def _render_subtitle_image(text: str) -> np.ndarray:
                    (-outline, -outline), (outline, -outline),
                    (-outline, outline), (outline, outline)]:
         draw.text((x + ox, y + oy), display, font=font, fill=(0, 0, 0, 255))
-    draw.text((x, y), display, font=font, fill=(255, 255, 255, 255))
+    draw.text((x, y), display, font=font, fill=text_color)
 
     return np.array(img)
 
@@ -2174,6 +2229,38 @@ def _make_subtitle_clips(chunks: list, total_duration: float) -> list:
             .set_start(start)
             .set_position(((TARGET_W - w) // 2, int(TARGET_H * 0.62)))
         )
+    return clips
+
+
+def _make_word_subtitle_clips(chunks: list, total_duration: float) -> list:
+    """Word-by-word animated subtitles — each word pops up as it is spoken."""
+    clips = []
+    for chunk in chunks:
+        text = chunk["text"].strip()
+        if not text:
+            continue
+        start = chunk["start"]
+        end = min(chunk["end"], total_duration - CTA_DURATION - 0.1)
+        chunk_dur = end - start
+        if chunk_dur <= 0:
+            continue
+        words = text.split()
+        if not words:
+            continue
+        word_dur = chunk_dur / len(words)
+        for i, word in enumerate(words):
+            w_start = start + i * word_dur
+            w_dur = word_dur
+            if w_dur <= 0.05:
+                continue
+            img_arr = _render_subtitle_image(word, highlight=_is_power_word(word))
+            h, w = img_arr.shape[:2]
+            clips.append(
+                ImageClip(img_arr, ismask=False)
+                .set_duration(w_dur)
+                .set_start(w_start)
+                .set_position(((TARGET_W - w) // 2, int(TARGET_H * 0.62)))
+            )
     return clips
 
 
@@ -2245,10 +2332,27 @@ def _make_hook_clip(hook_text: str, duration: float = 3.0) -> ImageClip:
             draw.text((x + dx, y + dy), line, font=font, fill=(0, 0, 0, 255))
         draw.text((x, y), line, font=font, fill=(255, 220, 0, 255))
 
+    arr = np.array(img)
+    h_arr, w_arr = arr.shape[:2]
+
+    # Punch-in: 0.35s içinde 1.22x → 1.0x scale (darbe hissi)
+    def _punch_frame(gf, t):
+        frame = gf(t)
+        if t >= 0.35:
+            return frame
+        scale = 1.22 - 0.22 * (t / 0.35)
+        fh, fw = frame.shape[:2]
+        new_h, new_w = int(fh * scale), int(fw * scale)
+        resized = np.array(Image.fromarray(frame).resize((new_w, new_h), Image.LANCZOS))
+        x_off = (new_w - fw) // 2
+        y_off = (new_h - fh) // 2
+        return resized[y_off:y_off + fh, x_off:x_off + fw]
+
     return (
-        ImageClip(np.array(img))
+        ImageClip(arr, ismask=False)
         .set_duration(duration)
         .set_start(0)
+        .fl(_punch_frame, apply_to='video')
         .set_position(("center", "center"))
         .crossfadeout(0.5)
     )
@@ -2273,6 +2377,66 @@ _CTA_TEXTS = {
         "arrow":   "TAP FOLLOW  ^",
     },
 }
+
+
+_TEASE_TEXTS = {
+    "en": "WATCH TILL THE END",
+    "tr": "SONA KADAR IZLE",
+    "ar": "شاهد حتى النهاية",
+}
+
+
+def _make_midpoint_tease_clip(total_duration: float, language: str = "en") -> list:
+    """Video ortasında (%42) 2s süren 'izlemeye devam et' overlay'i."""
+    text_raw = _TEASE_TEXTS.get(language, _TEASE_TEXTS["en"])
+    start = total_duration * 0.42
+    dur = 2.0
+    if start + dur >= total_duration - CTA_DURATION:
+        return []
+
+    text = _prepare_text(text_raw)
+    font = _load_font_for_text(text, 52)
+    dummy = Image.new("RGBA", (1, 1))
+    dd = ImageDraw.Draw(dummy)
+    bbox = dd.textbbox((0, 0), text, font=font)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
+    pad_x, pad_y = 32, 18
+    img_w = tw + pad_x * 2
+    img_h = th + pad_y * 2 + 8  # +8 for top accent bar
+
+    img = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    # Arka plan: yarı şeffaf kırmızı-siyah
+    for row in range(img_h):
+        alpha = 210 if row > 6 else 255
+        r = 160 if row > 6 else 220
+        draw.line([(0, row), (img_w, row)], fill=(r, 15, 15, alpha))
+
+    # Üst kırmızı aksan çizgisi
+    draw.rectangle([(0, 0), (img_w, 5)], fill=(255, 50, 50, 255))
+
+    # Outline + metin
+    tx, ty = pad_x, pad_y + 6
+    for ox, oy in [(-2, -2), (2, -2), (-2, 2), (2, 2), (0, -2), (0, 2), (-2, 0), (2, 0)]:
+        draw.text((tx + ox, ty + oy), text, font=font, fill=(0, 0, 0, 255))
+    draw.text((tx, ty), text, font=font, fill=(255, 232, 77, 255))
+
+    arr = np.array(img)
+    h, w = arr.shape[:2]
+    x_pos = (TARGET_W - w) // 2
+    y_pos = int(TARGET_H * 0.52)  # ekranın ortasının biraz üstü
+
+    clip = (
+        ImageClip(arr, ismask=False)
+        .set_duration(dur)
+        .set_start(start)
+        .set_position((x_pos, y_pos))
+        .crossfadein(0.2)
+        .crossfadeout(0.2)
+    )
+    return [clip]
 
 
 def _make_cta_clip(total_duration: float, duration: float = CTA_DURATION, language: str = "en") -> list:
@@ -2389,6 +2553,14 @@ def _make_watermark_clip(total_duration: float) -> ImageClip | None:
 
 # ─── Ses efektleri ───────────────────────────────────────────────────────────
 
+_SFX_VOLUMES = {
+    "hook":   0.65,   # İlk darbe — en güçlü, izleyiciyi kilitler
+    "twist":  0.45,   # Orta bölüm
+    "payoff": 0.55,   # Patlama anı
+    "cta":    0.35,   # Bitti sesi
+}
+
+
 def _build_sfx_audio(audio_duration: float) -> list:
     timings = {
         "hook":   0.1,
@@ -2402,7 +2574,8 @@ def _build_sfx_audio(audio_duration: float) -> list:
         if not path or not os.path.exists(path):
             continue
         try:
-            sfx = AudioFileClip(path).volumex(0.35).set_start(t)
+            vol = _SFX_VOLUMES.get(key, 0.40)
+            sfx = AudioFileClip(path).volumex(vol).set_start(t)
             if t + sfx.duration > audio_duration + CTA_DURATION:
                 sfx = sfx.subclip(0, audio_duration + CTA_DURATION - t)
             sfx_clips.append(sfx)
@@ -2460,7 +2633,7 @@ def build_video(
 
     # 2) Ses süresi
     narration_audio = AudioFileClip(audio_path)
-    MAX_SHORTS_DURATION = 40.0
+    MAX_SHORTS_DURATION = 32.0  # 25-35s sweet spot: % watched > total seconds
     max_narration = MAX_SHORTS_DURATION - CTA_DURATION - 0.3
     if narration_audio.duration > max_narration:
         print(f"[video_builder] Narrasyon çok uzun ({narration_audio.duration:.1f}s), {max_narration:.1f}s'ye kırpılıyor.")
@@ -2481,8 +2654,8 @@ def build_video(
     if vtt_path and os.path.exists(vtt_path):
         from tts import parse_vtt
         vtt_chunks = parse_vtt(vtt_path)
-        layers.extend(_make_subtitle_clips(vtt_chunks, total_duration))
-        print(f"[video_builder] VTT: {len(vtt_chunks)} altyazı chunk'ı")
+        layers.extend(_make_word_subtitle_clips(vtt_chunks, total_duration))
+        print(f"[video_builder] VTT: {len(vtt_chunks)} altyazı chunk'ı (word-by-word)")
     else:
         layers.extend(_make_fallback_subtitle_clips(script["narration"], narration_audio.duration))
 
@@ -2628,8 +2801,12 @@ def build_video(
         print(f"[video_builder] Overlay system genel hatası: {e}")
     # ─── Overlay System Sonu ──────────────────────────────────────────
 
+    # Mid-video open-loop tease (%42 noktası)
+    lang = script.get("language", "en")
+    layers.extend(_make_midpoint_tease_clip(total_duration, language=lang))
+
     # CTA bitiş ekranı
-    layers.extend(_make_cta_clip(total_duration, language=script.get("language", "en")))
+    layers.extend(_make_cta_clip(total_duration, language=lang))
 
     # Logo/watermark
     wm = _make_watermark_clip(total_duration)
@@ -2647,11 +2824,17 @@ def build_video(
     audio_tracks = [narration_audio]
     music_path = _pick_music(script)
     if music_path and os.path.exists(music_path):
-        music = AudioFileClip(music_path).volumex(0.135).audio_fadein(0.8)
+        music = AudioFileClip(music_path).audio_fadein(1.5)  # 1.5s sessizlik sonra giriş
         if music.duration < total_duration:
             from moviepy.audio.fx.audio_loop import audio_loop
             music = audio_loop(music, nloops=int(total_duration / music.duration) + 1)
         music = music.subclip(0, total_duration)
+        # Crescendo: 0.08 → 0.22 (video boyunca gerilim tırmanışı)
+        _td = total_duration
+        def _crescendo(gf, t):
+            vol = 0.08 + 0.14 * min(t / max(_td, 0.1), 1.0)
+            return gf(t) * vol
+        music = music.fl(_crescendo, apply_to='audio')
         audio_tracks.append(music)
 
     sfx_clips = _build_sfx_audio(narration_audio.duration)
