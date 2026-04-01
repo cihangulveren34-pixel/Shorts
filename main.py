@@ -299,14 +299,14 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         print("=" * 52)
         return
 
-    # Ukraine war trending SEO tags (YouTube'da yüksek arama hacmi)
-    UKRAINE_WAR_SEO_TAGS = [
-        "ukraine war", "russia ukraine war", "war in ukraine latest news",
-        "russia ukraine war update today", "russian war ukraine latest news",
-        "war in ukraine latest news today", "ukraine war news",
-        "what is happening in ukraine", "ukraine russia conflict",
-        "ukraine war update", "war news today", "ukraine latest news",
+    # Konuya özel SEO tag'ları: script tags + search_keywords (Gemini'nin ürettiği)
+    _base_tags = ["Shorts", "Military", "BreakingNews", "Geopolitics", "WarNews", "MilitaryNews"]
+    _topic_tags = [
+        kw.replace(" ", "").replace("-", "")
+        for kw in script.get("search_keywords", [])[:6]
+        if kw and kw.isascii()
     ]
+    upload_tags = list(dict.fromkeys(script["tags"] + _base_tags + _topic_tags))  # dedup
 
     # 6) YouTube upload
     print("\n[main] YouTube'a yükleniyor...")
@@ -316,7 +316,7 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
             video_path=video_path,
             title=script["title"],
             description=build_description(script),
-            tags=script["tags"] + ["Shorts", "Military", "Geopolitics", "Defense", "War"] + UKRAINE_WAR_SEO_TAGS,
+            tags=upload_tags,
             thumbnail_path=thumb_path,
         ),
         topic,
