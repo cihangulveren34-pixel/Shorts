@@ -66,7 +66,8 @@ CRITICAL:
 - This must feel like BREAKING ANALYSIS, not a history lesson
 - narration MUST be 80-90 words, present tense, short sentences
 - Start narration DIRECTLY with the hook content — NO date, NO "Today is...", NO preamble
-- NEVER use placeholder brackets like [Country], [Leader], [Event] — always use real specific names from the topic""",
+- NEVER use placeholder brackets like [Country], [Leader], [Event] — always use real specific names from the topic
+- LOOP DESIGN: The last sentence of narration must echo or mirror the opening hook — this triggers replays (e.g., hook: "Iran just crossed the red line." → closer: "The red line has been crossed. Watch what happens next.")""",
     },
 
     "tr": {
@@ -96,6 +97,7 @@ VİRALLİK KURALLARI:
 
 80-90 kelime. Narrasyona DOĞRUDAN hook içeriğiyle başla — tarih yok, giriş yok. search_keywords İngilizce.
 YASAK: [Ülke], [Lider], [Olay] gibi köşeli parantez içinde yer tutucu kullanma — her zaman konudaki gerçek isimleri yaz.
+DÖNGÜ TASARIMI: Narrasyonun son cümlesi açılış hook'unu yansıtmalı — bu tekrar izlemeyi tetikler. Örn: Hook: "İran kırmızı çizgiyi geçti." → Son: "Kırmızı çizgi aşıldı. Sırada ne var, takip et."
 {
   "title": "...", "hook": "...", "narration": "...",
   "tags": [...], "thumbnail_text": "...",
@@ -145,6 +147,7 @@ YASAK: [Ülke], [Lider], [Olay] gibi köşeli parantez içinde yer tutucu kullan
 
 80-90 كلمة عربية. ابدأ السرد مباشرةً بمحتوى الخطاف — بدون تاريخ، بدون مقدمة.
 search_keywords باللغة الإنجليزية. thumbnail_text باللغة العربية (4-5 كلمات صادمة بالأحرف الكبيرة).
+تصميم الحلقة: الجملة الأخيرة من السرد يجب أن تعكس الخطاف — هذا يحفّز إعادة المشاهدة. مثال: الخطاف: "إيران تجاوزت الخط الأحمر." → الختام: "الخط الأحمر تجاوز — تابع ما سيأتي."
 
 {
   "title": "عنوان عربي صادم (max 55 حرف)",

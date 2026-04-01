@@ -239,7 +239,7 @@ KB_EFFECTS = ["zoom_in", "zoom_out", "pan_right", "pan_left", "pan_down", "diago
 TRANSITION_TYPES = ["crossfade", "fade_black", "hard_cut", "slide"]
 
 # Klip ve resim süreleri
-VIDEO_CLIP_DURATION = 2.5   # Her video klip süresi (saniye)
+VIDEO_CLIP_DURATION = 6.0   # Her video klip süresi (saniye) — A/B test: 5-7s optimal
 IMAGE_CLIP_DURATION = 2.0   # Araya eklenen resim süresi (saniye)
 
 
@@ -2177,6 +2177,38 @@ def _make_subtitle_clips(chunks: list, total_duration: float) -> list:
     return clips
 
 
+def _make_word_subtitle_clips(chunks: list, total_duration: float) -> list:
+    """Word-by-word animated subtitles — each word pops up as it is spoken."""
+    clips = []
+    for chunk in chunks:
+        text = chunk["text"].strip()
+        if not text:
+            continue
+        start = chunk["start"]
+        end = min(chunk["end"], total_duration - CTA_DURATION - 0.1)
+        chunk_dur = end - start
+        if chunk_dur <= 0:
+            continue
+        words = text.split()
+        if not words:
+            continue
+        word_dur = chunk_dur / len(words)
+        for i, word in enumerate(words):
+            w_start = start + i * word_dur
+            w_dur = word_dur
+            if w_dur <= 0.05:
+                continue
+            img_arr = _render_subtitle_image(word)
+            h, w = img_arr.shape[:2]
+            clips.append(
+                ImageClip(img_arr, ismask=False)
+                .set_duration(w_dur)
+                .set_start(w_start)
+                .set_position(((TARGET_W - w) // 2, int(TARGET_H * 0.62)))
+            )
+    return clips
+
+
 def _make_fallback_subtitle_clips(narration: str, audio_duration: float) -> list:
     words = narration.split()
     secs_per_word = audio_duration / max(len(words), 1)
@@ -2460,7 +2492,7 @@ def build_video(
 
     # 2) Ses süresi
     narration_audio = AudioFileClip(audio_path)
-    MAX_SHORTS_DURATION = 40.0
+    MAX_SHORTS_DURATION = 32.0  # 25-35s sweet spot: % watched > total seconds
     max_narration = MAX_SHORTS_DURATION - CTA_DURATION - 0.3
     if narration_audio.duration > max_narration:
         print(f"[video_builder] Narrasyon çok uzun ({narration_audio.duration:.1f}s), {max_narration:.1f}s'ye kırpılıyor.")
@@ -2481,8 +2513,8 @@ def build_video(
     if vtt_path and os.path.exists(vtt_path):
         from tts import parse_vtt
         vtt_chunks = parse_vtt(vtt_path)
-        layers.extend(_make_subtitle_clips(vtt_chunks, total_duration))
-        print(f"[video_builder] VTT: {len(vtt_chunks)} altyazı chunk'ı")
+        layers.extend(_make_word_subtitle_clips(vtt_chunks, total_duration))
+        print(f"[video_builder] VTT: {len(vtt_chunks)} altyazı chunk'ı (word-by-word)")
     else:
         layers.extend(_make_fallback_subtitle_clips(script["narration"], narration_audio.duration))
 
