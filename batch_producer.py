@@ -92,37 +92,14 @@ def produce_batch(count: int = 7, dry_run: bool = False, language: str = "en") -
         print(f"\n[{i+1}/{count}] Tarih: {slot_date}")
 
         try:
-            # 1) Konu seç (seri modu veya trending)
-            series_topic = get_series_topic_override()
-            if series_topic:
-                topic, used_data = pick_trending_topic(series_topic)
-                print(f"  📺 Seri konusu: {topic}")
-            else:
-                topic, used_data = pick_trending_topic()
-                print(f"  Konu: {topic}")
+            # 1) Konu seç — seri sistemi devre dışı
+            topic, used_data = pick_trending_topic()
+            print(f"  Konu: {topic}")
             _save_used(used_data)
 
             # 2) Script üret — akıllı yeniden üretim ile
             script, score_bd = smart_generate(topic, language)
             print(f"  Script skor: {score_bd.total}/100")
-
-            # 2b) Seri bilgisi ekle
-            active_series = get_active_series()
-            if active_series:
-                try:
-                    script = enrich_script_with_series(script, active_series)
-                except Exception as e:
-                    print(f"  ⚠️ Seri zenginleştirme hatası: {e}", file=sys.stderr)
-
-            # 2c) Seri potansiyeli kontrolü — ilk bölümü otomatik başlat
-            if not active_series and has_series_potential(topic):
-                try:
-                    plan = detect_and_plan_series(topic)
-                    if plan:
-                        start_series(topic, plan)
-                        print(f"  📺 Seri başlatıldı: '{plan['series_title']}'")
-                except Exception as e:
-                    print(f"  ⚠️ Seri planı hatası: {e}", file=sys.stderr)
 
             # 2d) A/B başlık optimizasyonu
             try:
@@ -177,12 +154,7 @@ def produce_batch(count: int = 7, dry_run: bool = False, language: str = "en") -
             except Exception as e:
                 print(f"  ⚠️ Etkileşim paketi hatası: {e}", file=sys.stderr)
 
-            # 6b) Seri ilerlet
-            if get_active_series():
-                try:
-                    advance_series(f"batch-{slot_date}")
-                except Exception as e:
-                    print(f"  ⚠️ Seri ilerletme hatası: {e}", file=sys.stderr)
+            # 6b) Seri sistemi devre dışı
 
             produced.append({
                 "scheduled_date": str(slot_date),
