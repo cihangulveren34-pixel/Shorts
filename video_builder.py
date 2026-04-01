@@ -158,7 +158,7 @@ LOGO_PATH = "assets/logo.png"
 INTRO_PATH = "assets/intro.mp4"
 OUTRO_PATH = "assets/outro.mp4"
 CROSSFADE_DUR = 0.4
-CTA_DURATION = 3.0
+CTA_DURATION = 2.0   # 3.0'dan kısaltıldı — % watched artışı için
 
 # Ses efekti dosyaları
 SFX = {
@@ -241,6 +241,31 @@ TRANSITION_TYPES = ["crossfade", "fade_black", "hard_cut", "slide"]
 # Klip ve resim süreleri
 VIDEO_CLIP_DURATION = 6.0   # Her video klip süresi (saniye) — A/B test: 5-7s optimal
 IMAGE_CLIP_DURATION = 2.0   # Araya eklenen resim süresi (saniye)
+
+# ─── Power word sözlüğü (altyazıda sarı vurgu) ────────────────────────────────
+_POWER_WORDS: dict[str, set] = {
+    "en": {
+        "BREAKING", "URGENT", "SHOCKING", "WARNING", "CRITICAL", "REVEALED",
+        "SECRET", "JUST", "ALERT", "EXCLUSIVE", "CLASSIFIED", "TERROR",
+        "NUCLEAR", "ATTACK", "DANGER", "NOW", "DEAD", "KILL", "WAR",
+    },
+    "tr": {
+        "ACİL", "ŞOKE", "KRİTİK", "UYARI", "GİZLİ", "İŞTE", "ÖZEL", "SON",
+        "ALARM", "TEHLİKE", "SAVAŞ", "NÜKLEER", "SALDIRI", "ÖLÜM", "ŞIMDI",
+    },
+    "ar": {
+        "عاجل", "صادم", "خطير", "حصري", "مرعب", "كارثي", "سري", "الآن",
+        "تحذير", "هجوم", "نووي", "حرب", "موت", "مفاجئ", "عاجلاً",
+    },
+}
+
+def _is_power_word(word: str) -> bool:
+    """Kelimenin herhangi bir dildeki power word listesinde olup olmadığını kontrol eder."""
+    clean = word.strip(".,!?:;\"'()[]").upper()
+    for words in _POWER_WORDS.values():
+        if clean in words:
+            return True
+    return False
 
 
 # ─── Style Profile ───────────────────────────────────────────────────────────
@@ -2118,12 +2143,12 @@ def _build_background(clip_paths: list, total_duration: float,
 
 # ─── Altyazı ─────────────────────────────────────────────────────────────────
 
-def _render_subtitle_image(text: str) -> np.ndarray:
-    """Tek satır altyazı: beyaz metin + siyah outline, gradient arka plan."""
+def _render_subtitle_image(text: str, highlight: bool = False) -> np.ndarray:
+    """Tek satır altyazı: beyaz (veya sarı vurgulu) metin + siyah outline, gradient arka plan."""
     MAX_W = TARGET_W - 80
 
     # Font boyutunu metne göre otomatik küçült (tek satıra sığdır)
-    for font_size in [68, 58, 50, 42]:
+    for font_size in [80, 68, 58, 50]:
         font = _load_font_for_text(text, font_size)
         display = _prepare_text(text)
         dummy = Image.new("RGBA", (1, 1))
@@ -2141,11 +2166,13 @@ def _render_subtitle_image(text: str) -> np.ndarray:
     img = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Gradient arka plan çubuğu
+    # Gradient arka plan çubuğu — power word'lerde daha koyu/kırmızımsı
+    bg_color = (30, 5, 5) if highlight else (5, 5, 15)
     for row in range(img_h):
-        bar_alpha = int(170 - (row / max(img_h, 1)) * 70)
-        draw.line([(0, row), (img_w, row)], fill=(5, 5, 15, bar_alpha))
+        bar_alpha = int(200 - (row / max(img_h, 1)) * 80) if highlight else int(170 - (row / max(img_h, 1)) * 70)
+        draw.line([(0, row), (img_w, row)], fill=(*bg_color, bar_alpha))
 
+    text_color = (255, 232, 77, 255) if highlight else (255, 255, 255, 255)  # sarı vs beyaz
     x = (img_w - text_w) // 2
     y = padding_y
     outline = 3
@@ -2153,7 +2180,7 @@ def _render_subtitle_image(text: str) -> np.ndarray:
                    (-outline, -outline), (outline, -outline),
                    (-outline, outline), (outline, outline)]:
         draw.text((x + ox, y + oy), display, font=font, fill=(0, 0, 0, 255))
-    draw.text((x, y), display, font=font, fill=(255, 255, 255, 255))
+    draw.text((x, y), display, font=font, fill=text_color)
 
     return np.array(img)
 
@@ -2198,7 +2225,7 @@ def _make_word_subtitle_clips(chunks: list, total_duration: float) -> list:
             w_dur = word_dur
             if w_dur <= 0.05:
                 continue
-            img_arr = _render_subtitle_image(word)
+            img_arr = _render_subtitle_image(word, highlight=_is_power_word(word))
             h, w = img_arr.shape[:2]
             clips.append(
                 ImageClip(img_arr, ismask=False)
@@ -2305,6 +2332,66 @@ _CTA_TEXTS = {
         "arrow":   "TAP FOLLOW  ^",
     },
 }
+
+
+_TEASE_TEXTS = {
+    "en": "WATCH TILL THE END",
+    "tr": "SONA KADAR IZLE",
+    "ar": "شاهد حتى النهاية",
+}
+
+
+def _make_midpoint_tease_clip(total_duration: float, language: str = "en") -> list:
+    """Video ortasında (%42) 2s süren 'izlemeye devam et' overlay'i."""
+    text_raw = _TEASE_TEXTS.get(language, _TEASE_TEXTS["en"])
+    start = total_duration * 0.42
+    dur = 2.0
+    if start + dur >= total_duration - CTA_DURATION:
+        return []
+
+    text = _prepare_text(text_raw)
+    font = _load_font_for_text(text, 52)
+    dummy = Image.new("RGBA", (1, 1))
+    dd = ImageDraw.Draw(dummy)
+    bbox = dd.textbbox((0, 0), text, font=font)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
+    pad_x, pad_y = 32, 18
+    img_w = tw + pad_x * 2
+    img_h = th + pad_y * 2 + 8  # +8 for top accent bar
+
+    img = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    # Arka plan: yarı şeffaf kırmızı-siyah
+    for row in range(img_h):
+        alpha = 210 if row > 6 else 255
+        r = 160 if row > 6 else 220
+        draw.line([(0, row), (img_w, row)], fill=(r, 15, 15, alpha))
+
+    # Üst kırmızı aksan çizgisi
+    draw.rectangle([(0, 0), (img_w, 5)], fill=(255, 50, 50, 255))
+
+    # Outline + metin
+    tx, ty = pad_x, pad_y + 6
+    for ox, oy in [(-2, -2), (2, -2), (-2, 2), (2, 2), (0, -2), (0, 2), (-2, 0), (2, 0)]:
+        draw.text((tx + ox, ty + oy), text, font=font, fill=(0, 0, 0, 255))
+    draw.text((tx, ty), text, font=font, fill=(255, 232, 77, 255))
+
+    arr = np.array(img)
+    h, w = arr.shape[:2]
+    x_pos = (TARGET_W - w) // 2
+    y_pos = int(TARGET_H * 0.52)  # ekranın ortasının biraz üstü
+
+    clip = (
+        ImageClip(arr, ismask=False)
+        .set_duration(dur)
+        .set_start(start)
+        .set_position((x_pos, y_pos))
+        .crossfadein(0.2)
+        .crossfadeout(0.2)
+    )
+    return [clip]
 
 
 def _make_cta_clip(total_duration: float, duration: float = CTA_DURATION, language: str = "en") -> list:
@@ -2660,8 +2747,12 @@ def build_video(
         print(f"[video_builder] Overlay system genel hatası: {e}")
     # ─── Overlay System Sonu ──────────────────────────────────────────
 
+    # Mid-video open-loop tease (%42 noktası)
+    lang = script.get("language", "en")
+    layers.extend(_make_midpoint_tease_clip(total_duration, language=lang))
+
     # CTA bitiş ekranı
-    layers.extend(_make_cta_clip(total_duration, language=script.get("language", "en")))
+    layers.extend(_make_cta_clip(total_duration, language=lang))
 
     # Logo/watermark
     wm = _make_watermark_clip(total_duration)

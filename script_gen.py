@@ -29,12 +29,12 @@ HOOK FORMULA (pick the best):
 - Scary implication: "What [country] just did should terrify [other country]."
 - Hidden meaning: "Everyone's talking about [event]. Nobody's talking about what it actually means."
 
-SCRIPT STRUCTURE (35-38 seconds):
+SCRIPT STRUCTURE (25-30 seconds):
 0-3s HOOK: The event + why the viewer MUST care. Maximum urgency.
-3-10s CONTEXT: What happened, in 2-3 punchy sentences. Specific names, weapons, locations.
-10-20s WHY IT MATTERS: The regional/global implications. "Here's what nobody is telling you..."
-20-30s ESCALATION: What could happen next. Paint the scary scenario. "If this continues..."
-30-37s PREDICTION + CTA: Your bold take, then "Follow for daily military intelligence briefings."
+3-8s CONTEXT: What happened, 2 punchy sentences. Specific names, weapons, locations.
+8-16s WHY IT MATTERS: The regional/global implications. "Here's what nobody is telling you..."
+16-24s ESCALATION: What could happen next. The scary scenario. "If this continues..."
+24-28s PREDICTION + CTA: Your bold take, then "Follow for daily military intelligence briefings."
 
 VIRALITY RULES:
 - Sound like a TOP SECRET briefing being leaked to the public
@@ -48,7 +48,7 @@ Output ONLY valid JSON:
 {
   "title": "Analysis title (max 60 chars)",
   "hook": "Breaking urgency opener (max 15 words)",
-  "narration": "Full 80-90 word analysis script",
+  "narration": "Full 65-75 word analysis script",
   "tags": ["military", "analysis", "geopolitics", "breaking", "shorts", "specific_tag1"],
   "thumbnail_text": "4 WORD SHOCK CAPS",
   "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6", "specific visual 7", "specific visual 8", "specific visual 9", "specific visual 10"],
@@ -64,7 +64,7 @@ CRITICAL:
   Think: "What would I type on YouTube to find footage of THIS specific scene?"
   Cover different visual angles: aerial footage, ground troops, weapon systems, aftermath, command center
 - This must feel like BREAKING ANALYSIS, not a history lesson
-- narration MUST be 80-90 words, present tense, short sentences
+- narration MUST be 65-75 words, present tense, short sentences
 - Start narration DIRECTLY with the hook content — NO date, NO "Today is...", NO preamble
 - NEVER use placeholder brackets like [Country], [Leader], [Event] — always use real specific names from the topic
 - LOOP DESIGN: The last sentence of narration must echo or mirror the opening hook — this triggers replays (e.g., hook: "Iran just crossed the red line." → closer: "The red line has been crossed. Watch what happens next.")""",
@@ -81,12 +81,12 @@ HOOK FORMÜLLERI (en güçlüsünü seç):
 - Korkutucu sonuç: "[Ülke]'nin yaptığı [diğer ülke]'yi korkutmalı."
 - Gizli anlam: "Herkes [olayı] konuşuyor. Kimse gerçekte ne anlama geldiğini konuşmuyor."
 
-SENARYO YAPISI (35-38 saniye):
+SENARYO YAPISI (25-30 saniye):
 0-3sn HOOK: Olay + izleyicinin NEDEN umursaması gerektiği. Maksimum aciliyet.
-3-10sn BAĞLAM: Ne oldu, 2-3 çarpıcı cümleyle. Spesifik isimler, silahlar, lokasyonlar.
-10-20sn NEDEN ÖNEMLİ: Bölgesel/küresel sonuçlar. "İşte kimsenin söylemediği..."
-20-30sn TIRMANMA: Sırada ne olabilir. Korkutucu senaryoyu çiz. "Bu devam ederse..."
-30-37sn TAHMİN + CTA: Cesur tahminin ve "Günlük askeri istihbarat brifingleri için takip et."
+3-8sn BAĞLAM: Ne oldu, 2 çarpıcı cümleyle. Spesifik isimler, silahlar, lokasyonlar.
+8-16sn NEDEN ÖNEMLİ: Bölgesel/küresel sonuçlar. "İşte kimsenin söylemediği..."
+16-24sn TIRMANMA: Sırada ne olabilir. Korkutucu senaryoyu çiz. "Bu devam ederse..."
+24-28sn TAHMİN + CTA: Cesur tahminin ve "Günlük askeri istihbarat brifingleri için takip et."
 
 VİRALLİK KURALLARI:
 - GİZLİ bir brifing sızdırılıyormuş gibi konuş
@@ -95,7 +95,7 @@ VİRALLİK KURALLARI:
 - İzleyici içeriden bilgi alan biri gibi hissetmeli
 - Kısa çarpıcı cümleler. Geniş zaman. Gerçek brifing gibi.
 
-80-90 kelime. Narrasyona DOĞRUDAN hook içeriğiyle başla — tarih yok, giriş yok. search_keywords İngilizce.
+65-75 kelime. Narrasyona DOĞRUDAN hook içeriğiyle başla — tarih yok, giriş yok. search_keywords İngilizce.
 YASAK: [Ülke], [Lider], [Olay] gibi köşeli parantez içinde yer tutucu kullanma — her zaman konudaki gerçek isimleri yaz.
 DÖNGÜ TASARIMI: Narrasyonun son cümlesi açılış hook'unu yansıtmalı — bu tekrar izlemeyi tetikler. Örn: Hook: "İran kırmızı çizgiyi geçti." → Son: "Kırmızı çizgi aşıldı. Sırada ne var, takip et."
 {
@@ -118,12 +118,12 @@ DÖNGÜ TASARIMI: Narrasyonun son cümlesi açılış hook'unu yansıtmalı — 
 - السؤال الاستفزازي: "لماذا صمت العالم عن [الحدث]؟ الجواب مخيف."
 - الاتهام المباشر: "[البلد] يكذب على العالم — إليك الحقيقة."
 
-هيكل السيناريو (35-38 ثانية):
+هيكل السيناريو (25-30 ثانية):
 0-3 ث الخطاف: الصدمة الفورية. جملة واحدة تجعل المشاهد يتجمد.
-3-10 ث السياق: ماذا حدث بالتحديد. أسماء حقيقية، أرقام حقيقية، أسلحة حقيقية.
-10-20 ث الكشف: "إليك ما لا يريدونك أن تعرفه..." — البُعد الخفي للحدث.
-20-30 ث التصعيد: السيناريو المخيف. "إذا لم يتوقف هذا خلال 72 ساعة..."
-30-37 ث الختام المشحون: تنبؤ جريء + "تابعنا — ما سيأتي سيصدمك."
+3-8 ث السياق: ماذا حدث بالتحديد. أسماء حقيقية، أرقام حقيقية، أسلحة حقيقية.
+8-16 ث الكشف: "إليك ما لا يريدونك أن تعرفه..." — البُعد الخفي للحدث.
+16-24 ث التصعيد: السيناريو المخيف. "إذا لم يتوقف هذا خلال 72 ساعة..."
+24-28 ث الختام المشحون: تنبؤ جريء + "تابعنا — ما سيأتي سيصدمك."
 
 قواعد الانتشار للجمهور العربي:
 - استخدم كلمات القوة: عاجل، خطير، صادم، حصري، مرعب، كارثي
@@ -145,14 +145,14 @@ DÖNGÜ TASARIMI: Narrasyonun son cümlesi açılış hook'unu yansıtmalı — 
 
 حرام مطلق: لا تستخدم أبداً [الدولة] أو [الحدث] أو [القائد] — الأسماء الحقيقية دائماً.
 
-80-90 كلمة عربية. ابدأ السرد مباشرةً بمحتوى الخطاف — بدون تاريخ، بدون مقدمة.
+65-75 كلمة عربية. ابدأ السرد مباشرةً بمحتوى الخطاف — بدون تاريخ، بدون مقدمة.
 search_keywords باللغة الإنجليزية. thumbnail_text باللغة العربية (4-5 كلمات صادمة بالأحرف الكبيرة).
 تصميم الحلقة: الجملة الأخيرة من السرد يجب أن تعكس الخطاف — هذا يحفّز إعادة المشاهدة. مثال: الخطاف: "إيران تجاوزت الخط الأحمر." → الختام: "الخط الأحمر تجاوز — تابع ما سيأتي."
 
 {
   "title": "عنوان عربي صادم (max 55 حرف)",
   "hook": "خطاف عربي 8-12 كلمة",
-  "narration": "سرد عربي كامل 80-90 كلمة",
+  "narration": "سرد عربي كامل 65-75 كلمة",
   "tags": ["عربي", "عسكري", "تحليل", "عاجل", "specific_tag"],
   "thumbnail_text": "٤-٥ كلمات عربية صادمة",
   "search_keywords": ["english footage query 1", ..., "english footage query 10"],
