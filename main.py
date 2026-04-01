@@ -283,14 +283,10 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         print("=" * 52)
         return
 
-    # Konuya özel SEO tag'ları: script tags + search_keywords (Gemini'nin ürettiği)
-    _base_tags = ["Shorts", "Military", "BreakingNews", "Geopolitics", "WarNews", "MilitaryNews"]
-    _topic_tags = [
-        kw.replace(" ", "").replace("-", "")
-        for kw in script.get("search_keywords", [])[:6]
-        if kw and kw.isascii()
-    ]
-    upload_tags = list(dict.fromkeys(script["tags"] + _base_tags + _topic_tags))  # dedup
+    # Upload tag'ları: script tags (Gemini) + sabit base tags
+    # NOT: search_keywords tag olarak kullanılmaz — footage sorguları, tag değil
+    _base_tags = ["Shorts", "Military", "Breaking News", "Geopolitics", "War News", "Military News"]
+    upload_tags = list(dict.fromkeys(script["tags"] + _base_tags))  # dedup, boşluklar korunur
 
     # 6) YouTube upload
     print("\n[main] YouTube'a yükleniyor...")

@@ -49,7 +49,7 @@ Output ONLY valid JSON:
   "title": "Analysis title (max 60 chars)",
   "hook": "Breaking urgency opener (max 15 words)",
   "narration": "Full 65-75 word analysis script",
-  "tags": ["IranNuclear", "IsraelIran", "MiddleEast", "MilitaryNews", "BreakingNews", "IDF", "IRGC", "NuclearThreat"],
+  "tags": ["Iran Nuclear", "Israel Iran", "Middle East", "Military News", "Breaking News", "IDF", "IRGC", "Nuclear Threat"],
   "thumbnail_text": "4 WORD SHOCK CAPS",
   "search_keywords": ["specific visual 1", "specific visual 2", "specific visual 3", "specific visual 4", "specific visual 5", "specific visual 6", "specific visual 7", "specific visual 8", "specific visual 9", "specific visual 10"],
   "mood": "dark|epic|mysterious|inspiring",
@@ -65,7 +65,7 @@ CRITICAL:
   Cover different visual angles: aerial footage, ground troops, weapon systems, aftermath, command center
 - This must feel like BREAKING ANALYSIS, not a history lesson
 - narration MUST be 65-75 words, present tense, short sentences
-- tags MUST be topic-specific: country names, weapon systems, leaders, organizations from THIS story (e.g. "IDF", "IRGC", "F35", "IronDome", "Hamas", "Hezbollah") — NOT generic words like "military" or "war"
+- tags MUST be topic-specific: country names, weapon systems, leaders, organizations from THIS story — use normal spacing (e.g. "IDF", "Iron Dome", "Iran Nuclear", "Middle East", "Israel Lebanon") — NOT camelCase, NOT generic words like "military" or "war"
 - Start narration DIRECTLY with the hook content — NO date, NO "Today is...", NO preamble
 - NEVER use placeholder brackets like [Country], [Leader], [Event] — always use real specific names from the topic
 - LOOP DESIGN: The last sentence of narration must echo or mirror the opening hook — this triggers replays (e.g., hook: "Iran just crossed the red line." → closer: "The red line has been crossed. Watch what happens next.")""",
@@ -97,7 +97,7 @@ VİRALLİK KURALLARI:
 - Kısa çarpıcı cümleler. Geniş zaman. Gerçek brifing gibi.
 
 65-75 kelime. Narrasyona DOĞRUDAN hook içeriğiyle başla — tarih yok, giriş yok. search_keywords İngilizce.
-tags: konuya özel İngilizce kelimeler — ülke adları, silah sistemleri, örgüt isimleri (örn: "IDF", "IRGC", "Hamas", "IronDome", "F35"). "military" veya "war" gibi genel kelimeler YASAK.
+tags: konuya özel İngilizce kelimeler — ülke adları, silah sistemleri, örgüt isimleri (örn: "IDF", "IRGC", "Hamas", "Iron Dome", "F-35"). Boşluklu yaz ("Iron Dome" değil "IronDome"). "military" veya "war" gibi genel kelimeler YASAK.
 YASAK: [Ülke], [Lider], [Olay] gibi köşeli parantez içinde yer tutucu kullanma — her zaman konudaki gerçek isimleri yaz.
 DÖNGÜ TASARIMI: Narrasyonun son cümlesi açılış hook'unu yansıtmalı — bu tekrar izlemeyi tetikler. Örn: Hook: "İran kırmızı çizgiyi geçti." → Son: "Kırmızı çizgi aşıldı. Sırada ne var, takip et."
 {
@@ -148,7 +148,7 @@ DÖNGÜ TASARIMI: Narrasyonun son cümlesi açılış hook'unu yansıtmalı — 
 حرام مطلق: لا تستخدم أبداً [الدولة] أو [الحدث] أو [القائد] — الأسماء الحقيقية دائماً.
 
 65-75 كلمة عربية. ابدأ السرد مباشرةً بمحتوى الخطاف — بدون تاريخ، بدون مقدمة.
-tags: كلمات إنجليزية محددة للموضوع — أسماء الدول، الأسلحة، المنظمات (مثل: "IDF"، "IRGC"، "Hamas"، "IronDome"). ممنوع الكلمات العامة مثل "military" أو "war".
+tags: كلمات إنجليزية محددة للموضوع — أسماء الدول، الأسلحة، المنظمات (مثل: "IDF"، "IRGC"، "Hamas"، "Iron Dome"). اكتب بمسافات ("Iron Dome" وليس "IronDome"). ممنوع الكلمات العامة مثل "military" أو "war".
 search_keywords باللغة الإنجليزية. thumbnail_text باللغة العربية (4-5 كلمات صادمة بالأحرف الكبيرة).
 تصميم الحلقة: الجملة الأخيرة من السرد يجب أن تعكس الخطاف — هذا يحفّز إعادة المشاهدة. مثال: الخطاف: "إيران تجاوزت الخط الأحمر." → الختام: "الخط الأحمر تجاوز — تابع ما سيأتي."
 
@@ -156,7 +156,7 @@ search_keywords باللغة الإنجليزية. thumbnail_text باللغة �
   "title": "عنوان عربي صادم (max 55 حرف)",
   "hook": "خطاف عربي 8-12 كلمة",
   "narration": "سرد عربي كامل 65-75 كلمة",
-  "tags": ["IranNuclear", "IsraelIran", "IRGC", "IDF", "MiddleEast", "BreakingNews", "MilitaryNews"],
+  "tags": ["Iran Nuclear", "Israel Iran", "IRGC", "IDF", "Middle East", "Breaking News", "Military News"],
   "thumbnail_text": "٤-٥ كلمات عربية صادمة",
   "search_keywords": ["english footage query 1", ..., "english footage query 10"],
   "mood": "dark|epic|mysterious|inspiring",
