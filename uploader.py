@@ -69,7 +69,7 @@ def upload_video(
             "title": title,
             "description": description,
             "tags": tags,
-            "categoryId": "27",  # Education
+            "categoryId": "25",  # News & Politics
         },
         "status": {
             "privacyStatus": "public",
@@ -140,22 +140,47 @@ def post_pinned_comment(youtube, video_id: str, text: str) -> str | None:
         return None
 
 
+_DESC_CTA = {
+    "en": "Follow for daily military intelligence briefings!",
+    "tr": "Günlük askeri istihbarat brifingleri için takip et!",
+    "ar": "تابعنا للمزيد من التحليلات العسكرية اليومية!",
+}
+
+_BASE_HASHTAGS = ["#Shorts", "#Military", "#BreakingNews", "#Geopolitics", "#WarNews"]
+
+
 def build_description(script: dict) -> str:
-    tags_str = " ".join(f"#{t.replace(' ', '')}" for t in script.get("tags", []))
-    ukraine_hashtags = (
-        "#UkraineWar #RussiaUkraineWar #UkraineWarNews #WarInUkraine "
-        "#RussiaUkraine #UkraineLatestNews #WarNewsToday #UkraineWarUpdate "
-        "#RussiaUkraineWarUpdate #UkraineRussiaConflict"
+    lang = script.get("language", "en")
+    cta_line = _DESC_CTA.get(lang, _DESC_CTA["en"])
+
+    # Script tags → topic-specific hashtags (Gemini'nin ürettiği)
+    script_tags = script.get("tags", [])
+    topic_hashtags = " ".join(
+        f"#{t.replace(' ', '').replace('-', '')}"
+        for t in script_tags
+        if t and t.isascii()  # Arapça tag'lar # prefix ile sorun yaratır
     )
-    return (
-        f"{script['title']}\n\n"
-        f"{script['hook']}\n\n"
-        f"Follow for daily military intelligence briefings!\n\n"
-        f"ukraine war | russia ukraine war | war in ukraine latest news | "
-        f"ukraine war update today | russia ukraine latest news\n\n"
-        f"{tags_str}\n"
-        f"#Shorts #Military #Geopolitics #War #WarNews {ukraine_hashtags}"
-    )
+
+    # Arapça tag'lar için ayrı (# prefix'siz, virgülle)
+    ar_tags = [t for t in script_tags if t and not t.isascii()]
+    ar_line = " ".join(ar_tags) if ar_tags else ""
+
+    base = " ".join(_BASE_HASHTAGS)
+
+    parts = [
+        script["title"],
+        "",
+        script.get("hook", ""),
+        "",
+        cta_line,
+        "",
+        topic_hashtags,
+        base,
+    ]
+    if ar_line:
+        parts.append(ar_line)
+
+    return "\n".join(parts).strip()
 
 
 if __name__ == "__main__":
