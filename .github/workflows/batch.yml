@@ -82,6 +82,15 @@ jobs:
         env:
           YT_COOKIES: ${{ secrets.YT_COOKIES }}
 
+      - name: Restore seen clip IDs cache
+        uses: actions/cache@v4
+        with:
+          path: output/seen_clip_ids.json
+          key: seen-clip-ids-batch-${{ github.run_id }}
+          restore-keys: |
+            seen-clip-ids-batch-
+            seen-clip-ids-
+
       - name: Download assets (SFX & music)
         run: python setup_assets.py
 
@@ -107,6 +116,13 @@ jobs:
           name: batch-videos-${{ github.run_id }}
           path: batch_output/
           retention-days: 10
+
+      - name: Save seen clip IDs cache
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: output/seen_clip_ids.json
+          key: seen-clip-ids-batch-${{ github.run_id }}
 
       - name: Commit used topics state
         if: always()

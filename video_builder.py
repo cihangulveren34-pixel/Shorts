@@ -655,20 +655,68 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
             ]
 
             def _pick_stream(yt_obj):
-                """En iyi mp4 stream'i seç: progressive (mux'lu) tercih et."""
+                """En iyi stream'i seç: adaptive 1080p > progressive 720p, 480p altı red."""
+                # 1) Adaptive 1080p video-only + ayrı audio → ffmpeg merge
+                if shutil.which("ffmpeg"):
+                    v = (yt_obj.streams
+                         .filter(adaptive=True, file_extension="mp4", only_video=True)
+                         .order_by("resolution").desc().first())
+                    a = (yt_obj.streams
+                         .filter(adaptive=True, only_audio=True)
+                         .order_by("abr").desc().first())
+                    if v and a:
+                        res = getattr(v, "resolution", "") or ""
+                        h = int(res.replace("p", "")) if res.replace("p", "").isdigit() else 0
+                        if h >= 720:
+                            return ("adaptive", v, a)  # tuple → merge gerekli
+
+                # 2) Progressive fallback — min 720p
                 s = (yt_obj.streams
                      .filter(progressive=True, file_extension="mp4")
                      .order_by("resolution").desc().first())
-                if not s:
-                    s = (yt_obj.streams
-                         .filter(file_extension="mp4")
-                         .order_by("resolution").desc().first())
-                return s
+                if s:
+                    res = getattr(s, "resolution", "") or ""
+                    h = int(res.replace("p", "")) if res.replace("p", "").isdigit() else 0
+                    if h >= 720:
+                        return ("progressive", s)
+                return None  # kalite yetersiz, bu videoyu atla
 
-            def _download_stream(stream, prefix: str) -> str | None:
-                """Stream'i tmp dosyaya indir, başarılıysa path döndür."""
-                tmp = tempfile.NamedTemporaryFile(
-                    suffix=".mp4", delete=False, prefix=prefix)
+            def _download_stream(stream_info, prefix: str) -> str | None:
+                """Stream'i tmp dosyaya indir; adaptive ise ffmpeg ile merge eder."""
+                if stream_info is None:
+                    return None
+
+                if stream_info[0] == "adaptive":
+                    _, v_stream, a_stream = stream_info
+                    v_tmp = tempfile.NamedTemporaryFile(suffix="_v.mp4", delete=False, prefix=prefix)
+                    v_tmp.close()
+                    a_tmp = tempfile.NamedTemporaryFile(suffix="_a.m4a", delete=False, prefix=prefix)
+                    a_tmp.close()
+                    out_tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix=prefix)
+                    out_tmp.close()
+                    try:
+                        v_stream.download(output_path=os.path.dirname(v_tmp.name),
+                                          filename=os.path.basename(v_tmp.name))
+                        a_stream.download(output_path=os.path.dirname(a_tmp.name),
+                                          filename=os.path.basename(a_tmp.name))
+                        r = subprocess.run(
+                            ["ffmpeg", "-y", "-i", v_tmp.name, "-i", a_tmp.name,
+                             "-c:v", "copy", "-c:a", "aac", "-shortest", out_tmp.name],
+                            capture_output=True, timeout=120
+                        )
+                        if r.returncode == 0 and os.path.getsize(out_tmp.name) > 10000:
+                            return out_tmp.name
+                    finally:
+                        for p in (v_tmp.name, a_tmp.name):
+                            try:
+                                os.unlink(p)
+                            except OSError:
+                                pass
+                    return None
+
+                # Progressive
+                _, stream = stream_info
+                tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, prefix=prefix)
                 tmp.close()
                 stream.download(output_path=os.path.dirname(tmp.name),
                                 filename=os.path.basename(tmp.name))
@@ -719,8 +767,8 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                     if _skip:
                         _yt_args["player_skip"] = _skip
                     dl_opts = {
-                        "format": "best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
-                        "format_sort": ["res:720"],
+                        "format": "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
+                        "format_sort": ["res:1080", "codec:h264"],
                         "outtmpl": tmp.name,
                         "merge_output_format": "mp4",
                         "max_filesize": 200 * 1024 * 1024,

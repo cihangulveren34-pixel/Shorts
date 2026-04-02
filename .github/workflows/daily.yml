@@ -38,6 +38,14 @@ jobs:
           restore-keys: |
             playlist-ids-
 
+      - name: Restore seen clip IDs cache
+        uses: actions/cache@v4
+        with:
+          path: output/seen_clip_ids.json
+          key: seen-clip-ids-${{ github.run_id }}
+          restore-keys: |
+            seen-clip-ids-
+
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -159,6 +167,13 @@ jobs:
         with:
           path: used_topics.json
           key: used-topics-${{ github.run_id }}
+
+      - name: Save seen clip IDs cache
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: output/seen_clip_ids.json
+          key: seen-clip-ids-${{ github.run_id }}
 
       - name: Commit used_topics.json to git (kalıcı dedup)
         if: always()
