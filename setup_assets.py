@@ -22,7 +22,15 @@ MAP_DIR = "assets/maps"
 FONTS_DIR = "assets/fonts"
 
 # Arapça font (Google Noto Fonts — OFL lisansı)
-ARABIC_FONT_URL = "https://github.com/notofonts/noto-fonts/raw/main/hinted/ttf/NotoNaskhArabic/NotoNaskhArabic-Bold.ttf"
+# NOT: notofonts/noto-fonts monoreposu dağıtıldı, artık bireysel repolar var.
+_ARABIC_FONT_URLS = [
+    # 1) Bireysel repo (güncel)
+    "https://github.com/notofonts/arabic-naskh/raw/main/fonts/NotoNaskhArabic/ttf/NotoNaskhArabic-Bold.ttf",
+    # 2) Google Fonts mirror
+    "https://fonts.gstatic.com/s/notonaskharabic/v33/RrQPboN_4yJ0CjmYYkRmEXbFAoHRFQIXHxBUz9Z4.ttf",
+    # 3) jsDelivr CDN üzerinden eski monorepo
+    "https://cdn.jsdelivr.net/gh/notofonts/noto-fonts@main/hinted/ttf/NotoNaskhArabic/NotoNaskhArabic-Bold.ttf",
+]
 ARABIC_FONT_DEST = "assets/fonts/NotoNaskhArabic-Bold.ttf"
 
 # Pixabay Audio API (ücretsiz, API key opsiyonel)
@@ -203,7 +211,17 @@ def download_arabic_font() -> None:
         print(f"  ⏭️  NotoNaskhArabic-Bold.ttf zaten mevcut, atlandı.")
         return
     print(f"\n🔤 Arapça font indiriliyor...")
-    _download(ARABIC_FONT_URL, ARABIC_FONT_DEST, "NotoNaskhArabic-Bold.ttf")
+    for url in _ARABIC_FONT_URLS:
+        if _download(url, ARABIC_FONT_DEST, "NotoNaskhArabic-Bold.ttf"):
+            # Geçerli TTF mı kontrol et
+            if os.path.exists(ARABIC_FONT_DEST) and os.path.getsize(ARABIC_FONT_DEST) > 50_000:
+                print(f"  ✅ Font indirildi ({url.split('/')[2]})")
+                return
+            try:
+                os.unlink(ARABIC_FONT_DEST)
+            except OSError:
+                pass
+    print("  ⚠️  Font indirilemedi — sistem fontu kullanılacak (apt: fonts-noto-core)")
 
 
 if __name__ == "__main__":
