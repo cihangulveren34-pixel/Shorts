@@ -21,6 +21,7 @@ import sys
 import json
 import time
 import base64
+import shutil
 import tempfile
 import subprocess
 import webbrowser
@@ -191,11 +192,10 @@ def run_youtube_oauth(client_secrets_path: str) -> str:
 
 def extract_yt_cookies() -> str | None:
     """Tarayıcıdan YouTube cookies otomatik çıkarır."""
-    if not subprocess.run(["which", "yt-dlp"], capture_output=True).returncode == 0:
-        if not subprocess.run(["yt-dlp", "--version"],
-                               capture_output=True).returncode == 0:
-            warn("yt-dlp bulunamadı, cookies otomatik alınamıyor.")
-            return None
+    if not shutil.which("yt-dlp"):
+        warn("yt-dlp bulunamadı, cookies otomatik alınamıyor.")
+        warn("  Kurulum: pip install yt-dlp  veya  winget install yt-dlp")
+        return None
 
     tmp = tempfile.NamedTemporaryFile(suffix=".txt", delete=False, prefix="ytcookies_")
     tmp.close()
@@ -336,8 +336,27 @@ def main():
     webbrowser.open("https://console.cloud.google.com/apis/library/youtube.googleapis.com")
     time.sleep(1)
 
-    secrets_path = ask("client_secrets.json dosya yolu", default="client_secrets.json")
-    if os.path.exists(secrets_path):
+    while True:
+        secrets_path = ask("client_secrets.json dosya yolu", default="client_secrets.json")
+        # Dizin girilmişse içindeki client_secrets.json'ı dene
+        if os.path.isdir(secrets_path):
+            candidate = os.path.join(secrets_path, "client_secrets.json")
+            if os.path.isfile(candidate):
+                secrets_path = candidate
+                ok(f"Dosya bulundu: {secrets_path}")
+            else:
+                err(f"'{secrets_path}' bir dizin. Lütfen doğrudan .json dosyasının yolunu girin.")
+                err(f"  Örnek: C:\\Users\\kedi\\Downloads\\client_secrets.json")
+                continue
+        if os.path.isfile(secrets_path):
+            break
+        err(f"Dosya bulunamadı: {secrets_path}")
+        if not confirm("Tekrar denemek ister misiniz?"):
+            warn("YouTube token atlandı. Daha sonra GitHub Secrets'tan YOUTUBE_TOKEN_JSON ekleyin.")
+            secrets_path = None
+            break
+
+    if secrets_path:
         info("OAuth akışı başlatılıyor (tarayıcı açılacak)...")
         try:
             yt_token = run_youtube_oauth(secrets_path)
@@ -346,9 +365,6 @@ def main():
         except Exception as e:
             err(f"YouTube OAuth başarısız: {e}")
             warn("YOUTUBE_TOKEN_JSON'ı daha sonra GitHub Secrets'tan manuel ekleyin.")
-    else:
-        warn(f"{secrets_path} bulunamadı — YouTube token atlandı.")
-        warn("Daha sonra GitHub Secrets'tan YOUTUBE_TOKEN_JSON ekleyin.")
 
     # ─────────────────────────────────────────────────────────────────────────
     # 7) YouTube Cookies
