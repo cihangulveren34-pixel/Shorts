@@ -216,17 +216,9 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         except Exception as e:
             print(f"[main] Trend tahmini hatası (kritik değil): {e}")
 
-        # 1c) Seri potansiyeli kontrolü — ilk bölümü otomatik başlat
-        active_series = get_active_series()
-        if not active_series and has_series_potential(topic):
-            print("\n[main] 📺 Seri potansiyeli tespit edildi!")
-            try:
-                plan = detect_and_plan_series(topic)
-                if plan:
-                    active_series_obj = start_series(topic, plan)
-                    print(f"[main] Seri başlatıldı: '{plan['series_title']}' ({len(plan['parts'])} bölüm)")
-            except Exception as e:
-                print(f"[main] Seri planı oluşturulamadı (kritik değil): {e}")
+        # 1c) Seri sistemi devre dışı — başlıklara "Part X/Y" eklenmesini önler
+        # active_series = get_active_series()
+        # if not active_series and has_series_potential(topic): ...
 
         # 2) Script — akıllı yeniden üretim ile (düşük puanlı scriptler otomatik iyileştirilir)
         print(f"\n[main] Script üretiliyor (akıllı mod, dil: {LANGUAGE})...")
@@ -234,15 +226,7 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         save_script(script)
         print(f"[main] Başlık: {script['title']} (skor: {score_bd.total}/100)")
 
-        # 2b) Aktif seri varsa script'e seri bilgisi ekle
-        active_series = get_active_series()
-        if active_series:
-            try:
-                script = enrich_script_with_series(script, active_series)
-                save_script(script)
-                print(f"[main] 📺 Script seri bilgisiyle zenginleştirildi")
-            except Exception as e:
-                print(f"[main] Seri zenginleştirme hatası (kritik değil): {e}")
+        # 2b) Seri enrichment devre dışı — "Part X/Y" başlık eklenmez
 
         # 2c) A/B başlık optimizasyonu — en iyi başlığı seç
         print("\n[main] A/B başlık varyantları üretiliyor...")
@@ -299,14 +283,10 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         print("=" * 52)
         return
 
-    # Konuya özel SEO tag'ları: script tags + search_keywords (Gemini'nin ürettiği)
-    _base_tags = ["Shorts", "Military", "BreakingNews", "Geopolitics", "WarNews", "MilitaryNews"]
-    _topic_tags = [
-        kw.replace(" ", "").replace("-", "")
-        for kw in script.get("search_keywords", [])[:6]
-        if kw and kw.isascii()
-    ]
-    upload_tags = list(dict.fromkeys(script["tags"] + _base_tags + _topic_tags))  # dedup
+    # Upload tag'ları: script tags (Gemini) + sabit base tags
+    # NOT: search_keywords tag olarak kullanılmaz — footage sorguları, tag değil
+    _base_tags = ["Shorts", "Military", "Breaking News", "Geopolitics", "War News", "Military News"]
+    upload_tags = list(dict.fromkeys(script["tags"] + _base_tags))  # dedup, boşluklar korunur
 
     # 6) YouTube upload
     print("\n[main] YouTube'a yükleniyor...")
@@ -387,10 +367,9 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
         creds = _get_credentials()
         yt = yt_build("youtube", "v3", credentials=creds)
 
-        # Seri aktifse seri CTA'sı kullan, değilse etkileşim paketinden al
-        active_series = get_active_series()
-        if active_series:
-            pinned_text = get_series_cta(active_series)
+        # Seri CTA devre dışı — engagement pack veya default kullan
+        if False and False:  # seri sistemi kapalı
+            pinned_text = ""
         elif engagement_pack:
             pinned_text = engagement_pack["pinned_comment"]
         else:
@@ -407,12 +386,7 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     except Exception as e:
         print(f"[main] Community gönderisi yapılamadı (kritik değil): {e}")
 
-    # 8c) Seri ilerlet (aktif seri varsa)
-    if get_active_series():
-        try:
-            advance_series(video_id)
-        except Exception as e:
-            print(f"[main] Seri ilerletme hatası (kritik değil): {e}")
+    # 8c) Seri sistemi devre dışı
 
     # 9) Instagram Reels cross-post
     if os.environ.get("INSTAGRAM_ACCESS_TOKEN"):
@@ -496,9 +470,6 @@ def run(dry_run: bool = False, topic_override: str = None) -> None:
     print("\n" + "=" * 52)
     print(f"✅  TAMAMLANDI! (WAR SHORTS v2)")
     print(f"   https://youtube.com/shorts/{video_id}")
-    if get_active_series():
-        s = get_active_series()
-        print(f"   📺 Seri: '{s['title']}' — Bölüm {s['current_part']}/{s['total_parts']}")
     print("=" * 52)
 
 
