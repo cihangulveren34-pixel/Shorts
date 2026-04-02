@@ -59,7 +59,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg imagemagick fonts-liberation
+          sudo apt-get install -y ffmpeg imagemagick fonts-liberation fonts-noto-core fonts-noto-extra
 
       - name: Install & start Cloudflare WARP
         run: |
@@ -103,6 +103,9 @@ jobs:
           if [ -n "$YT_COOKIES" ]; then
             echo "$YT_COOKIES" > yt_cookies.txt
           fi
+
+      - name: Download Arabic font (LANGUAGE=ar için gerekli)
+        run: python -c "from setup_assets import download_arabic_font; download_arabic_font()"
 
       - name: Run pipeline
         run: python main.py
