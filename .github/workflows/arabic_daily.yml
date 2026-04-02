@@ -100,7 +100,7 @@ jobs:
       - name: Run Arabic pipeline (no upload)
         run: python main.py --dry-run
         env:
-          TOPIC_KEYWORDS: "Israel,Gaza,Hamas,Hezbollah,IDF,West Bank,Jerusalem,Iran,IRGC,Iran nuclear,Iran missile,Iran US,Iran Israel,Iranian"
+          TOPIC_KEYWORDS: ${{ vars.TOPIC_KEYWORDS || 'Israel,Gaza,Hamas,Hezbollah,IDF,West Bank,Jerusalem,Iran,IRGC,Iran nuclear,Iran missile,Iran US,Iran Israel,Iranian' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
