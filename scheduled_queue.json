@@ -1,0 +1,99 @@
+[
+  {
+    "scheduled_date": "2026-04-06",
+    "topic": "[NEWS] US says it has arrested relatives of late Iranian ​general Qasem ​Sole: Here's What It Means for the World",
+    "title": "صادم: أمريكا تعتقل أقارب سليماني - تداعيات خطيرة!",
+    "script_path": "batch_output/2026-04-06/script.json",
+    "video_path": "batch_output/2026-04-06/short.mp4",
+    "audio_path": "batch_output/2026-04-06/narration.mp3",
+    "thumbnail_path": "batch_output/2026-04-06/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "هل اعتقال أقارب سليماني رسالة لأمريكا أم لإيران؟ 🤔\nA) لأمريكا 🇺🇸\nB) لإيران 🇮🇷\nOnly 10% know the truth...🤫",
+      "community_poll": {
+        "text": "This latest development in US-Iran relations feels like a major escalation. What's your gut reaction? 💥",
+        "poll_options": [
+          "Provocation",
+          "Retaliation",
+          "Miscalculation",
+          "Justified action"
+        ]
+      },
+      "debate_starter": "This arrest is a calculated move, not a reaction. Iran needs to rethink its strategies. Thoughts? 🤔",
+      "prediction_game": "🧠 INTEL TEST: Based on this briefing...\n\nWhat would YOU do as commander-in-chief?\nMost strategic answer wins! 🎖️👇"
+    },
+    "score": 38
+  },
+  {
+    "scheduled_date": "2026-04-07",
+    "topic": "[NEWS] `Iran’s Defenses Have Been Struck, but They Can Still Fire Back: Here's What It Means for the World",
+    "title": "صادم: ضربة إسرائيلية لإيران.. لكن الرد قادم!",
+    "script_path": "batch_output/2026-04-07/script.json",
+    "video_path": "batch_output/2026-04-07/short.mp4",
+    "audio_path": "batch_output/2026-04-07/narration.mp3",
+    "thumbnail_path": "batch_output/2026-04-07/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "هل ضربة إسرائيل لإيران بداية حرب شاملة؟ 🤔\nA. نعم، الرد قادم!\nB. لا، مجرد مناورات.\nOnly 10% get this right... 🎯",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on صادم: ضربة إسرائيلية لإيران.. لكن الرد ق... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🎯 PREDICTION GAME: What happens by end of 2026?\n\nDrop your prediction — I'll pin the best one! 📌\n\nMost creative prediction wins a shoutout! 🏆"
+    },
+    "score": 39
+  },
+  {
+    "scheduled_date": "2026-04-08",
+    "topic": "What if Iran and Israel Launch Full Nuclear War?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-04-09",
+    "topic": "Iran's Proxy Network: The Most Powerful Non-State Military in the World",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-04-10",
+    "topic": "Israel's Trophy System: Why Tanks Are Almost Impossible to Destroy",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-04-11",
+    "topic": "Israel's AI-Powered Battlefield: The Future Is Already Here",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-04-12",
+    "topic": "What if Israel and Iran Go to Full-Scale War?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  }
+]
