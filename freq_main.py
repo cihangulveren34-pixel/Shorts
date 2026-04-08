@@ -28,6 +28,9 @@ from freq_audio_gen import generate_frequency_audio
 from freq_video_builder import build_freq_video
 from notifier import send_notification, send_error_notification
 
+# Kuyruk modu: USE_FREQ_QUEUE=true ise freq_batch_producer kuyruğundan yayınlar
+USE_QUEUE = os.environ.get("USE_FREQ_QUEUE", "false").lower() == "true"
+
 OUTPUT_DIR = "output"
 TOPIC_POOL_PATH = "freq_topic_pool.json"
 USED_FREQ_PATH = "freq_used_topics.json"
@@ -113,42 +116,55 @@ def run(dry_run: bool = False, hz_override: float = None) -> None:
     print("🎵  FREQ SHORTS — Pipeline Başlatıldı")
     print("=" * 52)
 
-    # 1) Frekans seç
-    topic = pick_topic(hz_override)
-    print(f"\n[freq_main] Seçilen frekans: {topic['name']} — {topic['short_benefit']}")
+    # Kuyruk modunda batch_producer'dan hazır video kullan
+    queued = None
+    if USE_QUEUE and not hz_override:
+        from freq_batch_producer import get_next_queued, mark_published as queue_mark_published
+        queued = get_next_queued()
 
-    # 2) Script/metadata üret (Gemini)
-    print("\n[freq_main] Metadata üretiliyor...")
-    script = _step(
-        "Script üretimi",
-        lambda: generate_freq_script(topic),
-        topic["name"],
-    )
-    save_freq_script(script, FREQ_SCRIPT_PATH)
-    print(f"[freq_main] Başlık: {script['title']}")
-    print(f"[freq_main] Hook: {script['hook_line']}")
+    if queued:
+        print(f"\n[freq_main] Kuyruk modu — {queued['scheduled_date']} / {queued['freq_name']}")
+        with open(queued["script_path"], encoding="utf-8") as f:
+            script = json.load(f)
+        audio_path = queued["audio_path"]
+        video_path = queued["video_path"]
+    else:
+        # 1) Frekans seç
+        topic = pick_topic(hz_override)
+        print(f"\n[freq_main] Seçilen frekans: {topic['name']} — {topic['short_benefit']}")
 
-    # 3) Frekans sesi üret
-    print(f"\n[freq_main] {topic['hz']} Hz ses üretiliyor...")
-    audio_path = _step(
-        "Ses üretimi",
-        lambda: generate_frequency_audio(
-            hz=float(topic["hz"]),
-            output_mp3=FREQ_AUDIO_PATH,
-            duration_sec=62.0,
-            binaural_offset=4.0,
-            ambient_ratio=0.08,
-        ),
-        topic["name"],
-    )
+        # 2) Script/metadata üret (Gemini)
+        print("\n[freq_main] Metadata üretiliyor...")
+        script = _step(
+            "Script üretimi",
+            lambda: generate_freq_script(topic),
+            topic["name"],
+        )
+        save_freq_script(script, FREQ_SCRIPT_PATH)
+        print(f"[freq_main] Başlık: {script['title']}")
+        print(f"[freq_main] Hook: {script['hook_line']}")
 
-    # 4) Video üret
-    print("\n[freq_main] Video montajı yapılıyor...")
-    video_path = _step(
-        "Video montajı",
-        lambda: build_freq_video(script, audio_path, FREQ_VIDEO_PATH),
-        topic["name"],
-    )
+        # 3) Frekans sesi üret
+        print(f"\n[freq_main] {topic['hz']} Hz ses üretiliyor...")
+        audio_path = _step(
+            "Ses üretimi",
+            lambda: generate_frequency_audio(
+                hz=float(topic["hz"]),
+                output_mp3=FREQ_AUDIO_PATH,
+                duration_sec=62.0,
+                binaural_offset=4.0,
+                ambient_ratio=0.08,
+            ),
+            topic["name"],
+        )
+
+        # 4) Video üret
+        print("\n[freq_main] Video montajı yapılıyor...")
+        video_path = _step(
+            "Video montajı",
+            lambda: build_freq_video(script, audio_path, FREQ_VIDEO_PATH),
+            topic["name"],
+        )
 
     if dry_run:
         print("\n" + "=" * 52)
@@ -182,6 +198,11 @@ def run(dry_run: bool = False, hz_override: float = None) -> None:
         ),
         topic["name"],
     )
+
+    if queued:
+        from freq_batch_producer import mark_published as queue_mark_published
+        queue_mark_published(queued["scheduled_date"])
+        print(f"[freq_main] Kuyruk güncellendi: {queued['scheduled_date']} → yayınlandı")
 
     print(f"\n[freq_main] Video yüklendi: https://youtube.com/shorts/{video_id}")
 
