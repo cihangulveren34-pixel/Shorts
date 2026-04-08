@@ -53,7 +53,7 @@ def _srt_to_vtt(srt: str) -> str:
     return vtt
 
 
-def parse_vtt(vtt_path: str, words_per_chunk: int = 5) -> list:
+def parse_vtt(vtt_path: str, words_per_chunk: int = 4) -> list:
     """
     VTT dosyasını okuyarak [{start, end, text}] listesi döndürür.
     Cümle bazlı altyazıları kelime gruplarına böler.
