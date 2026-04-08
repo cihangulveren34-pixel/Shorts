@@ -1,0 +1,88 @@
+name: FREQ SHORTS — Batch Producer
+
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: 'Üretilecek video sayısı'
+        required: false
+        default: '7'
+      dry_run:
+        description: 'Dry run (sadece script, ses/video yok)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  run-freq-batch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore used freq cache
+        uses: actions/cache@v4
+        with:
+          path: freq_used_topics.json
+          key: freq-used-topics-${{ github.run_id }}
+          restore-keys: |
+            freq-used-topics-
+
+      - name: Restore freq queue cache
+        uses: actions/cache@v4
+        with:
+          path: freq_scheduled_queue.json
+          key: freq-queue-${{ github.run_id }}
+          restore-keys: |
+            freq-queue-
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg imagemagick fonts-liberation fonts-noto-core
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run FREQ batch
+        run: |
+          COUNT=${{ github.event.inputs.count || '7' }}
+          DRY_ARG=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            DRY_ARG="--dry-run"
+          fi
+          python freq_batch_producer.py --count $COUNT $DRY_ARG
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Save used freq cache
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: freq_used_topics.json
+          key: freq-used-topics-${{ github.run_id }}
+
+      - name: Save freq queue cache
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: freq_scheduled_queue.json
+          key: freq-queue-${{ github.run_id }}
+
+      - name: Upload batch artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: freq-batch-${{ github.run_id }}
+          path: freq_batch_output/
+          retention-days: 7
