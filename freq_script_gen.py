@@ -19,11 +19,12 @@ import time
 import requests
 
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+GEMINI_MODELS = ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-2.0-flash"]
 
 
 def _call_gemini(prompt: str) -> str:
-    """Gemini API'yi çağırır ve metin yanıtı döner."""
+    """Gemini API'yi çağırır, model bulunamazsa fallback dener."""
     api_key = os.environ.get("GEMINI_API_KEY", "")
     if not api_key:
         raise EnvironmentError("GEMINI_API_KEY ortam değişkeni eksik.")
@@ -32,21 +33,21 @@ def _call_gemini(prompt: str) -> str:
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.85, "maxOutputTokens": 1024},
     }
-    for attempt in range(3):
-        try:
-            resp = requests.post(
-                f"{GEMINI_API_URL}?key={api_key}",
-                json=payload,
-                timeout=30,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception as e:
-            if attempt == 2:
-                raise
-            time.sleep(2 ** attempt)
-    return ""
+    last_err = None
+    for model in GEMINI_MODELS:
+        url = GEMINI_API_BASE.format(model=model) + f"?key={api_key}"
+        for attempt in range(3):
+            try:
+                resp = requests.post(url, json=payload, timeout=30)
+                if resp.status_code == 404:
+                    break  # Bu model yok, sonrakini dene
+                resp.raise_for_status()
+                return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+            except Exception as e:
+                last_err = e
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+    raise RuntimeError(f"Tüm Gemini modelleri başarısız: {last_err}")
 
 
 def _extract_json(text: str) -> dict:
