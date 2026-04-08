@@ -639,9 +639,9 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
             # NOT: use_po_token deprecated (stdin'den input bekliyor → CI'da patlar).
             # pytubefix OAuth da CI'da pratik değil.
 
-            # pytubefix client listesi: ANDROID_VR en güvenilir, diğerleri fallback.
+            # pytubefix client listesi: ANDROID_VR tek yeterli, diğerleri zaman kaybı.
             _PTF_CLIENTS = [
-                "ANDROID_VR", "ANDROID_TESTSUITE", "IOS", "WEB",
+                "ANDROID_VR",
             ]
 
             # pytubefix proxy ayarı (varsa).
@@ -729,26 +729,32 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 return None
 
             def _try_pytubefix_plain(vid_id: str) -> str | None:
-                """pytubefix auth'suz (bazı client'lar auth gerektirmez)."""
+                """pytubefix auth'suz — ANDROID_VR ile dener, 40s timeout."""
                 try:
                     from pytubefix import YouTube as PTYouTube
                 except ImportError:
                     return None
+                import concurrent.futures as _cf
                 _url = f"https://www.youtube.com/watch?v={vid_id}"
                 for client in _PTF_CLIENTS:
                     tag = f"ptf/{client}"
                     print(f"[video_builder] YouTube CC: '{query}' → {vid_id} [{tag}]...")
+                    def _attempt(url=_url, c=client):
+                        yt_obj = PTYouTube(url, client=c, proxies=_ptf_proxies)
+                        s = _pick_stream(yt_obj)
+                        if not s:
+                            return None
+                        return _download_stream(s, "ytcc_ptf_")
                     try:
-                        yt_obj = PTYouTube(_url, client=client,
-                                           proxies=_ptf_proxies)
-                        stream = _pick_stream(yt_obj)
-                        if not stream:
-                            print(f"[video_builder]   {vid_id} [{tag}] stream yok")
-                            continue
-                        path = _download_stream(stream, "ytcc_ptf_")
+                        with _cf.ThreadPoolExecutor(max_workers=1) as ex:
+                            fut = ex.submit(_attempt)
+                            path = fut.result(timeout=40)
                         if path:
                             print(f"[video_builder]   {vid_id} [{tag}] ✓")
                             return path
+                        print(f"[video_builder]   {vid_id} [{tag}] stream yok")
+                    except _cf.TimeoutError:
+                        print(f"[video_builder]   {vid_id} [{tag}] timeout (40s)")
                     except Exception as e:
                         print(f"[video_builder]   {vid_id} [{tag}] başarısız: "
                               f"{str(e)[:100]}")
@@ -771,11 +777,13 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                         "format_sort": ["res:1080", "codec:h264"],
                         "outtmpl": tmp.name,
                         "merge_output_format": "mp4",
-                        "max_filesize": 200 * 1024 * 1024,
+                        "max_filesize": 150 * 1024 * 1024,
                         "quiet": True, "no_warnings": True,
                         "logger": _SilentLogger(),
                         "check_formats": False,
                         "no_check_certificate": True,
+                        "socket_timeout": 20,      # bağlantı başına 20s
+                        "retries": 1,              # tek retry
                         "cookiefile": cookie_file,
                         "extractor_args": {"youtube": _yt_args},
                         **({"proxy": YT_PROXY} if YT_PROXY else {}),
@@ -2672,13 +2680,13 @@ def build_video(
         for tw in title_words:
             if tw not in " ".join(fallback_kws).lower():
                 fallback_kws.append(tw)
-        scene_keywords = [fallback_kws, fallback_kws, fallback_kws]
+        scene_keywords = [fallback_kws, fallback_kws]  # 2 sahne yeterli
 
-    # Sahne başına 4 klip (toplam ~12, video süresiyle orantılı)
-    # img_seen ayrı set — resimler klip seen_ids ile karışmasın ama kendi aralarında dedup olsun
+    # Sahne başına 3 klip — toplam 6 klip, 3s × 6 = 18s → yeterince döngü
+    # _build_background gerektiğinde döngü yaparak total_duration'a doldurur
     clip_paths = []
-    for i, scene_kws in enumerate(scene_keywords):
-        scene_clips = _fetch_clips(scene_kws, n=4, seen_ids=seen_ids)
+    for i, scene_kws in enumerate(scene_keywords[:2]):  # en fazla 2 sahne
+        scene_clips = _fetch_clips(scene_kws, n=3, seen_ids=seen_ids)
         clip_paths.extend(scene_clips)
         first_kw = scene_kws[0][:55] if scene_kws else "—"
         print(f"[video_builder] Sahne {i+1}: {len(scene_clips)} klip — '{first_kw}'")
