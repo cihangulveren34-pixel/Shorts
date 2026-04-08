@@ -1,9 +1,7 @@
 name: FREQ SHORTS — Daily Pipeline
 
 on:
-  schedule:
-    - cron: '0 8 * * *'    # Her gün 08:00 UTC (WAR SHORTS'tan 6 saat sonra)
-  workflow_dispatch:        # Manuel tetikleme
+  workflow_dispatch:        # Sadece manuel tetikleme
     inputs:
       hz:
         description: 'Belirli bir Hz değeri (boş bırakılırsa otomatik seçilir)'
