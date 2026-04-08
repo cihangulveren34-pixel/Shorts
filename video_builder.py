@@ -239,7 +239,7 @@ KB_EFFECTS = ["zoom_in", "zoom_out", "pan_right", "pan_left", "pan_down", "diago
 TRANSITION_TYPES = ["crossfade", "fade_black", "hard_cut", "slide"]
 
 # Klip ve resim süreleri
-VIDEO_CLIP_DURATION = 6.0   # Her video klip süresi (saniye) — A/B test: 5-7s optimal
+VIDEO_CLIP_DURATION = 3.0   # Her video klip süresi (saniye)
 IMAGE_CLIP_DURATION = 2.0   # Araya eklenen resim süresi (saniye)
 
 # ─── Power word sözlüğü (altyazıda sarı vurgu) ────────────────────────────────
@@ -2703,8 +2703,8 @@ def build_video(
     if vtt_path and os.path.exists(vtt_path):
         from tts import parse_vtt
         vtt_chunks = parse_vtt(vtt_path)
-        layers.extend(_make_word_subtitle_clips(vtt_chunks, total_duration))
-        print(f"[video_builder] VTT: {len(vtt_chunks)} altyazı chunk'ı (word-by-word)")
+        layers.extend(_make_subtitle_clips(vtt_chunks, total_duration))
+        print(f"[video_builder] VTT: {len(vtt_chunks)} altyazı chunk'ı (cümle-cümle)")
     else:
         layers.extend(_make_fallback_subtitle_clips(script["narration"], narration_audio.duration))
 
