@@ -157,7 +157,7 @@ FONT_PATH = "assets/fonts/Montserrat-Bold.ttf"
 LOGO_PATH = "assets/logo.png"
 INTRO_PATH = "assets/intro.mp4"
 OUTRO_PATH = "assets/outro.mp4"
-CROSSFADE_DUR = 0.4
+CROSSFADE_DUR = 0.2
 CTA_DURATION = 2.0   # 3.0'dan kısaltıldı — % watched artışı için
 
 # Ses efekti dosyaları
@@ -239,7 +239,7 @@ KB_EFFECTS = ["zoom_in", "zoom_out", "pan_right", "pan_left", "pan_down", "diago
 TRANSITION_TYPES = ["crossfade", "fade_black", "hard_cut", "slide"]
 
 # Klip ve resim süreleri
-VIDEO_CLIP_DURATION = 6.0   # Her video klip süresi (saniye) — A/B test: 5-7s optimal
+VIDEO_CLIP_DURATION = 3.0   # Her video klip süresi (saniye)
 IMAGE_CLIP_DURATION = 2.0   # Araya eklenen resim süresi (saniye)
 
 # ─── Power word sözlüğü (altyazıda sarı vurgu) ────────────────────────────────
@@ -2261,13 +2261,18 @@ def _render_subtitle_image(text: str, highlight: bool = False) -> np.ndarray:
     return np.array(img)
 
 
+_HOOK_DURATION = 3.0  # Hook overlay süresi — altyazı bu süre boyunca bastırılır
+
 def _make_subtitle_clips(chunks: list, total_duration: float) -> list:
     clips = []
     for chunk in chunks:
         start = chunk["start"]
+        # Hook gösterilirken (ilk 3s) altyazı çıkmasın — hook + altyazı çakışması
+        if start < _HOOK_DURATION:
+            start = _HOOK_DURATION
         end = min(chunk["end"], total_duration - CTA_DURATION - 0.1)
         dur = end - start
-        if dur <= 0:
+        if dur <= 0.1:
             continue
         img_arr = _render_subtitle_image(chunk["text"])
         h, w = img_arr.shape[:2]
@@ -2275,7 +2280,8 @@ def _make_subtitle_clips(chunks: list, total_duration: float) -> list:
             ImageClip(img_arr, ismask=False)
             .set_duration(dur)
             .set_start(start)
-            .set_position(((TARGET_W - w) // 2, int(TARGET_H * 0.62)))
+            # %68 → hook ile çakışmaz, YouTube UI butonlarının üzerinde kalır
+            .set_position(((TARGET_W - w) // 2, int(TARGET_H * 0.68)))
         )
     return clips
 
@@ -2315,7 +2321,7 @@ def _make_word_subtitle_clips(chunks: list, total_duration: float) -> list:
 def _make_fallback_subtitle_clips(narration: str, audio_duration: float) -> list:
     words = narration.split()
     secs_per_word = audio_duration / max(len(words), 1)
-    n = 5
+    n = 4
     chunks = []
     for i in range(0, len(words), n):
         group = words[i:i + n]
@@ -2703,149 +2709,32 @@ def build_video(
     if vtt_path and os.path.exists(vtt_path):
         from tts import parse_vtt
         vtt_chunks = parse_vtt(vtt_path)
-        layers.extend(_make_word_subtitle_clips(vtt_chunks, total_duration))
-        print(f"[video_builder] VTT: {len(vtt_chunks)} altyazı chunk'ı (word-by-word)")
+        layers.extend(_make_subtitle_clips(vtt_chunks, total_duration))
+        print(f"[video_builder] VTT: {len(vtt_chunks)} altyazı chunk'ı (cümle-cümle)")
     else:
         layers.extend(_make_fallback_subtitle_clips(script["narration"], narration_audio.duration))
 
-    # ─── Overlay System Entegrasyonu ──────────────────────────────────
+    # ─── Kırmızı alarm flash'ları ─────────────────────────────────────
+    # Harita/bayrak/stat/format overlay'ler kaldırıldı — görsel kargaşa yaratan,
+    # VVSA'yı düşüren gereksiz katmanlar. Sadece 2 adet ince kırmızı flash kaldı.
     try:
-        from overlay_system import (
-            extract_countries_with_timing,
-            extract_statistics_with_timing,
-            create_map_overlay,
-            create_stat_card,
-            download_flag,
-            create_flag_overlay,
-            create_format_overlays,
-            create_red_flash_data,
-            create_glitch_frame,
-        )
-
-        narration_text = script.get("narration", "")
-        video_format = script.get("format", "news_analysis")
-
-        if vtt_chunks:
-            # 1) Harita overlay'leri (max 3 ülke)
-            try:
-                countries = extract_countries_with_timing(narration_text, vtt_chunks)
-                for entry in countries[:3]:
-                    map_arr = create_map_overlay(entry["country"])
-                    if map_arr is not None:
-                        h, w = map_arr.shape[:2]
-                        start = entry["start"]
-                        dur = min(3.5, entry["end"] - entry["start"] + 1.5)
-                        layers.append(
-                            ImageClip(map_arr, ismask=False)
-                            .set_duration(dur)
-                            .set_start(start)
-                            .set_position(("center", 200))
-                            .crossfadein(0.3)
-                            .crossfadeout(0.3)
-                        )
-                        print(f"[video_builder] Harita overlay: {entry['country']} @ {start:.1f}s")
-            except Exception as e:
-                print(f"[video_builder] Harita overlay hatası: {e}")
-
-            # 2) İstatistik kartları (max 4 stat) — yıl tipi atlanır (anlamsız)
-            try:
-                stats = [s for s in extract_statistics_with_timing(narration_text, vtt_chunks)
-                         if s.get("label") != "year"]
-                for entry in stats[:4]:
-                    card_arr = create_stat_card(entry["value"], entry["label"])
-                    h, w = card_arr.shape[:2]
-                    start = entry["start"]
-                    dur = min(2.5, entry["end"] - entry["start"] + 1.0)
-                    layers.append(
-                        ImageClip(card_arr, ismask=False)
-                        .set_duration(dur)
-                        .set_start(start)
-                        .set_position(((TARGET_W - w) // 2, 350))
-                        .crossfadein(0.2)
-                        .crossfadeout(0.2)
-                    )
-                    print(f"[video_builder] Stat kart: {entry['value']} @ {start:.1f}s")
-            except Exception as e:
-                print(f"[video_builder] Stat kart hatası: {e}")
-
-            # 3) Bayrak overlay'leri (max 3 ülke)
-            try:
-                countries_for_flags = extract_countries_with_timing(narration_text, vtt_chunks)
-                for entry in countries_for_flags[:3]:
-                    flag_path = download_flag(entry["country"])
-                    if flag_path:
-                        flag_arr = create_flag_overlay(flag_path)
-                        if flag_arr is not None:
-                            h, w = flag_arr.shape[:2]
-                            start = entry["start"]
-                            dur = min(3.0, entry["end"] - entry["start"] + 1.0)
-                            layers.append(
-                                ImageClip(flag_arr, ismask=False)
-                                .set_duration(dur)
-                                .set_start(start)
-                                .set_position((TARGET_W - w - 30, TARGET_H - h - 350))
-                                .crossfadein(0.2)
-                                .crossfadeout(0.2)
-                            )
-                            print(f"[video_builder] Bayrak overlay: {entry['country']} @ {start:.1f}s")
-            except Exception as e:
-                print(f"[video_builder] Bayrak overlay hatası: {e}")
-
-        # 4) Format bazlı overlay'ler
-        try:
-            title = script.get("title", "")
-            format_overlays = create_format_overlays(video_format, total_duration, title)
-            for ov in format_overlays:
-                if ov["type"] == "glitch":
-                    # Glitch efekti — geçiş anlarında frame bazlı uygulanır
-                    # (bg klibine doğrudan uygulama yapılmaz, karmaşıklık nedeniyle atlat)
-                    continue
-                if ov["data"] is not None:
-                    h, w = ov["data"].shape[:2]
-                    dur = ov["end"] - ov["start"]
-                    if dur <= 0:
-                        continue
-                    pos = ov["position"]
-                    layers.append(
-                        ImageClip(ov["data"], ismask=False)
-                        .set_duration(dur)
-                        .set_start(ov["start"])
-                        .set_position(pos)
-                        .crossfadein(0.2)
-                        .crossfadeout(0.2)
-                    )
-            if format_overlays:
-                print(f"[video_builder] Format overlay'ler ({video_format}): {len(format_overlays)} adet")
-        except Exception as e:
-            print(f"[video_builder] Format overlay hatası: {e}")
-
-        # 5) Kırmızı alarm flash'ları (twist + payoff)
-        try:
-            flash_times = [
-                total_duration * 0.20,
-                total_duration * 0.45,
-                total_duration * 0.70,
-                max(0, total_duration - 5.0),
-            ]
-            flash_dur = 0.3
-            for ft in flash_times:
-                if ft + flash_dur > total_duration:
-                    continue
-                flash_arr = create_red_flash_data()
-                layers.append(
-                    ImageClip(flash_arr, ismask=False)
-                    .set_duration(flash_dur)
-                    .set_start(ft)
-                    .set_position((0, 0))
-                    .crossfadein(0.1)
-                    .crossfadeout(0.15)
-                )
-            print(f"[video_builder] Kırmızı flash @ {[t for t in flash_times if t + flash_dur <= total_duration]}")
-        except Exception as e:
-            print(f"[video_builder] Kırmızı flash hatası: {e}")
-
+        from overlay_system import create_red_flash_data
+        flash_times = [total_duration * 0.30, total_duration * 0.65]
+        flash_dur = 0.25
+        for ft in flash_times:
+            if ft + flash_dur > total_duration - CTA_DURATION:
+                continue
+            flash_arr = create_red_flash_data()
+            layers.append(
+                ImageClip(flash_arr, ismask=False)
+                .set_duration(flash_dur)
+                .set_start(ft)
+                .set_position((0, 0))
+                .crossfadein(0.08)
+                .crossfadeout(0.12)
+            )
     except ImportError:
-        print("[video_builder] overlay_system.py bulunamadı, overlay'ler atlanıyor.")
+        pass
     except Exception as e:
         print(f"[video_builder] Overlay system genel hatası: {e}")
     # ─── Overlay System Sonu ──────────────────────────────────────────
