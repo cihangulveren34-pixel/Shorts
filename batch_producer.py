@@ -83,7 +83,8 @@ def produce_batch(count: int = 7, dry_run: bool = False, language: str = "en") -
     print("=" * 52)
 
     produced = []
-    batch_seen_ids: set = set()  # Batch boyunca klip tekrarını önler
+    batch_seen_ids: set = set()   # Batch boyunca klip tekrarını önler
+    batch_used_topics: set = set()  # Batch içi konu tekrarını önler
     for i in range(count):
         slot_date = start_date + timedelta(days=i)
         video_dir = os.path.join(BATCH_DIR, str(slot_date))
@@ -93,7 +94,9 @@ def produce_batch(count: int = 7, dry_run: bool = False, language: str = "en") -
 
         try:
             # 1) Konu seç — seri sistemi devre dışı
-            topic, used_data = pick_trending_topic()
+            # extra_exclude: bu batch'te zaten kullanılan konuları tekrar seçme
+            topic, used_data = pick_trending_topic(extra_exclude=batch_used_topics)
+            batch_used_topics.add(topic)
             print(f"  Konu: {topic}")
             _save_used(used_data)
 
