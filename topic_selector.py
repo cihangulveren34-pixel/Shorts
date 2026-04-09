@@ -134,12 +134,13 @@ def _maybe_refresh_from_rss() -> None:
         print(f"[topic_selector] RSS tarama atlandı: {e}")
 
 
-def pick_trending_topic(override: str = None) -> tuple[str, dict]:
+def pick_trending_topic(override: str = None, extra_exclude: set = None) -> tuple[str, dict]:
     """
     Google Trends ile en popüler konuyu seçer.
     Döndürür: (seçilen konu, güncellenmiş used_data)
 
     override verilirse Trends'e bakmadan o konuyu döndürür.
+    extra_exclude: ek konu seti — zaten kullanıldı sayılır (batch içi tekrar önler).
     """
     from datetime import date
 
@@ -162,6 +163,15 @@ def pick_trending_topic(override: str = None) -> tuple[str, dict]:
 
     available, used_data = _load_available_topics()
 
+    # Batch içi ekstra hariç tutma (aynı batch'te tekrar seçimi önler)
+    if extra_exclude:
+        available = [t for t in available if t not in extra_exclude]
+        if not available:
+            # Batch içi havuz bitti — tüm used_data'dan sadece extra_exclude'u filtrele
+            with open(TOPIC_POOL_PATH, encoding="utf-8") as f:
+                all_topics = json.load(f)
+            available = [t for t in all_topics if t not in extra_exclude]
+
     # Keyword filtresi (örn. TOPIC_KEYWORDS=Iran,Israel)
     topic_keywords_env = os.environ.get("TOPIC_KEYWORDS", "").strip()
     if topic_keywords_env:
@@ -181,6 +191,8 @@ def pick_trending_topic(override: str = None) -> tuple[str, dict]:
             except Exception as e:
                 print(f"[topic_selector] RSS yenileme hatası: {e}")
             available2, _ = _load_available_topics()
+            if extra_exclude:
+                available2 = [t for t in available2 if t not in extra_exclude]
             filtered2 = [t for t in available2 if any(k in t.lower() for k in keywords)]
             if filtered2:
                 available = filtered2
