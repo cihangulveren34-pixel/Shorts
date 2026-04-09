@@ -117,13 +117,12 @@ def _fetch_pexels_clips(keywords: list, n: int = 3) -> list[str]:
                 if vid in seen_ids:
                     continue
                 seen_ids.add(vid)
-                # 720p+ MP4 seç
+                # 1080p+ MP4 seç (düşük kalite kullanma)
                 best = None
                 for vf in video.get("video_files", []):
-                    if vf.get("file_type") == "video/mp4" and (
-                        vf.get("height", 0) >= 720 or not best
-                    ):
-                        best = vf
+                    if vf.get("file_type") == "video/mp4" and vf.get("height", 0) >= 1080:
+                        if best is None or vf.get("height", 0) > best.get("height", 0):
+                            best = vf
                 if not best:
                     continue
                 try:
@@ -190,35 +189,32 @@ def _wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list[
     return lines
 
 
-def _make_hook_screen(hook_line: str, hook_subtext: str, palette: dict, duration: float) -> ImageClip:
+def _make_hook_overlay(hook_line: str, hook_subtext: str, palette: dict, duration: float) -> ImageClip:
     """
-    İlk 4 saniyelik hook ekranı.
-    Büyük hook metni + opsiyonel alt metin, koyu gradient arka plan üzerinde.
+    Tüm video boyunca görünen hook metni overlay'i (şeffaf RGBA).
+    Ekranın ortasında konumlanır, footage'ın üzerinde durur.
     """
-    img = Image.new("RGB", (TARGET_W, TARGET_H))
+    img = Image.new("RGBA", (TARGET_W, TARGET_H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-
-    # Arka plan
-    bg = palette["bg"]
-    for y in range(TARGET_H):
-        t = y / TARGET_H
-        factor = 1.0 - 0.4 * t
-        r, g, b = [int(c * factor) for c in bg]
-        draw.line([(0, y), (TARGET_W, y)], fill=(r, g, b))
-
     accent = palette["accent"]
     text_color = palette["text"]
 
-    # Hook metni (büyük)
-    hook_font_size = 68
+    # Hook metni
+    hook_font_size = 64
     font_hook = _load_font(hook_font_size)
-    max_w = TARGET_W - 100  # 50px her yandan padding
+    max_w = TARGET_W - 100
     lines = _wrap_text(hook_line, font_hook, max_w)
 
-    # Toplam yükseklik hesabı
-    line_h = hook_font_size + 12
+    line_h = hook_font_size + 14
     total_h = len(lines) * line_h
-    y_start = (TARGET_H - total_h) // 2 - 60
+    # Ekranın orta-üst bölgesi (Hz bilgisi altta olduğu için yukarı kaydır)
+    y_start = int(TARGET_H * 0.28) - total_h // 2
+
+    # Metin arkasına yarı saydam kutu
+    pad = 24
+    box_y1 = y_start - pad
+    box_y2 = y_start + total_h + pad
+    draw.rectangle([(40, box_y1), (TARGET_W - 40, box_y2)], fill=(0, 0, 0, 150))
 
     for i, line in enumerate(lines):
         y = y_start + i * line_h
@@ -229,31 +225,31 @@ def _make_hook_screen(hook_line: str, hook_subtext: str, palette: dict, duration
             lw = bbox[2] - bbox[0]
         x = (TARGET_W - lw) // 2
         # Gölge
-        draw.text((x + 3, y + 3), line, font=font_hook, fill=(0, 0, 0, 160))
-        draw.text((x, y), line, font=font_hook, fill=text_color)
+        draw.text((x + 3, y + 3), line, font=font_hook, fill=(0, 0, 0, 180))
+        draw.text((x, y), line, font=font_hook, fill=(*text_color, 240))
 
-    # Accent alt çizgi
-    line_y = y_start + len(lines) * line_h + 20
+    # Accent çizgi
+    line_y = box_y2 + 8
     draw.rectangle(
-        [(TARGET_W // 2 - 100, line_y), (TARGET_W // 2 + 100, line_y + 3)],
-        fill=accent,
+        [(TARGET_W // 2 - 80, line_y), (TARGET_W // 2 + 80, line_y + 3)],
+        fill=(*accent, 220),
     )
 
     # Alt metin
     if hook_subtext:
-        font_sub = _load_font(42)
-        sub_y = line_y + 25
+        font_sub = _load_font(40)
+        sub_y = line_y + 16
         try:
             sw = draw.textlength(hook_subtext, font=font_sub)
         except AttributeError:
             bbox = font_sub.getbbox(hook_subtext)
             sw = bbox[2] - bbox[0]
         sx = (TARGET_W - sw) // 2
-        draw.text((sx + 2, sub_y + 2), hook_subtext, font=font_sub, fill=(0, 0, 0))
-        draw.text((sx, sub_y), hook_subtext, font=font_sub, fill=accent)
+        draw.text((sx + 2, sub_y + 2), hook_subtext, font=font_sub, fill=(0, 0, 0, 160))
+        draw.text((sx, sub_y), hook_subtext, font=font_sub, fill=(*accent, 230))
 
     arr = np.array(img)
-    return ImageClip(arr).set_duration(duration)
+    return ImageClip(arr, ismask=False).set_duration(duration)
 
 
 def _make_freq_overlay(hz: float, freq_name: str, short_benefit: str, palette: dict) -> ImageClip:
@@ -312,36 +308,25 @@ def _make_freq_overlay(hz: float, freq_name: str, short_benefit: str, palette: d
     return ImageClip(arr, ismask=False)
 
 
-def _make_cta_screen(cta_line: str, palette: dict, duration: float) -> ImageClip:
-    """Video sonu CTA ekranı."""
-    img = Image.new("RGB", (TARGET_W, TARGET_H))
+def _make_cta_overlay(cta_line: str, palette: dict, duration: float) -> ImageClip:
+    """
+    Son N saniyede görünen CTA overlay'i (şeffaf RGBA).
+    Footage'ın üzerine biner, hook ile birlikte ekranda olur.
+    """
+    img = Image.new("RGBA", (TARGET_W, TARGET_H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    bg = palette["bg"]
     accent = palette["accent"]
     text_color = palette["text"]
 
-    # Koyu arka plan
-    for y in range(TARGET_H):
-        factor = 0.7 + 0.3 * (y / TARGET_H)
-        r, g, b = [min(255, int(c * factor)) for c in bg]
-        draw.line([(0, y), (TARGET_W, y)], fill=(r, g, b))
-
-    # Orta: büyük sembol
-    font_icon = _load_font(120)
-    icon = "✦"
-    try:
-        iw = draw.textlength(icon, font=font_icon)
-    except AttributeError:
-        bbox = font_icon.getbbox(icon)
-        iw = bbox[2] - bbox[0]
-    draw.text(((TARGET_W - iw) // 2, TARGET_H // 2 - 220), icon, font=font_icon, fill=accent)
+    # Karartma şeridi (orta bölge)
+    draw.rectangle([(0, TARGET_H // 2 - 160), (TARGET_W, TARGET_H // 2 + 160)], fill=(0, 0, 0, 170))
 
     # CTA metni
-    font_cta = _load_font(58)
-    cta_lines = _wrap_text(cta_line, font_cta, TARGET_W - 120)
-    line_h = 70
+    font_cta = _load_font(56)
+    cta_lines = _wrap_text(cta_line, font_cta, TARGET_W - 100)
+    line_h = 68
     total_h = len(cta_lines) * line_h
-    y_start = TARGET_H // 2 - total_h // 2 + 30
+    y_start = TARGET_H // 2 - total_h // 2
 
     for i, line in enumerate(cta_lines):
         y = y_start + i * line_h
@@ -351,22 +336,18 @@ def _make_cta_screen(cta_line: str, palette: dict, duration: float) -> ImageClip
             bbox = font_cta.getbbox(line)
             lw = bbox[2] - bbox[0]
         x = (TARGET_W - lw) // 2
-        draw.text((x + 2, y + 2), line, font=font_cta, fill=(0, 0, 0))
-        draw.text((x, y), line, font=font_cta, fill=text_color)
+        draw.text((x + 2, y + 2), line, font=font_cta, fill=(0, 0, 0, 180))
+        draw.text((x, y), line, font=font_cta, fill=(*text_color, 245))
 
-    # Alt: küçük not
-    font_sub = _load_font(34)
-    sub_text = "New healing frequency every day"
-    try:
-        sw = draw.textlength(sub_text, font=font_sub)
-    except AttributeError:
-        bbox = font_sub.getbbox(sub_text)
-        sw = bbox[2] - bbox[0]
-    sx = (TARGET_W - sw) // 2
-    draw.text((sx, TARGET_H - 180), sub_text, font=font_sub, fill=accent)
+    # Accent çizgi
+    draw.rectangle(
+        [(TARGET_W // 2 - 80, TARGET_H // 2 + total_h // 2 + 20),
+         (TARGET_W // 2 + 80, TARGET_H // 2 + total_h // 2 + 23)],
+        fill=(*accent, 220),
+    )
 
     arr = np.array(img)
-    return ImageClip(arr).set_duration(duration)
+    return ImageClip(arr, ismask=False).set_duration(duration)
 
 
 # ─── Ana video builder ────────────────────────────────────────────────────────
@@ -399,33 +380,26 @@ def build_freq_video(script: dict, audio_path: str, output_path: str = OUTPUT_PA
     # ─── Ses ──────────────────────────────────────────────────────────────────
     audio_clip = AudioFileClip(audio_path)
     total_duration = min(audio_clip.duration, 62.0)
+    cta_start = total_duration - 8.0  # Son 8 saniye CTA
 
-    # Bölüm süreleri
-    hook_dur = 4.0
-    cta_dur = 8.0
-    main_dur = total_duration - hook_dur - cta_dur  # ~50s
-
-    print(f"[freq_video] Süre: hook={hook_dur}s, ana={main_dur:.1f}s, CTA={cta_dur}s")
+    print(f"[freq_video] Toplam süre: {total_duration:.1f}s, CTA başlangıç: {cta_start:.1f}s")
 
     # ─── Pexels footage indir ─────────────────────────────────────────────────
     clip_paths = _fetch_pexels_clips(pexels_keywords, n=3)
-    tmp_files = list(clip_paths)  # temizlik için sakla
+    tmp_files = list(clip_paths)
 
-    # ─── Arka plan videoları ──────────────────────────────────────────────────
+    # ─── Arka plan: tüm video boyunca tek footage bloğu ──────────────────────
     def _prepare_bg_clip(path: str, duration: float) -> VideoFileClip:
         """Klip yükle, 1080×1920 kırp/yakınlaştır, sesi kaldır."""
         clip = VideoFileClip(path, audio=False)
 
-        # En-boy oranı: Shorts için dikey (9:16)
         target_ratio = TARGET_W / TARGET_H
         clip_ratio = clip.w / clip.h
 
         if clip_ratio > target_ratio:
-            # Yatay: yüksekliğe göre scale
             new_h = TARGET_H
             new_w = int(clip.w * (TARGET_H / clip.h))
         else:
-            # Dikey veya kare: genişliğe göre scale
             new_w = TARGET_W
             new_h = int(clip.h * (TARGET_W / clip.w))
 
@@ -434,59 +408,56 @@ def build_freq_video(script: dict, audio_path: str, output_path: str = OUTPUT_PA
         y1 = (new_h - TARGET_H) // 2
         clip = clip.crop(x1=x1, y1=y1, x2=x1 + TARGET_W, y2=y1 + TARGET_H)
 
-        # Döngülü veya kırpılmış
         if clip.duration < duration:
             n_loops = int(math.ceil(duration / clip.duration))
-            from moviepy.editor import concatenate_videoclips
             clip = concatenate_videoclips([clip] * n_loops).subclip(0, duration)
         else:
             clip = clip.subclip(0, duration)
 
-        # Karartma overlay (footage çok parlak olmasın)
         darken = ColorClip(size=(TARGET_W, TARGET_H), color=[0, 0, 0]).set_opacity(0.45).set_duration(duration)
         return CompositeVideoClip([clip, darken])
 
-    # ─── 1) Hook bölümü ───────────────────────────────────────────────────────
-    print("[freq_video] Hook ekranı oluşturuluyor...")
-    hook_screen = _make_hook_screen(hook_line, hook_subtext, palette, hook_dur)
-
-    # ─── 2) Ana bölüm (frekans bilgisi + footage) ─────────────────────────────
-    print("[freq_video] Ana bölüm oluşturuluyor...")
-
+    print("[freq_video] Arka plan hazırlanıyor...")
     if clip_paths:
-        # Footage'ları main_dur boyunca doldur
         bg_clips = []
-        per_clip = main_dur / max(len(clip_paths), 1)
+        per_clip = total_duration / max(len(clip_paths), 1)
         for p in clip_paths:
             try:
-                bg = _prepare_bg_clip(p, per_clip)
-                bg_clips.append(bg)
+                bg_clips.append(_prepare_bg_clip(p, per_clip))
             except Exception as e:
                 print(f"[freq_video] Klip yüklenemedi ({p}): {e}")
 
         if bg_clips:
             bg_video = concatenate_videoclips(bg_clips)
-            if bg_video.duration < main_dur:
-                # Yeterli footage yoksa gradient ile doldur
-                fill = _make_gradient_bg(palette, main_dur - bg_video.duration)
+            if bg_video.duration < total_duration:
+                fill = _make_gradient_bg(palette, total_duration - bg_video.duration)
                 bg_video = concatenate_videoclips([bg_video, fill])
         else:
-            bg_video = _make_gradient_bg(palette, main_dur)
+            bg_video = _make_gradient_bg(palette, total_duration)
     else:
-        bg_video = _make_gradient_bg(palette, main_dur)
+        bg_video = _make_gradient_bg(palette, total_duration)
 
-    # Frekans bilgisi overlay (tüm ana bölüm boyunca)
-    freq_overlay = _make_freq_overlay(hz, freq_name, short_benefit, palette).set_duration(main_dur)
-    main_section = CompositeVideoClip([bg_video, freq_overlay])
+    # ─── Overlay katmanları ───────────────────────────────────────────────────
 
-    # ─── 3) CTA bölümü ────────────────────────────────────────────────────────
-    print("[freq_video] CTA ekranı oluşturuluyor...")
-    cta_screen = _make_cta_screen(cta_line, palette, cta_dur)
+    # 1) Hook — tüm video boyunca (sonuna kadar)
+    print("[freq_video] Hook overlay oluşturuluyor...")
+    hook_overlay = _make_hook_overlay(hook_line, hook_subtext, palette, total_duration)
 
-    # ─── 4) Birleştir + ses ekle ──────────────────────────────────────────────
-    print("[freq_video] Video birleştiriliyor...")
-    final_video = concatenate_videoclips([hook_screen, main_section, cta_screen])
-    final_video = final_video.set_audio(audio_clip.subclip(0, final_video.duration))
+    # 2) Frekans bilgisi (Hz + benefit) — tüm video boyunca
+    print("[freq_video] Frekans overlay oluşturuluyor...")
+    freq_overlay = _make_freq_overlay(hz, freq_name, short_benefit, palette).set_duration(total_duration)
+
+    # 3) CTA — sadece son 8 saniye, footage'ın üzerinde
+    print("[freq_video] CTA overlay oluşturuluyor...")
+    cta_overlay = _make_cta_overlay(cta_line, palette, total_duration - cta_start).set_start(cta_start)
+
+    # ─── Birleştir: footage + hook + hz + cta ────────────────────────────────
+    print("[freq_video] Katmanlar birleştiriliyor...")
+    final_video = CompositeVideoClip(
+        [bg_video, hook_overlay, freq_overlay, cta_overlay],
+        size=(TARGET_W, TARGET_H),
+    ).set_duration(total_duration)
+    final_video = final_video.set_audio(audio_clip.subclip(0, total_duration))
 
     # ─── 5) Export ────────────────────────────────────────────────────────────
     print(f"[freq_video] Export ediliyor: {output_path}")
