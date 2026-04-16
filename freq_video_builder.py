@@ -57,6 +57,14 @@ MOOD_PALETTES = {
     "focus":      {"bg": (5, 15, 30),     "accent": (0, 200, 255),   "text": (200, 235, 255)},
     "earth":      {"bg": (10, 25, 10),    "accent": (100, 200, 100), "text": (210, 240, 210)},
     "grounding":  {"bg": (20, 15, 5),     "accent": (180, 140, 80),  "text": (240, 225, 190)},
+    "sleep":      {"bg": (5, 5, 20),      "accent": (80, 80, 180),   "text": (180, 180, 240)},
+    "meditation": {"bg": (10, 15, 30),    "accent": (120, 160, 220), "text": (200, 220, 255)},
+    "energy":     {"bg": (30, 10, 5),     "accent": (255, 120, 40),  "text": (255, 220, 180)},
+    "brain":      {"bg": (5, 10, 30),     "accent": (0, 180, 255),   "text": (180, 225, 255)},
+    "planetary":  {"bg": (5, 5, 15),      "accent": (160, 140, 200), "text": (210, 200, 240)},
+    "abundance":  {"bg": (15, 20, 5),     "accent": (200, 200, 60),  "text": (240, 240, 180)},
+    "creativity": {"bg": (25, 5, 25),     "accent": (220, 80, 200),  "text": (240, 200, 240)},
+    "balance":    {"bg": (10, 20, 20),    "accent": (100, 200, 180), "text": (200, 240, 230)},
 }
 DEFAULT_PALETTE = {"bg": (5, 10, 30), "accent": (100, 180, 255), "text": (220, 235, 255)}
 
@@ -85,38 +93,79 @@ def _load_font(size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default()
 
 
+# ─── Pexels görsel dedup ─────────────────────────────────────────────────────
+
+FREQ_SEEN_PEXELS_PATH = os.path.join("output", "freq_seen_pexels_ids.json")
+MAX_SEEN_IDS = 500
+
+
+def _load_freq_seen_ids() -> set:
+    """Daha önce kullanılan Pexels video ID'lerini yükle."""
+    try:
+        with open(FREQ_SEEN_PEXELS_PATH, "r") as f:
+            ids = json.load(f)
+            if isinstance(ids, list):
+                return set(ids)
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    return set()
+
+
+def _save_freq_seen_ids(seen: set) -> None:
+    """Kullanılan Pexels video ID'lerini kaydet (max MAX_SEEN_IDS)."""
+    os.makedirs(os.path.dirname(FREQ_SEEN_PEXELS_PATH), exist_ok=True)
+    id_list = list(seen)
+    if len(id_list) > MAX_SEEN_IDS:
+        id_list = id_list[-MAX_SEEN_IDS:]
+    with open(FREQ_SEEN_PEXELS_PATH, "w") as f:
+        json.dump(id_list, f)
+    print(f"[freq_video] Seen Pexels IDs kaydedildi: {len(id_list)} adet")
+
+
 # ─── Pexels footage indir ────────────────────────────────────────────────────
 
-def _fetch_pexels_clips(keywords: list, n: int = 3) -> list[str]:
-    """Pexels'ten meditation/nature/space klipleri indirir."""
+def _fetch_pexels_clips(keywords: list, n: int = 3, seen_ids: set = None) -> tuple[list[str], set]:
+    """Pexels'ten meditation/nature/space klipleri indirir. Daha önce kullanılanları atlar."""
     api_key = os.environ.get("PEXELS_API_KEY", "")
+    if seen_ids is None:
+        seen_ids = set()
+    new_ids = set()
+
     if not api_key:
         print("[freq_video] PEXELS_API_KEY eksik — renk arka plan kullanılacak")
-        return []
+        return [], new_ids
 
     downloaded = []
-    seen_ids = set()
-    queries = keywords[:4]
+    session_seen = set()
+
+    # Keywords'ü shuffle et ve rastgele 5 tanesini seç
+    kw_pool = list(keywords)
+    random.shuffle(kw_pool)
+    queries = kw_pool[:5]
 
     for query in queries:
         if len(downloaded) >= n:
             break
         try:
+            page = random.randint(1, 3)
             resp = requests.get(
                 "https://api.pexels.com/videos/search",
-                params={"query": query, "per_page": 10, "orientation": "portrait"},
+                params={"query": query, "per_page": 10, "orientation": "portrait", "page": page},
                 headers={"Authorization": api_key},
                 timeout=15,
             )
             if resp.status_code != 200:
                 continue
-            for video in resp.json().get("videos", []):
+            videos = resp.json().get("videos", [])
+            random.shuffle(videos)
+            for video in videos:
                 if len(downloaded) >= n:
                     break
-                vid = f"pexels_{video['id']}"
-                if vid in seen_ids:
+                vid_id = video['id']
+                vid_key = f"pexels_{vid_id}"
+                if vid_key in session_seen or vid_id in seen_ids:
                     continue
-                seen_ids.add(vid)
+                session_seen.add(vid_key)
                 # 1080p+ MP4 seç (düşük kalite kullanma)
                 best = None
                 for vf in video.get("video_files", []):
@@ -134,13 +183,14 @@ def _fetch_pexels_clips(keywords: list, n: int = 3) -> list[str]:
                         for chunk in r.iter_content(chunk_size=256 * 1024):
                             f.write(chunk)
                     downloaded.append(tmp.name)
-                    print(f"[freq_video] Pexels klip indirildi: {query!r}")
+                    new_ids.add(vid_id)
+                    print(f"[freq_video] Pexels klip indirildi: {query!r} (id={vid_id})")
                 except Exception as e:
                     print(f"[freq_video] Pexels indirme hatası: {e}")
         except Exception as e:
             print(f"[freq_video] Pexels arama hatası ({query!r}): {e}")
 
-    return downloaded
+    return downloaded, new_ids
 
 
 # ─── Görsel ekran oluşturucular ──────────────────────────────────────────────
@@ -384,8 +434,11 @@ def build_freq_video(script: dict, audio_path: str, output_path: str = OUTPUT_PA
 
     print(f"[freq_video] Toplam süre: {total_duration:.1f}s, CTA başlangıç: {cta_start:.1f}s")
 
-    # ─── Pexels footage indir ─────────────────────────────────────────────────
-    clip_paths = _fetch_pexels_clips(pexels_keywords, n=3)
+    # ─── Pexels footage indir (dedup ile) ─────────────────────────────────────
+    seen_pexels = _load_freq_seen_ids()
+    clip_paths, new_pexels_ids = _fetch_pexels_clips(pexels_keywords, n=3, seen_ids=seen_pexels)
+    seen_pexels.update(new_pexels_ids)
+    _save_freq_seen_ids(seen_pexels)
     tmp_files = list(clip_paths)
 
     # ─── Arka plan: tüm video boyunca tek footage bloğu ──────────────────────

@@ -46,6 +46,24 @@ jobs:
           restore-keys: |
             seen-clip-ids-
 
+      - name: Restore freq_used_topics cache
+        if: ${{ vars.LANGUAGE == 'hz' }}
+        uses: actions/cache@v4
+        with:
+          path: freq_used_topics.json
+          key: freq-used-topics-${{ github.run_id }}
+          restore-keys: |
+            freq-used-topics-
+
+      - name: Restore freq_seen_pexels_ids cache
+        if: ${{ vars.LANGUAGE == 'hz' }}
+        uses: actions/cache@v4
+        with:
+          path: output/freq_seen_pexels_ids.json
+          key: freq-seen-pexels-${{ github.run_id }}
+          restore-keys: |
+            freq-seen-pexels-
+
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -108,7 +126,14 @@ jobs:
         run: python -c "from setup_assets import download_arabic_font; download_arabic_font()"
 
       - name: Run pipeline
-        run: python main.py
+        run: |
+          if [ "$LANGUAGE" = "hz" ]; then
+            echo "=== MODE: FREQ SHORTS (LANGUAGE=hz) ==="
+            python freq_main.py
+          else
+            echo "=== MODE: WAR SHORTS (LANGUAGE=$LANGUAGE) ==="
+            python main.py
+          fi
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
@@ -125,6 +150,7 @@ jobs:
           TOPIC_KEYWORDS: ${{ vars.TOPIC_KEYWORDS || 'Israel,Gaza,Hamas,Hezbollah,IDF,West Bank,Jerusalem,Iran,IRGC,Iran nuclear,Iran missile,Iran US,Iran Israel,Iranian' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USE_QUEUE: ${{ vars.USE_QUEUE || 'false' }}
+          USE_FREQ_QUEUE: ${{ vars.USE_FREQ_QUEUE || 'false' }}
           GOOGLE_DRIVE_BACKUP: ${{ vars.GOOGLE_DRIVE_BACKUP || 'false' }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           COMPETITOR_CHANNEL_IDS: ${{ vars.COMPETITOR_CHANNEL_IDS }}
@@ -178,15 +204,37 @@ jobs:
           path: output/seen_clip_ids.json
           key: seen-clip-ids-${{ github.run_id }}
 
-      - name: Commit used_topics.json to git (kalıcı dedup)
+      - name: Save freq_used_topics cache
+        if: ${{ always() && vars.LANGUAGE == 'hz' }}
+        uses: actions/cache@v4
+        with:
+          path: freq_used_topics.json
+          key: freq-used-topics-${{ github.run_id }}
+
+      - name: Save freq_seen_pexels_ids cache
+        if: ${{ always() && vars.LANGUAGE == 'hz' }}
+        uses: actions/cache@v4
+        with:
+          path: output/freq_seen_pexels_ids.json
+          key: freq-seen-pexels-${{ github.run_id }}
+
+      - name: Commit state files to git (kalıcı dedup)
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add used_topics.json
-          git diff --cached --quiet || git commit -m "chore: update used_topics after daily run [skip ci]"
+          if [ "$LANGUAGE" = "hz" ]; then
+            git add freq_used_topics.json || true
+            git add output/freq_seen_pexels_ids.json || true
+            git diff --cached --quiet || git commit -m "chore: update freq state after daily run [skip ci]"
+          else
+            git add used_topics.json
+            git diff --cached --quiet || git commit -m "chore: update used_topics after daily run [skip ci]"
+          fi
           git pull --rebase origin $(git rev-parse --abbrev-ref HEAD) || true
           git push origin HEAD || true
+        env:
+          LANGUAGE: ${{ vars.LANGUAGE || 'en' }}
 
       - name: Upload output artifacts (debug)
         if: failure()
