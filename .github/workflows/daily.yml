@@ -7,7 +7,7 @@ on:
 
 jobs:
   run-pipeline:
-    if: github.event_name == 'workflow_dispatch' || vars.ACTIVE_SYSTEM == 'en' || vars.ACTIVE_SYSTEM == 'tr'
+    if: github.event_name == 'workflow_dispatch' || vars.ACTIVE_SYSTEM == 'en' || vars.ACTIVE_SYSTEM == 'tr' || vars.ACTIVE_SYSTEM == ''
     runs-on: ubuntu-latest
     timeout-minutes: 55
 
