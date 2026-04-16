@@ -9,9 +9,9 @@ Kullanım:
 Pipeline:
   1) freq_topic_pool.json'dan frekans seç
   2) Gemini ile title/hook/tags üret
-  3) Belirtilen Hz'de sinüs dalgası sesi üret (62 saniye)
+  3) Belirtilen Hz'de sinüs dalgası sesi üret (17 saniye)
   4) Pexels'ten meditation/nature/space klipleri indir
-  5) Video montajı: hook ekranı + ambient footage + CTA
+  5) Video montajı: hook ekranı + ambient footage (15s)
   6) YouTube'a yükle (WAR SHORTS'un uploader.py'ini kullanır)
   7) Telegram bildirimi gönder
 """
@@ -151,9 +151,6 @@ def run(dry_run: bool = False, hz_override: float = None) -> None:
             lambda: generate_frequency_audio(
                 hz=float(topic["hz"]),
                 output_mp3=FREQ_AUDIO_PATH,
-                duration_sec=62.0,
-                binaural_offset=4.0,
-                ambient_ratio=0.08,
             ),
             topic["name"],
         )
@@ -212,7 +209,7 @@ def run(dry_run: bool = False, hz_override: float = None) -> None:
         send_notification(
             title=script["title"],
             video_id=video_id,
-            duration_sec=62,
+            duration_sec=15,
             tags=script["tags"],
         )
     except Exception as e:

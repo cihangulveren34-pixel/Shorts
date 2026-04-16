@@ -3,10 +3,10 @@ freq_audio_gen.py — Belirli bir frekansta saf sinüs dalgası sesi üretir.
 
 Özellikler:
   - Saf sinüs dalgası (pure tone) at target Hz
-  - Fade-in / fade-out (5 saniye)
-  - Opsiyonel binaural beat katmanı (sol/sağ kulak farkı)
-  - Opsiyonel yumuşak ambient pad karışımı
-  - 60 saniye varsayılan süre
+  - Fade-in / fade-out (2 saniye)
+  - Randomize binaural beat katmanı (sol/sağ kulak farkı)
+  - Yumuşak ambient pad + pink noise karışımı (Content ID bypass)
+  - 15 saniye varsayılan süre
   - 44100 Hz stereo WAV → MP3 çıktı
 """
 
@@ -16,12 +16,13 @@ import wave
 import subprocess
 import tempfile
 import math
+import random
 
 SAMPLE_RATE = 44100
 CHANNELS = 2
 SAMPLE_WIDTH = 2  # 16-bit
-DEFAULT_DURATION = 62  # saniye (bitiş fade hesabı için 2 sn fazla)
-FADE_SEC = 5          # fade-in ve fade-out süresi
+DEFAULT_DURATION = 17  # saniye (15s video + 2s fade buffer)
+FADE_SEC = 2          # fade-in ve fade-out süresi
 
 
 def _sine_wave(freq_hz: float, duration_sec: float, amplitude: float = 0.7) -> list[float]:
@@ -57,6 +58,33 @@ def _mix(a: list[float], b: list[float], ratio: float = 0.5) -> list[float]:
     return out
 
 
+def _pink_noise(n_samples: int, amplitude: float = 0.05) -> list[float]:
+    """Voss-McCartney algoritması ile pink noise üretir."""
+    rows = 16
+    running_total = 0.0
+    vals = [0.0] * rows
+    out = []
+    max_val = 0.0
+    for i in range(n_samples):
+        idx = 0
+        n = i
+        while n > 0 and idx < rows:
+            if n & 1:
+                new_val = random.uniform(-1, 1)
+                running_total -= vals[idx]
+                vals[idx] = new_val
+                running_total += new_val
+            n >>= 1
+            idx += 1
+        white = random.uniform(-1, 1)
+        sample = (running_total + white) / (rows + 1)
+        out.append(sample)
+        max_val = max(max_val, abs(sample))
+    if max_val > 0:
+        out = [s / max_val * amplitude for s in out]
+    return out
+
+
 def _samples_to_bytes(left: list[float], right: list[float]) -> bytes:
     """Float örnekleri stereo 16-bit PCM baytına dönüştürür."""
     n = min(len(left), len(right))
@@ -74,45 +102,64 @@ def generate_frequency_audio(
     hz: float,
     output_mp3: str,
     duration_sec: float = DEFAULT_DURATION,
-    binaural_offset: float = 4.0,
-    ambient_ratio: float = 0.08,
+    binaural_offset: float = 0,
+    ambient_ratio: float = 0,
 ) -> str:
     """
     Belirtilen frekansta frekans sesi üretir ve MP3 olarak kaydeder.
+    Content ID bypass için parametreler her çalıştırmada randomize edilir.
 
     Args:
         hz: Hedef frekans (örn. 528.0)
         output_mp3: Çıktı MP3 dosya yolu
         duration_sec: Ses süresi (saniye)
-        binaural_offset: Binaural beat farkı Hz (sağ kulak = hz + offset)
-                         0 ise binaural devre dışı (mono pure tone)
-        ambient_ratio: Ambient pad karışım oranı (0.0 = sadece ton, 0.15 = hafif pad)
+        binaural_offset: Binaural beat farkı Hz (0 = otomatik randomize)
+        ambient_ratio: Ambient pad karışım oranı (0 = otomatik randomize)
 
     Returns:
         output_mp3 yolu
     """
-    print(f"[freq_audio_gen] {hz} Hz ses üretiliyor ({duration_sec:.0f}s)...")
+    # ─── Parametreleri randomize et (Content ID benzersizliği) ────────────────
+    if binaural_offset == 0:
+        binaural_offset = round(random.uniform(3.5, 6.5), 2)
+    if ambient_ratio == 0:
+        ambient_ratio = round(random.uniform(0.06, 0.14), 3)
+
+    # Ekstra benzersizlik: amplitude ve harmonik oranları da hafif rastgele
+    main_amp = round(random.uniform(0.60, 0.70), 3)
+    sub_amp = round(random.uniform(0.20, 0.35), 3)
+    harm3_amp = round(random.uniform(0.05, 0.12), 3)
+    pink_amp = round(random.uniform(0.03, 0.07), 3)
+
+    print(f"[freq_audio_gen] {hz} Hz ses üretiliyor ({duration_sec:.0f}s) "
+          f"binaural={binaural_offset}Hz, ambient={ambient_ratio}, pink={pink_amp}")
+
+    n_samples = int(SAMPLE_RATE * duration_sec)
 
     # ─── 1) Ana frekans dalgaları ─────────────────────────────────────────────
-    left_tone = _sine_wave(hz, duration_sec, amplitude=0.65)
-    if binaural_offset > 0:
-        right_tone = _sine_wave(hz + binaural_offset, duration_sec, amplitude=0.65)
-    else:
-        right_tone = list(left_tone)
+    left_tone = _sine_wave(hz, duration_sec, amplitude=main_amp)
+    right_tone = _sine_wave(hz + binaural_offset, duration_sec, amplitude=main_amp)
 
-    # ─── 2) Opsiyonel ambient pad (alt harmonikler) ───────────────────────────
-    if ambient_ratio > 0:
-        sub_hz = hz / 2.0  # oktav altı
-        pad_left = _sine_wave(sub_hz, duration_sec, amplitude=0.3)
-        # 3. harmonik hafifçe
-        harm3 = _sine_wave(hz * 3, duration_sec, amplitude=0.08)
-        pad_left = _mix(pad_left, harm3, ratio=0.2)
+    # ─── 2) Ambient pad (alt harmonikler) ────────────────────────────────────
+    sub_hz = hz / 2.0
+    pad_left = _sine_wave(sub_hz, duration_sec, amplitude=sub_amp)
+    harm3 = _sine_wave(hz * 3, duration_sec, amplitude=harm3_amp)
+    pad_left = _mix(pad_left, harm3, ratio=0.2)
 
-        pad_right = list(pad_left)
-        left_tone = _mix(left_tone, pad_left, ratio=ambient_ratio)
-        right_tone = _mix(right_tone, pad_right, ratio=ambient_ratio)
+    # Sağ pad hafif farklı fazda (ekstra benzersizlik)
+    pad_right = _sine_wave(sub_hz + 0.5, duration_sec, amplitude=sub_amp)
+    pad_right = _mix(pad_right, harm3, ratio=0.2)
 
-    # ─── 3) Fade-in / fade-out ────────────────────────────────────────────────
+    left_tone = _mix(left_tone, pad_left, ratio=ambient_ratio)
+    right_tone = _mix(right_tone, pad_right, ratio=ambient_ratio)
+
+    # ─── 3) Pink noise katmanı (Content ID fingerprint kırıcı) ───────────────
+    pink_l = _pink_noise(n_samples, amplitude=pink_amp)
+    pink_r = _pink_noise(n_samples, amplitude=pink_amp)
+    left_tone = _mix(left_tone, pink_l, ratio=0.15)
+    right_tone = _mix(right_tone, pink_r, ratio=0.15)
+
+    # ─── 4) Fade-in / fade-out ────────────────────────────────────────────────
     left_tone = _apply_fade(left_tone, FADE_SEC)
     right_tone = _apply_fade(right_tone, FADE_SEC)
 

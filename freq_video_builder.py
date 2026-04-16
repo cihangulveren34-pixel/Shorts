@@ -429,14 +429,13 @@ def build_freq_video(script: dict, audio_path: str, output_path: str = OUTPUT_PA
 
     # ─── Ses ──────────────────────────────────────────────────────────────────
     audio_clip = AudioFileClip(audio_path)
-    total_duration = min(audio_clip.duration, 62.0)
-    cta_start = total_duration - 8.0  # Son 8 saniye CTA
+    total_duration = min(audio_clip.duration, 15.0)
 
-    print(f"[freq_video] Toplam süre: {total_duration:.1f}s, CTA başlangıç: {cta_start:.1f}s")
+    print(f"[freq_video] Toplam süre: {total_duration:.1f}s")
 
     # ─── Pexels footage indir (dedup ile) ─────────────────────────────────────
     seen_pexels = _load_freq_seen_ids()
-    clip_paths, new_pexels_ids = _fetch_pexels_clips(pexels_keywords, n=3, seen_ids=seen_pexels)
+    clip_paths, new_pexels_ids = _fetch_pexels_clips(pexels_keywords, n=1, seen_ids=seen_pexels)
     seen_pexels.update(new_pexels_ids)
     _save_freq_seen_ids(seen_pexels)
     tmp_files = list(clip_paths)
@@ -492,7 +491,7 @@ def build_freq_video(script: dict, audio_path: str, output_path: str = OUTPUT_PA
 
     # ─── Overlay katmanları ───────────────────────────────────────────────────
 
-    # 1) Hook — tüm video boyunca (sonuna kadar)
+    # 1) Hook — tüm video boyunca
     print("[freq_video] Hook overlay oluşturuluyor...")
     hook_overlay = _make_hook_overlay(hook_line, hook_subtext, palette, total_duration)
 
@@ -500,14 +499,10 @@ def build_freq_video(script: dict, audio_path: str, output_path: str = OUTPUT_PA
     print("[freq_video] Frekans overlay oluşturuluyor...")
     freq_overlay = _make_freq_overlay(hz, freq_name, short_benefit, palette).set_duration(total_duration)
 
-    # 3) CTA — sadece son 8 saniye, footage'ın üzerinde
-    print("[freq_video] CTA overlay oluşturuluyor...")
-    cta_overlay = _make_cta_overlay(cta_line, palette, total_duration - cta_start).set_start(cta_start)
-
-    # ─── Birleştir: footage + hook + hz + cta ────────────────────────────────
+    # ─── Birleştir: footage + hook + hz ──────────────────────────────────────
     print("[freq_video] Katmanlar birleştiriliyor...")
     final_video = CompositeVideoClip(
-        [bg_video, hook_overlay, freq_overlay, cta_overlay],
+        [bg_video, hook_overlay, freq_overlay],
         size=(TARGET_W, TARGET_H),
     ).set_duration(total_duration)
     final_video = final_video.set_audio(audio_clip.subclip(0, total_duration))
