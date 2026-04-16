@@ -1,7 +1,9 @@
 name: FREQ SHORTS — Daily Pipeline
 
 on:
-  workflow_dispatch:        # Sadece manuel tetikleme
+  schedule:
+    - cron: '0 1 * * *'    # Her gün 01:00 UTC
+  workflow_dispatch:
     inputs:
       hz:
         description: 'Belirli bir Hz değeri (boş bırakılırsa otomatik seçilir)'
@@ -15,6 +17,7 @@ on:
 
 jobs:
   run-freq-pipeline:
+    if: github.event_name == 'workflow_dispatch' || vars.ACTIVE_SYSTEM == 'Hz'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
