@@ -21,7 +21,7 @@ import random
 SAMPLE_RATE = 44100
 CHANNELS = 2
 SAMPLE_WIDTH = 2  # 16-bit
-DEFAULT_DURATION = 17  # saniye (15s video + 2s fade buffer)
+DEFAULT_DURATION = 15  # saniye (fade-in/out bu süre içinde uygulanır)
 FADE_SEC = 2          # fade-in ve fade-out süresi
 
 
