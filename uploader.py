@@ -72,6 +72,7 @@ def upload_video(
             "description": description,
             "tags": tags,
             "categoryId": category_id,
+            "defaultLanguage": "en",
         },
         "status": {
             "privacyStatus": "public",
