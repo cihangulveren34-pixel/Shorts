@@ -146,13 +146,17 @@ def run(dry_run: bool = False, hz_override: float = None) -> None:
         print(f"[freq_main] Başlık: {script['title']}")
         print(f"[freq_main] Hook: {script['hook_line']}")
 
-        # 2.5) Çoklu dil çevirileri üret
+        # 2.5) Çoklu dil çevirileri üret (başarısız olursa pipeline devam eder)
         print("\n[freq_main] Çoklu dil çevirileri üretiliyor...")
-        localizations = _step(
-            "Localization çevirisi",
-            lambda: generate_localizations(script),
-            topic["name"],
-        )
+        try:
+            localizations = generate_localizations(script)
+            if localizations:
+                print(f"[freq_main] {len(localizations)} dil çevirisi hazır.")
+            else:
+                print("[freq_main] Localization üretilemedi, devam ediliyor.")
+        except Exception as e:
+            print(f"[freq_main] Localization hatası (atlanıyor): {e}")
+            localizations = None
 
         # 3) Frekans sesi üret
         print(f"\n[freq_main] {topic['hz']} Hz ses üretiliyor...")

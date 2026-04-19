@@ -63,6 +63,42 @@ def _extract_json(text: str) -> dict:
     raise ValueError(f"JSON bulunamadı:\n{text[:400]}")
 
 
+def _repair_and_extract_json(text: str) -> dict:
+    """JSON ayıklar; hatalıysa yaygın sorunları düzeltmeyi dener."""
+    # Önce normal yolu dene
+    try:
+        return _extract_json(text)
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # JSON bloğunu bul
+    m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    raw = m.group(1) if m else None
+    if not raw:
+        m = re.search(r"\{.*\}", text, re.DOTALL)
+        raw = m.group(0) if m else None
+    if not raw:
+        raise ValueError(f"JSON bulunamadı:\n{text[:400]}")
+
+    # Yaygın düzeltmeler
+    # 1) Description içindeki escape edilmemiş newline'ları temizle
+    fixed = re.sub(r'(?<=": ")(.*?)(?="[,\s*}])', lambda m: m.group(0).replace('\n', '\\n'), raw, flags=re.DOTALL)
+    try:
+        return json.loads(fixed)
+    except json.JSONDecodeError:
+        pass
+
+    # 2) Her dil bloğunu ayrı ayrı parse etmeyi dene
+    result = {}
+    pattern = r'"(\w{2})"\s*:\s*\{[^}]*"title"\s*:\s*"([^"]*)"[^}]*"description"\s*:\s*"([^"]*)"[^}]*\}'
+    for lang, title, desc in re.findall(pattern, raw):
+        result[lang] = {"title": title, "description": desc}
+    if result:
+        return result
+
+    raise ValueError(f"JSON parse edilemedi (repair de başarısız):\n{raw[:400]}")
+
+
 PROMPT_TEMPLATE = """You are a YouTube Shorts optimization expert specializing in healing frequency and meditation content.
 
 Generate viral metadata for a YouTube Short about this healing frequency:
@@ -193,7 +229,11 @@ def generate_localizations(script: dict) -> dict:
 
     print("[freq_script_gen] Çoklu dil çevirileri üretiliyor (12 dil)...")
     raw = _call_gemini(prompt)
-    localizations = _extract_json(raw)
+    try:
+        localizations = _repair_and_extract_json(raw)
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"[freq_script_gen] Localization JSON parse hatası (atlanıyor): {e}")
+        return {}
 
     # Sadece geçerli dilleri tut, her birinin title+description'ı olmalı
     valid = {}
