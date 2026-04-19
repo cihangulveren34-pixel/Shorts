@@ -23,7 +23,7 @@ GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/{mode
 GEMINI_MODELS = ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-2.0-flash"]
 
 
-def _call_gemini(prompt: str) -> str:
+def _call_gemini(prompt: str, max_tokens: int = 1024) -> str:
     """Gemini API'yi çağırır, model bulunamazsa fallback dener."""
     api_key = os.environ.get("GEMINI_API_KEY", "")
     if not api_key:
@@ -31,7 +31,7 @@ def _call_gemini(prompt: str) -> str:
 
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.85, "maxOutputTokens": 1024},
+        "generationConfig": {"temperature": 0.85, "maxOutputTokens": max_tokens},
     }
     last_err = None
     for model in GEMINI_MODELS:
@@ -183,29 +183,21 @@ def generate_freq_script(topic: dict) -> dict:
     return script
 
 
-LOCALIZATION_PROMPT = """Translate this YouTube video title and description into these languages.
-Keep the Hz number and frequency name unchanged. Keep hashtags in English.
+LOCALIZATION_PROMPT = """Translate this YouTube video title and description into 12 languages.
+
+RULES:
+- Keep Hz numbers unchanged (e.g. "528 Hz" stays "528 Hz")
+- Keep hashtags in English
+- Keep descriptions SHORT (max 2 sentences per language)
+- Do NOT use unescaped quotes or newlines inside JSON string values
 
 Title: {title}
 Description: {description}
 
-Translate to: Spanish (es), French (fr), Portuguese (pt), German (de), Turkish (tr), Arabic (ar), Japanese (ja), Korean (ko), Hindi (hi), Italian (it), Russian (ru), Chinese Simplified (zh)
+Languages: es, fr, pt, de, tr, ar, ja, ko, hi, it, ru, zh
 
-Output ONLY valid JSON:
-{{
-  "es": {{"title": "...", "description": "..."}},
-  "fr": {{"title": "...", "description": "..."}},
-  "pt": {{"title": "...", "description": "..."}},
-  "de": {{"title": "...", "description": "..."}},
-  "tr": {{"title": "...", "description": "..."}},
-  "ar": {{"title": "...", "description": "..."}},
-  "ja": {{"title": "...", "description": "..."}},
-  "ko": {{"title": "...", "description": "..."}},
-  "hi": {{"title": "...", "description": "..."}},
-  "it": {{"title": "...", "description": "..."}},
-  "ru": {{"title": "...", "description": "..."}},
-  "zh": {{"title": "...", "description": "..."}}
-}}
+Output ONLY valid JSON with ALL 12 languages:
+{{"es":{{"title":"...","description":"..."}},"fr":{{"title":"...","description":"..."}},"pt":{{"title":"...","description":"..."}},"de":{{"title":"...","description":"..."}},"tr":{{"title":"...","description":"..."}},"ar":{{"title":"...","description":"..."}},"ja":{{"title":"...","description":"..."}},"ko":{{"title":"...","description":"..."}},"hi":{{"title":"...","description":"..."}},"it":{{"title":"...","description":"..."}},"ru":{{"title":"...","description":"..."}},"zh":{{"title":"...","description":"..."}}}}
 """
 
 TARGET_LANGS = ["es", "fr", "pt", "de", "tr", "ar", "ja", "ko", "hi", "it", "ru", "zh"]
@@ -227,23 +219,38 @@ def generate_localizations(script: dict) -> dict:
 
     prompt = LOCALIZATION_PROMPT.format(title=title, description=description)
 
-    print("[freq_script_gen] Çoklu dil çevirileri üretiliyor (12 dil)...")
-    raw = _call_gemini(prompt)
-    localizations = _repair_and_extract_json(raw)
+    MIN_LANGS = 8  # En az 8/12 dil gelmeli
 
-    # Sadece geçerli dilleri tut, her birinin title+description'ı olmalı
-    valid = {}
-    for lang in TARGET_LANGS:
-        if lang in localizations:
-            entry = localizations[lang]
-            if isinstance(entry, dict) and "title" in entry and "description" in entry:
-                valid[lang] = {
-                    "title": entry["title"],
-                    "description": entry["description"],
-                }
+    for attempt in range(3):
+        print(f"[freq_script_gen] Çoklu dil çevirileri üretiliyor (12 dil, deneme {attempt + 1})...")
+        raw = _call_gemini(prompt, max_tokens=4096)
+        localizations = _repair_and_extract_json(raw)
 
-    print(f"[freq_script_gen] {len(valid)} dil çevirisi alındı: {', '.join(valid.keys())}")
-    return valid
+        # Sadece geçerli dilleri tut, her birinin title+description'ı olmalı
+        valid = {}
+        for lang in TARGET_LANGS:
+            if lang in localizations:
+                entry = localizations[lang]
+                if isinstance(entry, dict) and "title" in entry and "description" in entry:
+                    valid[lang] = {
+                        "title": entry["title"],
+                        "description": entry["description"],
+                    }
+
+        print(f"[freq_script_gen] {len(valid)} dil çevirisi alındı: {', '.join(valid.keys())}")
+
+        if len(valid) >= MIN_LANGS:
+            return valid
+
+        missing = [l for l in TARGET_LANGS if l not in valid]
+        print(f"[freq_script_gen] Yetersiz ({len(valid)}/{MIN_LANGS}), eksik: {', '.join(missing)}")
+        if attempt < 2:
+            time.sleep(2)
+
+    raise RuntimeError(
+        f"Localization başarısız: 3 denemede en az {MIN_LANGS} dil alınamadı "
+        f"(son: {len(valid)} dil)"
+    )
 
 
 def save_freq_script(script: dict, path: str = "output/freq_script.json") -> None:
