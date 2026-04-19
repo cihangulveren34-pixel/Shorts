@@ -147,6 +147,69 @@ def generate_freq_script(topic: dict) -> dict:
     return script
 
 
+LOCALIZATION_PROMPT = """Translate this YouTube video title and description into these languages.
+Keep the Hz number and frequency name unchanged. Keep hashtags in English.
+
+Title: {title}
+Description: {description}
+
+Translate to: Spanish (es), French (fr), Portuguese (pt), German (de), Turkish (tr), Arabic (ar), Japanese (ja), Korean (ko), Hindi (hi), Italian (it), Russian (ru), Chinese Simplified (zh)
+
+Output ONLY valid JSON:
+{{
+  "es": {{"title": "...", "description": "..."}},
+  "fr": {{"title": "...", "description": "..."}},
+  "pt": {{"title": "...", "description": "..."}},
+  "de": {{"title": "...", "description": "..."}},
+  "tr": {{"title": "...", "description": "..."}},
+  "ar": {{"title": "...", "description": "..."}},
+  "ja": {{"title": "...", "description": "..."}},
+  "ko": {{"title": "...", "description": "..."}},
+  "hi": {{"title": "...", "description": "..."}},
+  "it": {{"title": "...", "description": "..."}},
+  "ru": {{"title": "...", "description": "..."}},
+  "zh": {{"title": "...", "description": "..."}}
+}}
+"""
+
+TARGET_LANGS = ["es", "fr", "pt", "de", "tr", "ar", "ja", "ko", "hi", "it", "ru", "zh"]
+
+
+def generate_localizations(script: dict) -> dict:
+    """
+    Gemini'ye title+description gönderip 12 dile çeviri alır.
+
+    Args:
+        script: generate_freq_script() çıktısı
+
+    Returns:
+        YouTube localizations formatında dict:
+        {"es": {"title": "...", "description": "..."}, ...}
+    """
+    title = script.get("title", "")
+    description = script.get("description", "")
+
+    prompt = LOCALIZATION_PROMPT.format(title=title, description=description)
+
+    print("[freq_script_gen] Çoklu dil çevirileri üretiliyor (12 dil)...")
+    raw = _call_gemini(prompt)
+    localizations = _extract_json(raw)
+
+    # Sadece geçerli dilleri tut, her birinin title+description'ı olmalı
+    valid = {}
+    for lang in TARGET_LANGS:
+        if lang in localizations:
+            entry = localizations[lang]
+            if isinstance(entry, dict) and "title" in entry and "description" in entry:
+                valid[lang] = {
+                    "title": entry["title"],
+                    "description": entry["description"],
+                }
+
+    print(f"[freq_script_gen] {len(valid)} dil çevirisi alındı: {', '.join(valid.keys())}")
+    return valid
+
+
 def save_freq_script(script: dict, path: str = "output/freq_script.json") -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
