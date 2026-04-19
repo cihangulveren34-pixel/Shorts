@@ -229,11 +229,7 @@ def generate_localizations(script: dict) -> dict:
 
     print("[freq_script_gen] Çoklu dil çevirileri üretiliyor (12 dil)...")
     raw = _call_gemini(prompt)
-    try:
-        localizations = _repair_and_extract_json(raw)
-    except (json.JSONDecodeError, ValueError) as e:
-        print(f"[freq_script_gen] Localization JSON parse hatası (atlanıyor): {e}")
-        return {}
+    localizations = _repair_and_extract_json(raw)
 
     # Sadece geçerli dilleri tut, her birinin title+description'ı olmalı
     valid = {}
