@@ -29,6 +29,7 @@ from moviepy.editor import (
     VideoFileClip,
     AudioFileClip,
     CompositeVideoClip,
+    CompositeAudioClip,
     ImageClip,
     ColorClip,
     concatenate_videoclips,
@@ -186,6 +187,73 @@ def _fetch_pexels_clips(keywords: list, n: int = 3, seen_ids: set = None) -> tup
             print(f"[bible_video] Pexels arama hatası ({query!r}): {e}")
 
     return downloaded, new_ids
+
+
+# ─── Arka plan müzik (Freesound API) ─────────────────────────────────────────
+
+BGM_QUERIES = {
+    "epic":       "epic orchestral cinematic",
+    "peaceful":   "peaceful ambient piano",
+    "dramatic":   "dramatic cinematic tension",
+    "miraculous": "spiritual ambient mysterious",
+    "sorrowful":  "sad ambient piano",
+    "redemptive": "hopeful ambient piano",
+}
+BGM_DEFAULT_QUERY = "spiritual ambient calm"
+
+
+def _fetch_bgm(mood: str, min_duration: float = 30.0) -> str | None:
+    """Freesound API'den mood'a uygun arka plan müziği indirir."""
+    api_key = os.environ.get("FREESOUND_API_KEY", "")
+    if not api_key:
+        print("[bible_video] FREESOUND_API_KEY eksik — bgm olmadan devam")
+        return None
+
+    query = BGM_QUERIES.get(mood, BGM_DEFAULT_QUERY)
+
+    try:
+        resp = requests.get(
+            "https://freesound.org/apiv2/search/text/",
+            params={
+                "query": query,
+                "filter": f"duration:[{min_duration} TO 300] license:\"Creative Commons 0\"",
+                "fields": "id,name,duration,previews",
+                "page_size": 15,
+                "sort": "rating_desc",
+                "token": api_key,
+            },
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            print(f"[bible_video] Freesound arama hatası: {resp.status_code}")
+            return None
+
+        results = resp.json().get("results", [])
+        if not results:
+            print(f"[bible_video] Freesound sonuç bulunamadı: {query!r}")
+            return None
+
+        # Rastgele birini seç
+        sound = random.choice(results[:10])
+        preview_url = sound.get("previews", {}).get("preview-hq-mp3")
+        if not preview_url:
+            print("[bible_video] Freesound preview URL bulunamadı")
+            return None
+
+        # İndir
+        tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False, prefix="bible_bgm_")
+        tmp.close()
+        r = requests.get(preview_url, timeout=30)
+        r.raise_for_status()
+        with open(tmp.name, "wb") as f:
+            f.write(r.content)
+
+        print(f"[bible_video] BGM indirildi: {sound['name']} ({sound['duration']:.0f}s)")
+        return tmp.name
+
+    except Exception as e:
+        print(f"[bible_video] Freesound hatası: {e}")
+        return None
 
 
 # ─── Yardımcı fonksiyonlar ──────────────────────────────────────────────────
@@ -492,6 +560,10 @@ def build_bible_video(
     total_duration = min(audio_clip.duration + 1.0, 60.0)  # +1s buffer, max 60s
     print(f"[bible_video] Toplam süre: {total_duration:.1f}s")
 
+    # ─── Arka plan müzik (Freesound) ─────────────────────────────────────────
+    bgm_path = _fetch_bgm(mood, min_duration=total_duration * 0.5)
+    bgm_tmp = bgm_path  # temizlik için sakla
+
     # ─── VTT chunk'ları ──────────────────────────────────────────────────────
     chunks = parse_vtt(vtt_path, words_per_chunk=4)
     print(f"[bible_video] {len(chunks)} altyazı chunk'ı yüklendi")
@@ -553,8 +625,27 @@ def build_bible_video(
     print("[bible_video] Katmanlar birleştiriliyor...")
     final_video = CompositeVideoClip(layers, size=(TARGET_W, TARGET_H)).set_duration(total_duration)
 
-    # Ses ekle (audio süresinden fazla kısım sessiz olur)
-    final_video = final_video.set_audio(audio_clip.subclip(0, min(audio_clip.duration, total_duration)))
+    # Ses ekle — TTS narration + arka plan müzik mix
+    narration_audio = audio_clip.subclip(0, min(audio_clip.duration, total_duration))
+
+    if bgm_path:
+        try:
+            bgm_clip = AudioFileClip(bgm_path)
+            # Loop veya kırp
+            if bgm_clip.duration < total_duration:
+                import math as _math
+                n_loops = int(_math.ceil(total_duration / bgm_clip.duration))
+                from moviepy.editor import concatenate_audioclips
+                bgm_clip = concatenate_audioclips([bgm_clip] * n_loops)
+            bgm_clip = bgm_clip.subclip(0, total_duration).volumex(0.12)  # %12 volume
+            mixed_audio = CompositeAudioClip([narration_audio, bgm_clip])
+            final_video = final_video.set_audio(mixed_audio)
+            print("[bible_video] BGM mix edildi (volume: 12%)")
+        except Exception as e:
+            print(f"[bible_video] BGM mix hatası, sadece TTS kullanılacak: {e}")
+            final_video = final_video.set_audio(narration_audio)
+    else:
+        final_video = final_video.set_audio(narration_audio)
 
     # ─── Export ──────────────────────────────────────────────────────────────
     print(f"[bible_video] Export ediliyor: {output_path}")
@@ -574,6 +665,8 @@ def build_bible_video(
     # ─── Temizlik ────────────────────────────────────────────────────────────
     audio_clip.close()
     final_video.close()
+    if bgm_tmp:
+        tmp_files.append(bgm_tmp)
     for p in tmp_files:
         try:
             os.unlink(p)
