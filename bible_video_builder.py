@@ -637,10 +637,10 @@ def build_bible_video(
                 n_loops = int(_math.ceil(total_duration / bgm_clip.duration))
                 from moviepy.editor import concatenate_audioclips
                 bgm_clip = concatenate_audioclips([bgm_clip] * n_loops)
-            bgm_clip = bgm_clip.subclip(0, total_duration).volumex(0.12)  # %12 volume
+            bgm_clip = bgm_clip.subclip(0, total_duration).volumex(0.22)  # %22 volume
             mixed_audio = CompositeAudioClip([narration_audio, bgm_clip])
             final_video = final_video.set_audio(mixed_audio)
-            print("[bible_video] BGM mix edildi (volume: 12%)")
+            print("[bible_video] BGM mix edildi (volume: 22%)")
         except Exception as e:
             print(f"[bible_video] BGM mix hatası, sadece TTS kullanılacak: {e}")
             final_video = final_video.set_audio(narration_audio)
