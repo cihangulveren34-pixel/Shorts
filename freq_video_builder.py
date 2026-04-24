@@ -33,7 +33,6 @@ from moviepy.editor import (
     ImageClip,
     ColorClip,
     concatenate_videoclips,
-    TextClip,
 )
 
 TARGET_W = 1080
