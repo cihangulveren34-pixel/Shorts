@@ -7,6 +7,7 @@ on:
 
 jobs:
   run-pipeline:
+    if: github.event_name == 'workflow_dispatch' || vars.ACTIVE_SYSTEM == 'en' || vars.ACTIVE_SYSTEM == 'tr' || vars.ACTIVE_SYSTEM == ''
     runs-on: ubuntu-latest
     timeout-minutes: 55
 
@@ -146,7 +147,7 @@ jobs:
           INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
           INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
           TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
-          LANGUAGE: ${{ vars.LANGUAGE || 'en' }}
+          LANGUAGE: ${{ vars.ACTIVE_SYSTEM || vars.LANGUAGE || 'en' }}
           TOPIC_KEYWORDS: ${{ vars.TOPIC_KEYWORDS || 'Israel,Gaza,Hamas,Hezbollah,IDF,West Bank,Jerusalem,Iran,IRGC,Iran nuclear,Iran missile,Iran US,Iran Israel,Iranian' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USE_QUEUE: ${{ vars.USE_QUEUE || 'false' }}
