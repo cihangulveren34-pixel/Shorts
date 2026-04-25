@@ -239,7 +239,7 @@ KB_EFFECTS = ["zoom_in", "zoom_out", "pan_right", "pan_left", "pan_down", "diago
 TRANSITION_TYPES = ["crossfade", "fade_black", "hard_cut", "slide"]
 
 # Klip ve resim süreleri
-VIDEO_CLIP_DURATION = 3.0   # Her video klip süresi (saniye)
+VIDEO_CLIP_DURATION = 2.5   # Her video klip süresi (saniye)
 IMAGE_CLIP_DURATION = 2.0   # Araya eklenen resim süresi (saniye)
 
 # ─── Power word sözlüğü (altyazıda sarı vurgu) ────────────────────────────────
@@ -825,8 +825,9 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                           "IP muhtemelen engelli.")
                     break
 
-                # Zaten kullanılan videoyu atla (indirmeden önce kontrol)
-                if f"ytcc_{cc_video_id}" in seen_ids:
+                # Segment bazlı tracking: tam video ID'si yoksa atlamıyoruz
+                # (farklı segmentler kullanılabilir — kontrol download sonrası yapılır)
+                if f"ytcc_{cc_video_id}_full" in seen_ids:
                     continue
 
                 result = (
@@ -885,9 +886,10 @@ def _fetch_youtube_cc_clips(keywords: list, n: int, seen_ids: set) -> list[str]:
                 pass
 
             if cut_result.returncode == 0 and os.path.exists(segment_file.name) and os.path.getsize(segment_file.name) > 5000:
-                vid_id = f"ytcc_{cc_video_id}"
-                if vid_id not in seen_ids:
-                    seen_ids.add(vid_id)
+                # Segment bazlı ID: aynı videodan farklı segmentler kullanılabilir
+                seg_id = f"ytcc_{cc_video_id}_{int(segment_start)}_{int(segment_start + segment_dur)}"
+                if seg_id not in seen_ids:
+                    seen_ids.add(seg_id)
                     downloaded.append(segment_file.name)
                     print(f"[video_builder] YouTube CC klip {len(downloaded)}/{n}: "
                           f"'{query}' [{segment_start:.1f}s-{segment_start+segment_dur:.1f}s]")
@@ -1867,100 +1869,116 @@ def _fetch_images(keywords: list, seen_ids: set | None = None) -> list[str]:
 SEEN_IDS_FILE = os.path.join("output", "seen_clip_ids.json")
 
 
+_SEEN_IDS_WINDOW_DAYS = 60  # Bu kadar günden eski ID'ler tekrar kullanılabilir
+
+
 def _load_seen_ids() -> set:
-    """Daha önce kullanılan klip ID'lerini diskten yükler."""
+    """Kullanılan klip ID'lerini yükler; 60 günden eski kayıtları filtreler."""
     try:
         with open(SEEN_IDS_FILE, "r") as f:
-            return set(json.load(f))
+            data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return set()
 
+    # Eski format: liste → dict'e çevir (tarihsiz kayıtlar bugünden itibaren sayılır)
+    if isinstance(data, list):
+        today = date.today().isoformat()
+        data = {k: today for k in data}
 
-def _save_seen_ids(seen_ids: set) -> None:
-    """Kullanılan klip ID'lerini diske kaydeder."""
+    cutoff = (date.today() - __import__("datetime").timedelta(days=_SEEN_IDS_WINDOW_DAYS)).isoformat()
+    return {k for k, v in data.items() if v >= cutoff}
+
+
+def _save_seen_ids(seen_ids: set, existing_data: dict | None = None) -> None:
+    """Kullanılan klip ID'lerini tarih damgasıyla kaydeder."""
     os.makedirs(os.path.dirname(SEEN_IDS_FILE), exist_ok=True)
+    try:
+        with open(SEEN_IDS_FILE, "r") as f:
+            on_disk = json.load(f)
+            if isinstance(on_disk, list):
+                on_disk = {k: date.today().isoformat() for k in on_disk}
+    except (FileNotFoundError, json.JSONDecodeError):
+        on_disk = {}
+
+    today = date.today().isoformat()
+    for k in seen_ids:
+        if k not in on_disk:
+            on_disk[k] = today
+
     with open(SEEN_IDS_FILE, "w") as f:
-        json.dump(list(seen_ids), f)
+        json.dump(on_disk, f)
 
 
-def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None) -> list[str]:
+def _fetch_clips(keywords: list, n: int = 10, seen_ids: set | None = None, scene_index: int = 0) -> list[str]:
     """
     YouTube CC + DVIDS + Pexels + Pixabay + Wikimedia + Archive'dan video klip indirir.
-    Returns: list of file paths (sadece video, tuple yok).
+    Paralel fetch: YouTube CC ve Pexels/Pixabay aynı anda çalışır.
+    scene_index: Sahne 0=hook(YouTube+DVIDS önce), 1=mid(Pexels önce), 2=son(Archive dahil)
+    Returns: list of file paths.
     """
+    import concurrent.futures as _cf_fetch
+
     dvids_key = os.environ.get("DVIDS_API_KEY")
+    pexels_key = os.environ.get("PEXELS_API_KEY")
+    pixabay_key = os.environ.get("PIXABAY_API_KEY")
     if seen_ids is None:
         seen_ids = _load_seen_ids()
     video_paths = []
 
-    # ─── 1) YouTube CC — ana kaynak (haber konusuyla eşleşen gerçek görüntü) ──
-    try:
-        yt_clips = _fetch_youtube_cc_clips(keywords, n, seen_ids)
+    def _safe(fn, *args):
+        try:
+            return fn(*args) or []
+        except Exception as e:
+            print(f"[video_builder] {fn.__name__} hatası: {e}")
+            return []
+
+    # ─── Paralel: YouTube CC + Pexels aynı anda ────────────────────────────────
+    with _cf_fetch.ThreadPoolExecutor(max_workers=2) as ex:
+        yt_fut = ex.submit(_safe, _fetch_youtube_cc_clips, keywords, n, seen_ids)
+        if pexels_key and scene_index >= 1:
+            # Orta ve son sahneler: Pexels paralelde çalışsın
+            px_fut = ex.submit(_safe, _fetch_pexels_clips, keywords, n, seen_ids)
+        else:
+            px_fut = None
+
+        yt_clips = yt_fut.result()
+        px_clips = px_fut.result() if px_fut else []
+
+    if scene_index == 0:
+        # Hook sahnesi: gerçek haber görüntüsü önce
         video_paths.extend(yt_clips)
-        print(f"[video_builder] YouTube CC: {len(yt_clips)} klip")
-    except Exception as e:
-        print(f"[video_builder] YouTube CC hatası: {e}")
+        if len(video_paths) < n and dvids_key:
+            video_paths.extend(_safe(_fetch_dvids_clips, keywords, dvids_key, n - len(video_paths), seen_ids))
+        if len(video_paths) < n and pexels_key:
+            video_paths.extend(_safe(_fetch_pexels_clips, keywords, n - len(video_paths), seen_ids))
+    elif scene_index == 1:
+        # Orta sahne: stok + gerçek karışımı
+        half = max(1, n // 2)
+        video_paths.extend(px_clips[:half])
+        video_paths.extend(yt_clips[:n - len(video_paths)])
+        if len(video_paths) < n and pixabay_key:
+            video_paths.extend(_safe(_fetch_pixabay_clips, keywords, n - len(video_paths), seen_ids))
+    else:
+        # Son sahne (2+): YouTube + archive
+        video_paths.extend(yt_clips)
+        if len(video_paths) < n and dvids_key:
+            video_paths.extend(_safe(_fetch_dvids_clips, keywords, dvids_key, n - len(video_paths), seen_ids))
+        if len(video_paths) < n:
+            video_paths.extend(_safe(_fetch_archive_clips, keywords, n - len(video_paths), seen_ids))
 
-    # ─── 2) DVIDS — askeri fallback (Public Domain) ───────────────────────────
-    if len(video_paths) < n and dvids_key:
-        remaining = n - len(video_paths)
-        try:
-            dvids_clips = _fetch_dvids_clips(keywords, dvids_key, remaining, seen_ids)
-            video_paths.extend(dvids_clips)
-            print(f"[video_builder] DVIDS: {len(dvids_clips)} klip")
-        except Exception as e:
-            print(f"[video_builder] DVIDS hatası: {e}")
-
-    # ─── 3) Pexels — stock video ────────────────────────────────────────
-    if len(video_paths) < n and os.environ.get("PEXELS_API_KEY"):
-        remaining = n - len(video_paths)
-        try:
-            pexels_clips = _fetch_pexels_clips(keywords, remaining, seen_ids)
-            video_paths.extend(pexels_clips)
-            if pexels_clips:
-                print(f"[video_builder] Pexels: {len(pexels_clips)} klip")
-        except Exception as e:
-            print(f"[video_builder] Pexels hatası: {e}")
-
-    # ─── 4) Pixabay — stock video ────────────────────────────────────────
-    if len(video_paths) < n and os.environ.get("PIXABAY_API_KEY"):
-        remaining = n - len(video_paths)
-        try:
-            pixabay_clips = _fetch_pixabay_clips(keywords, remaining, seen_ids)
-            video_paths.extend(pixabay_clips)
-            if pixabay_clips:
-                print(f"[video_builder] Pixabay: {len(pixabay_clips)} klip")
-        except Exception as e:
-            print(f"[video_builder] Pixabay hatası: {e}")
-
-    # ─── 5) Wikimedia Commons — 3sn klip ─────────────────────────────────
+    # ─── Ortak fallback zinciri (tüm sahneler için) ────────────────────────────
+    if len(video_paths) < n and pixabay_key and scene_index != 1:
+        video_paths.extend(_safe(_fetch_pixabay_clips, keywords, n - len(video_paths), seen_ids))
     if len(video_paths) < n:
-        remaining = n - len(video_paths)
-        try:
-            wiki_clips = _fetch_wikimedia_clips(keywords, remaining, seen_ids)
-            video_paths.extend(wiki_clips)
-            if wiki_clips:
-                print(f"[video_builder] Wikimedia: {len(wiki_clips)} klip (3sn)")
-        except Exception as e:
-            print(f"[video_builder] Wikimedia hatası: {e}")
-
-    # ─── 6) Internet Archive — son fallback ───────────────────────────────
+        video_paths.extend(_safe(_fetch_wikimedia_clips, keywords, n - len(video_paths), seen_ids))
     if len(video_paths) < n:
-        remaining = n - len(video_paths)
-        try:
-            archive_clips = _fetch_archive_clips(keywords, remaining, seen_ids)
-            video_paths.extend(archive_clips)
-            if archive_clips:
-                print(f"[video_builder] Archive fallback: {len(archive_clips)} klip")
-        except Exception as e:
-            print(f"[video_builder] Archive hatası: {e}")
+        video_paths.extend(_safe(_fetch_archive_clips, keywords, n - len(video_paths), seen_ids))
 
     if not video_paths:
         raise RuntimeError("Hiç video klip indirilemedi.")
 
-    print(f"[video_builder] Toplam: {len(video_paths)} video klip")
+    print(f"[video_builder] Sahne {scene_index+1} toplam: {len(video_paths)} klip")
     _save_seen_ids(seen_ids)
-    # Sıra korunur — alakalı kaynaklar (YouTube CC, DVIDS) başa gelir
     return video_paths[:n]
 
 
@@ -2680,13 +2698,12 @@ def build_video(
         for tw in title_words:
             if tw not in " ".join(fallback_kws).lower():
                 fallback_kws.append(tw)
-        scene_keywords = [fallback_kws, fallback_kws]  # 2 sahne yeterli
+        scene_keywords = [fallback_kws, fallback_kws, fallback_kws]  # 3 sahne
 
-    # Sahne başına 3 klip — toplam 6 klip, 3s × 6 = 18s → yeterince döngü
-    # _build_background gerektiğinde döngü yaparak total_duration'a doldurur
+    # Sahne başına 4 klip × 3 sahne = 12 klip, 2.5s × 12 = 30s → 20s videoyu doldurur
     clip_paths = []
-    for i, scene_kws in enumerate(scene_keywords[:2]):  # en fazla 2 sahne
-        scene_clips = _fetch_clips(scene_kws, n=3, seen_ids=seen_ids)
+    for i, scene_kws in enumerate(scene_keywords[:3]):  # en fazla 3 sahne
+        scene_clips = _fetch_clips(scene_kws, n=4, seen_ids=seen_ids, scene_index=i)
         clip_paths.extend(scene_clips)
         first_kw = scene_kws[0][:55] if scene_kws else "—"
         print(f"[video_builder] Sahne {i+1}: {len(scene_clips)} klip — '{first_kw}'")
@@ -2696,7 +2713,7 @@ def build_video(
 
     # 2) Ses süresi
     narration_audio = AudioFileClip(audio_path)
-    MAX_SHORTS_DURATION = 32.0  # 25-35s sweet spot: % watched > total seconds
+    MAX_SHORTS_DURATION = 20.0  # 20s hedef: yüksek tamamlanma oranı
     max_narration = MAX_SHORTS_DURATION - CTA_DURATION - 0.3
     if narration_audio.duration > max_narration:
         print(f"[video_builder] Narrasyon çok uzun ({narration_audio.duration:.1f}s), {max_narration:.1f}s'ye kırpılıyor.")

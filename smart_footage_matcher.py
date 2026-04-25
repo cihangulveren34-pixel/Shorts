@@ -30,6 +30,32 @@ from dataclasses import dataclass, field
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
+import datetime as _dt
+_CURRENT_YEAR = _dt.datetime.now().year
+_PREV_YEAR = _CURRENT_YEAR - 1
+
+# Generic/alakasız içerik getiren sorgular engellenir
+QUERY_BLACKLIST_TERMS = [
+    "news anchor", "press conference talking head", "studio interview",
+    "generic military", "stock footage military", "training classroom",
+    "signing ceremony", "politician speech podium", "flag ceremony parade",
+    "marching band", "military band", "honor guard ceremony",
+]
+
+# Türkçe/Arapça askeri arama terimleri — bu dillerde yalnızca YouTube'da bulunan içerikler
+ALT_LANG_TERMS = {
+    "turkey":  ["Türk ordusu operasyon", "TSK hava harekâtı", "Bayraktar TB2 saldırı", "KAAN savaş uçağı"],
+    "israel":  ["IDF צבא ישראל", "כיפת ברזל יירוט", "IDF tsva"],
+    "iran":    ["سپاه پاسداران عملیات", "موشک ایران آزمایش", "IRGC operation footage"],
+    "hamas":   ["حماس غزة هجوم", "Hamas Gaza attack", "حماس عملیات"],
+    "russia":  ["Российская армия операция", "ВКС удар", "Армия России Украина"],
+    "ukraine": ["ЗСУ бойові дії", "Украина фронт бой", "Ukrainian army combat"],
+    "syria":   ["الجيش السوري عملية", "Syria military operation footage", "قوات سورية قتال"],
+    "iraq":    ["القوات العراقية عملية", "Iraq military footage", "الحشد الشعبي"],
+    "yemen":   ["الحوثيون هجوم", "Houthi attack footage", "اليمن ضربة"],
+    "saudi":   ["الجيش السعودي عملية", "Saudi Arabia military", "حرب اليمن السعودية"],
+}
+
 # Ülke → askeri terminoloji eşleşmesi
 COUNTRY_MILITARY_TERMS = {
     "turkey": ["Turkish Armed Forces", "TSK", "Turkey military", "Bayraktar", "KAAN", "Akinci", "TAI", "Turkish defense", "Turkish Army", "Turkish Navy", "Turkish Air Force"],
@@ -486,17 +512,41 @@ def generate_smart_queries(script: dict) -> list[FootageQuery]:
         print(f"[footage_matcher]   Sahne {i+1}: {total_scene} sorgu "
               f"({len(entity_queries)} varlık, {len(gemini_queries)} Gemini)")
 
-    # 4) Orijinal search_keywords (fallback — düşük relevance)
+    # 4) Recency sorguları — yıl ekleyerek YouTube'da daha güncel sonuçlar
+    countries = entities.get("countries", [])
+    event = entities.get("event_type", "")
+    for country in countries[:2]:
+        for yr in [str(_CURRENT_YEAR), str(_PREV_YEAR)]:
+            base = EVENT_VISUAL_TERMS.get(event, ["military operation footage"])[0]
+            all_queries.append(FootageQuery(
+                query=f"{country} {base} {yr}",
+                relevance=0.88, source="recency", scene_index=0,
+            ))
+
+    # 5) Alternatif dil sorguları — bazı içerikler yalnızca TR/AR/RU'da bulunuyor
+    for country in countries[:2]:
+        ck = country.lower()
+        for alt_q in ALT_LANG_TERMS.get(ck, [])[:2]:
+            all_queries.append(FootageQuery(
+                query=alt_q, relevance=0.82, source="alt_lang", scene_index=0,
+            ))
+
+    # 6) Orijinal search_keywords (fallback — düşük relevance)
     for kw in original_keywords:
         q = kw if ("footage" in kw.lower() or "operations" in kw.lower()) else f"{kw} footage"
         all_queries.append(FootageQuery(query=q, relevance=0.55, source="original"))
 
-    # 5) Deduplicate (query metni bazında) + relevance sıralaması
+    # 7) Blacklist filtresi: generic/alakasız sorgular çıkarılır
+    def _is_blacklisted(query_text: str) -> bool:
+        ql = query_text.lower()
+        return any(b in ql for b in QUERY_BLACKLIST_TERMS)
+
+    # 8) Deduplicate (query metni bazında) + relevance sıralaması
     seen: set[str] = set()
     unique_queries: list[FootageQuery] = []
     for q in all_queries:
         key = q.query.lower().strip()
-        if key not in seen:
+        if key not in seen and not _is_blacklisted(q.query):
             seen.add(key)
             unique_queries.append(q)
 
