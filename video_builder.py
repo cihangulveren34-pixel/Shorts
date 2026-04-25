@@ -21,7 +21,7 @@ import tempfile
 import shutil
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
@@ -1885,7 +1885,7 @@ def _load_seen_ids() -> set:
         today = date.today().isoformat()
         data = {k: today for k in data}
 
-    cutoff = (date.today() - __import__("datetime").timedelta(days=_SEEN_IDS_WINDOW_DAYS)).isoformat()
+    cutoff = (date.today() - timedelta(days=_SEEN_IDS_WINDOW_DAYS)).isoformat()
     return {k for k, v in data.items() if v >= cutoff}
 
 
