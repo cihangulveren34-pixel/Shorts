@@ -1,0 +1,257 @@
+[
+  {
+    "math_type": "fibonacci_spiral",
+    "beat_band": "delta",
+    "beat_hz": 2.0,
+    "carrier_hz": 200,
+    "title_name": "Fibonacci Spiral | 2 Hz Delta",
+    "benefit": "deep restorative sleep through sacred geometry meditation",
+    "short_benefit": "Deep Sleep",
+    "mood": "sleep",
+    "hooks": [
+      "Watch this Fibonacci spiral for 30 seconds and feel your brain slow down...",
+      "The golden ratio is nature's sleep signal — 2 Hz delta waves activate deep rest...",
+      "This spiral follows the exact pattern of galaxies, shells, and your DNA..."
+    ],
+    "tags": ["fibonacci spiral", "golden ratio", "delta waves", "2 Hz", "deep sleep", "sacred geometry", "binaural beats", "sleep music", "math meditation", "hypnotic spiral"],
+    "description": "Fibonacci spiral animation synchronized with 2 Hz delta binaural beats for deep restorative sleep."
+  },
+  {
+    "math_type": "fibonacci_spiral",
+    "beat_band": "theta",
+    "beat_hz": 6.0,
+    "carrier_hz": 210,
+    "title_name": "Fibonacci Spiral | 6 Hz Theta",
+    "benefit": "deep meditation through golden ratio visualization",
+    "short_benefit": "Deep Meditation",
+    "mood": "meditation",
+    "hooks": [
+      "The Fibonacci spiral is the universe's blueprint — 6 Hz theta unlocks your subconscious...",
+      "Stare at this golden spiral and enter deep theta meditation in seconds...",
+      "Nature hides this spiral everywhere — now it's healing your mind..."
+    ],
+    "tags": ["fibonacci spiral", "theta waves", "6 Hz", "deep meditation", "golden ratio", "sacred geometry", "binaural beats", "meditation music", "subconscious", "math art"],
+    "description": "Fibonacci spiral synchronized with 6 Hz theta binaural beats for deep meditative states."
+  },
+  {
+    "math_type": "fibonacci_spiral",
+    "beat_band": "alpha",
+    "beat_hz": 10.0,
+    "carrier_hz": 220,
+    "title_name": "Fibonacci Spiral | 10 Hz Alpha",
+    "benefit": "enhanced focus and creative flow through sacred geometry",
+    "short_benefit": "Creative Focus",
+    "mood": "calm",
+    "hooks": [
+      "10 Hz alpha waves + the golden spiral = your brain's peak creative state...",
+      "Watch this Fibonacci pattern and feel your focus sharpen instantly...",
+      "The same spiral in sunflowers and hurricanes is now tuning your brain..."
+    ],
+    "tags": ["fibonacci spiral", "alpha waves", "10 Hz", "focus", "creativity", "golden ratio", "binaural beats", "study music", "concentration", "sacred geometry"],
+    "description": "Fibonacci spiral animation with 10 Hz alpha binaural beats for enhanced focus and creativity."
+  },
+  {
+    "math_type": "mandelbrot_zoom",
+    "beat_band": "theta",
+    "beat_hz": 5.0,
+    "carrier_hz": 200,
+    "title_name": "Mandelbrot Zoom | 5 Hz Theta",
+    "benefit": "infinite fractal meditation for inner peace",
+    "short_benefit": "Inner Peace",
+    "mood": "meditation",
+    "hooks": [
+      "Zoom infinitely into this fractal — your mind will dissolve into peace...",
+      "The Mandelbrot set is infinite. So is the calm you'll feel at 5 Hz theta...",
+      "This fractal zoom has no end — and neither does the relaxation it brings..."
+    ],
+    "tags": ["mandelbrot", "fractal zoom", "theta waves", "5 Hz", "inner peace", "meditation", "binaural beats", "infinite zoom", "math art", "psychedelic"],
+    "description": "Infinite Mandelbrot fractal zoom with 5 Hz theta binaural beats for deep inner peace."
+  },
+  {
+    "math_type": "mandelbrot_zoom",
+    "beat_band": "alpha",
+    "beat_hz": 12.0,
+    "carrier_hz": 215,
+    "title_name": "Mandelbrot Zoom | 12 Hz Alpha",
+    "benefit": "mental clarity through infinite fractal exploration",
+    "short_benefit": "Mental Clarity",
+    "mood": "clarity",
+    "hooks": [
+      "12 Hz alpha waves + infinite fractal zoom = crystal clear thinking...",
+      "Your brain mirrors this fractal — 12 Hz unlocks its full pattern recognition...",
+      "Stare into infinity and feel the fog in your mind lift completely..."
+    ],
+    "tags": ["mandelbrot", "fractal", "alpha waves", "12 Hz", "mental clarity", "focus", "binaural beats", "brain power", "math visualization", "concentration"],
+    "description": "Mandelbrot fractal zoom with 12 Hz alpha binaural beats for mental clarity and sharp focus."
+  },
+  {
+    "math_type": "mandelbrot_zoom",
+    "beat_band": "gamma",
+    "beat_hz": 40.0,
+    "carrier_hz": 300,
+    "title_name": "Mandelbrot Zoom | 40 Hz Gamma",
+    "benefit": "peak cognitive performance through fractal stimulation",
+    "short_benefit": "Peak Performance",
+    "mood": "energy",
+    "hooks": [
+      "40 Hz gamma + infinite fractals = your brain at maximum capacity...",
+      "Scientists found 40 Hz gamma prevents cognitive decline — add fractals for turbo mode...",
+      "This is what peak mental performance looks like — and sounds like..."
+    ],
+    "tags": ["mandelbrot", "fractal", "gamma waves", "40 Hz", "peak performance", "cognitive boost", "binaural beats", "brain power", "neuroplasticity", "focus"],
+    "description": "Mandelbrot fractal zoom with 40 Hz gamma binaural beats for peak cognitive performance."
+  },
+  {
+    "math_type": "sacred_flower",
+    "beat_band": "delta",
+    "beat_hz": 1.5,
+    "carrier_hz": 190,
+    "title_name": "Flower of Life | 1.5 Hz Delta",
+    "benefit": "cell regeneration sleep with sacred geometry",
+    "short_benefit": "Cell Repair",
+    "mood": "sleep",
+    "hooks": [
+      "The Flower of Life holds the secret to cellular repair — 1.5 Hz delta activates it...",
+      "Ancient civilizations carved this pattern in temples for healing sleep...",
+      "Watch this sacred geometry unfold and drift into the deepest sleep of your life..."
+    ],
+    "tags": ["flower of life", "sacred geometry", "delta waves", "1.5 Hz", "cell repair", "deep sleep", "binaural beats", "healing", "ancient geometry", "meditation"],
+    "description": "Flower of Life sacred geometry with 1.5 Hz delta binaural beats for cellular regeneration during sleep."
+  },
+  {
+    "math_type": "sacred_flower",
+    "beat_band": "theta",
+    "beat_hz": 7.83,
+    "carrier_hz": 205,
+    "title_name": "Flower of Life | 7.83 Hz Schumann",
+    "benefit": "earth resonance meditation with sacred geometry",
+    "short_benefit": "Earth Resonance",
+    "mood": "spiritual",
+    "hooks": [
+      "7.83 Hz is Earth's heartbeat — the Flower of Life is its visual form...",
+      "Schumann resonance + the oldest sacred pattern = cosmic alignment...",
+      "Your body was designed to vibrate at 7.83 Hz — this helps it remember..."
+    ],
+    "tags": ["flower of life", "schumann resonance", "7.83 Hz", "earth frequency", "sacred geometry", "meditation", "binaural beats", "grounding", "spiritual healing", "cosmic"],
+    "description": "Flower of Life animation at Earth's Schumann resonance (7.83 Hz) for spiritual grounding and cosmic alignment."
+  },
+  {
+    "math_type": "sacred_flower",
+    "beat_band": "alpha",
+    "beat_hz": 8.0,
+    "carrier_hz": 200,
+    "title_name": "Flower of Life | 8 Hz Alpha",
+    "benefit": "relaxation and stress relief through sacred geometry",
+    "short_benefit": "Stress Relief",
+    "mood": "calm",
+    "hooks": [
+      "8 Hz alpha waves + the Flower of Life = instant stress dissolving...",
+      "This pattern appears in every ancient temple — 8 Hz is why it works...",
+      "Watch this sacred geometry bloom and feel your anxiety melt away..."
+    ],
+    "tags": ["flower of life", "alpha waves", "8 Hz", "stress relief", "relaxation", "sacred geometry", "binaural beats", "anxiety relief", "calm", "healing geometry"],
+    "description": "Flower of Life sacred geometry with 8 Hz alpha binaural beats for deep relaxation and stress relief."
+  },
+  {
+    "math_type": "fibonacci_spiral",
+    "beat_band": "gamma",
+    "beat_hz": 40.0,
+    "carrier_hz": 310,
+    "title_name": "Fibonacci Spiral | 40 Hz Gamma",
+    "benefit": "neural synchronization for peak brain performance",
+    "short_benefit": "Brain Boost",
+    "mood": "energy",
+    "hooks": [
+      "40 Hz gamma + the golden ratio = your neurons firing in perfect sync...",
+      "Harvard research shows 40 Hz stimulation boosts memory — the spiral amplifies it...",
+      "The universe runs on Fibonacci — at 40 Hz, so does your brain..."
+    ],
+    "tags": ["fibonacci", "gamma waves", "40 Hz", "brain boost", "neural sync", "golden ratio", "binaural beats", "neuroplasticity", "memory", "peak performance"],
+    "description": "Fibonacci spiral with 40 Hz gamma binaural beats for neural synchronization and cognitive enhancement."
+  },
+  {
+    "math_type": "mandelbrot_zoom",
+    "beat_band": "delta",
+    "beat_hz": 3.0,
+    "carrier_hz": 195,
+    "title_name": "Mandelbrot Zoom | 3 Hz Delta",
+    "benefit": "dreamless deep sleep through infinite fractal patterns",
+    "short_benefit": "Dreamless Sleep",
+    "mood": "sleep",
+    "hooks": [
+      "Zoom into infinity at 3 Hz delta — your conscious mind will surrender to sleep...",
+      "Infinite complexity meeting deep delta waves = the ultimate sleep formula...",
+      "Let this fractal carry your thoughts into nothingness..."
+    ],
+    "tags": ["mandelbrot", "fractal", "delta waves", "3 Hz", "deep sleep", "dreamless sleep", "binaural beats", "insomnia relief", "sleep aid", "fractal meditation"],
+    "description": "Mandelbrot fractal zoom with 3 Hz delta binaural beats for deep dreamless sleep."
+  },
+  {
+    "math_type": "sacred_flower",
+    "beat_band": "beta",
+    "beat_hz": 18.0,
+    "carrier_hz": 250,
+    "title_name": "Flower of Life | 18 Hz Beta",
+    "benefit": "enhanced alertness and endorphin release",
+    "short_benefit": "Endorphin Rush",
+    "mood": "energy",
+    "hooks": [
+      "18 Hz beta + sacred geometry = natural endorphin release on demand...",
+      "Your brain releases feel-good chemicals at 18 Hz — sacred geometry accelerates it...",
+      "Watch the Flower of Life pulse at 18 Hz and feel instant energy..."
+    ],
+    "tags": ["flower of life", "beta waves", "18 Hz", "endorphins", "energy boost", "alertness", "sacred geometry", "binaural beats", "motivation", "natural high"],
+    "description": "Flower of Life with 18 Hz beta binaural beats for natural endorphin release and alertness."
+  },
+  {
+    "math_type": "fibonacci_spiral",
+    "beat_band": "beta",
+    "beat_hz": 20.0,
+    "carrier_hz": 240,
+    "title_name": "Fibonacci Spiral | 20 Hz Beta",
+    "benefit": "energized focus and motivation through golden ratio",
+    "short_benefit": "Energy & Focus",
+    "mood": "energy",
+    "hooks": [
+      "20 Hz beta + the golden spiral = laser focus with boundless energy...",
+      "Nature's most efficient pattern meets your brain's productivity frequency...",
+      "This is the frequency athletes use before competition — plus sacred geometry..."
+    ],
+    "tags": ["fibonacci", "beta waves", "20 Hz", "energy", "focus", "motivation", "golden ratio", "binaural beats", "productivity", "workout music"],
+    "description": "Fibonacci spiral with 20 Hz beta binaural beats for energized focus and motivation."
+  },
+  {
+    "math_type": "mandelbrot_zoom",
+    "beat_band": "beta",
+    "beat_hz": 14.0,
+    "carrier_hz": 230,
+    "title_name": "Mandelbrot Zoom | 14 Hz Beta",
+    "benefit": "active concentration and analytical thinking",
+    "short_benefit": "Analytical Focus",
+    "mood": "clarity",
+    "hooks": [
+      "14 Hz beta activates your analytical brain — fractals keep it locked in...",
+      "The infinite detail of fractals + 14 Hz = unstoppable concentration...",
+      "Your brain at 14 Hz processes information like this fractal — endlessly detailed..."
+    ],
+    "tags": ["mandelbrot", "fractal", "beta waves", "14 Hz", "concentration", "analytical thinking", "binaural beats", "study aid", "problem solving", "focus"],
+    "description": "Mandelbrot fractal zoom with 14 Hz beta binaural beats for analytical thinking and concentration."
+  },
+  {
+    "math_type": "sacred_flower",
+    "beat_band": "gamma",
+    "beat_hz": 40.0,
+    "carrier_hz": 320,
+    "title_name": "Flower of Life | 40 Hz Gamma",
+    "benefit": "spiritual awakening and peak consciousness",
+    "short_benefit": "Awakening",
+    "mood": "spiritual",
+    "hooks": [
+      "40 Hz gamma + the Flower of Life = the frequency of enlightenment...",
+      "Tibetan monks hit 40 Hz gamma during meditation — this geometry is their mandala...",
+      "The pattern of creation meets the frequency of peak consciousness..."
+    ],
+    "tags": ["flower of life", "gamma waves", "40 Hz", "awakening", "enlightenment", "sacred geometry", "binaural beats", "spiritual", "consciousness", "meditation"],
+    "description": "Flower of Life with 40 Hz gamma binaural beats for spiritual awakening and peak consciousness."
+  }
+]

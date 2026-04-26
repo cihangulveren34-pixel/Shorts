@@ -30,6 +30,45 @@ from dataclasses import dataclass, field
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
+import datetime as _dt
+_CURRENT_YEAR = _dt.datetime.now().year
+_PREV_YEAR = _CURRENT_YEAR - 1
+
+# Generic/alakasız içerik getiren sorgular engellenir
+QUERY_BLACKLIST_TERMS = [
+    "news anchor", "press conference talking head", "studio interview",
+    "generic military", "stock footage military", "training classroom",
+    "signing ceremony", "politician speech podium", "flag ceremony parade",
+    "marching band", "military band", "honor guard ceremony",
+    "reporter live report", "tv news studio", "anchor desk broadcast",
+    "documentary narrator", "talking head expert", "panel discussion",
+    "map animation", "infographic", "stock photo", "getty images",
+    "military funeral", "medal ceremony", "retirement ceremony",
+    "recruitment advertisement", "military recruitment poster",
+]
+
+# Türkçe/Arapça askeri arama terimleri — bu dillerde yalnızca YouTube'da bulunan içerikler
+ALT_LANG_TERMS = {
+    "turkey":     ["Türk ordusu operasyon", "TSK hava harekâtı", "Bayraktar TB2 saldırı", "KAAN savaş uçağı",
+                   "İHA saldırısı Türkiye", "TSK Kuzey Irak operasyon", "Türk Silahlı Kuvvetleri"],
+    "israel":     ["IDF צבא ישראל", "כיפת ברזל יירוט", "IDF tsva",
+                   "צבא ישראל עזה", "חיל האוויר הישראלי תקיפה", "IDF Gaza operation footage"],
+    "iran":       ["سپاه پاسداران عملیات", "موشک ایران آزمایش", "IRGC operation footage",
+                   "پهپاد شاهد حمله", "سپاه پاسداران موشک", "ایران پهپاد کامیکازه"],
+    "hamas":      ["حماس غزة هجوم", "Hamas Gaza attack", "حماس عملیات"],
+    "russia":     ["Российская армия операция", "ВКС удар", "Армия России Украина",
+                   "Российская армия наступление", "ВКС бомбардировка", "армия России дроны"],
+    "ukraine":    ["ЗСУ бойові дії", "Украина фронт бой", "Ukrainian army combat",
+                   "ЗСУ дрони атака", "Украина БПЛА FPV", "Ukrainian FPV drone strike"],
+    "syria":      ["الجيش السوري عملية", "Syria military operation footage", "قوات سورية قتال"],
+    "iraq":       ["القوات العراقية عملية", "Iraq military footage", "الحشد الشعبي"],
+    "yemen":      ["الحوثيون هجوم", "Houthi attack footage", "اليمن ضربة"],
+    "saudi":      ["الجيش السعودي عملية", "Saudi Arabia military", "حرب اليمن السعودية"],
+    "uae":        ["الإمارات القوات المسلحة", "طيران الإمارات العسكري", "القوات الجوية الإماراتية"],
+    "azerbaijan": ["Azərbaycan ordusu hücum", "Azərbaycan Silahlı Qüvvələri", "Qarabağ əməliyyatı"],
+    "taiwan":     ["中華民國國軍演習", "台灣軍事演練", "中华民国空军战机", "台湾海峡军演"],
+}
+
 # Ülke → askeri terminoloji eşleşmesi
 COUNTRY_MILITARY_TERMS = {
     "turkey": ["Turkish Armed Forces", "TSK", "Turkey military", "Bayraktar", "KAAN", "Akinci", "TAI", "Turkish defense", "Turkish Army", "Turkish Navy", "Turkish Air Force"],
@@ -57,7 +96,18 @@ COUNTRY_MILITARY_TERMS = {
     "egypt": ["Egyptian military", "Egypt Armed Forces", "Egyptian Navy"],
     "syria": ["Syrian military", "Syria conflict", "Syrian civil war", "Damascus military"],
     "iraq": ["Iraqi military", "Iraq Armed Forces", "Iraqi PMF", "Iraq conflict"],
-    "lebanon": ["Lebanese military", "Lebanon conflict", "Lebanon border", "south Lebanon"],
+    "lebanon":    ["Lebanese military", "Lebanon conflict", "Lebanon border", "south Lebanon"],
+    "uae":        ["UAE military", "UAEAF", "United Arab Emirates Armed Forces", "UAE F-16", "UAE Mirage fighter",
+                   "UAE defense", "UAE special forces", "Emirati military", "UAE air strikes"],
+    "azerbaijan": ["Azerbaijani military", "Azerbaijan Armed Forces", "Azerbaijan drone Karabakh",
+                   "Azerbaijani Bayraktar", "Azerbaijan offensive footage"],
+    "armenia":    ["Armenian military", "Armenian Armed Forces", "Armenia Karabakh footage",
+                   "Armenia defense operations"],
+    "ethiopia":   ["Ethiopian military", "ENDF footage", "Ethiopia conflict Tigray", "Ethiopian air strike"],
+    "taiwan":     ["Taiwanese military", "ROC Armed Forces", "Taiwan Air Force", "Taiwan Navy F-16",
+                   "Taiwan military exercise", "Taiwan strait patrol"],
+    "sudan":      ["Sudan military", "RSF Sudan footage", "Sudan conflict war footage", "Khartoum fighting"],
+    "myanmar":    ["Myanmar military junta", "Tatmadaw footage", "Myanmar civil war", "Myanmar airstrike"],
 }
 
 # Silah sistemi → spesifik arama terimleri
@@ -99,6 +149,28 @@ WEAPON_SEARCH_TERMS = {
     "radar": ["military radar system footage", "air defense radar tracking", "early warning radar installation"],
     "tunnel": ["Hamas tunnel Gaza footage", "military tunnel complex", "underground tunnel warfare footage"],
     "sniper": ["military sniper footage", "special forces sniper operations", "long range precision shooting footage"],
+    # Ukraine conflict weapons
+    "atacms":           ["ATACMS missile launch Ukraine", "US long range missile Ukraine strike", "Army Tactical Missile System footage"],
+    "storm shadow":     ["Storm Shadow cruise missile Ukraine", "SCALP-EG cruise missile footage", "UK cruise missile Ukraine strike"],
+    "lancet":           ["Lancet loitering munition Russia", "Lancet drone strike footage", "Russian kamikaze drone Lancet"],
+    "fpv drone":        ["FPV drone strike footage Ukraine", "first person view drone bomb Ukraine", "FPV kamikaze drone combat"],
+    "gepard":           ["Gepard anti-aircraft tank Ukraine", "Flakpanzer Gepard firing footage", "German air defense Ukraine"],
+    "nasams":           ["NASAMS missile defense Ukraine", "Norwegian air defense system launch", "NASAMS intercept footage"],
+    "caesar":           ["CAESAR howitzer artillery France Ukraine", "wheeled artillery self-propelled footage", "CAESAR cannon firing"],
+    "m270 mlrs":        ["M270 MLRS rocket launch footage", "multiple launch rocket system fire", "MLRS salvo footage"],
+    # Russian weapons
+    "kinzhal":          ["Kinzhal hypersonic missile Russia", "MiG-31 Kinzhal launch footage", "Russian air-launched hypersonic"],
+    "zircon":           ["Zircon hypersonic missile launch", "Russian Tsirkon cruise missile", "3M22 Zircon sea launch"],
+    "sarmat":           ["Sarmat ICBM test launch Russia", "RS-28 Sarmat ballistic missile", "Satan 2 missile footage"],
+    "iskander":         ["Iskander missile launch Russia", "9K720 Iskander strike footage", "Russian tactical ballistic missile"],
+    "kalibr":           ["Kalibr cruise missile launch", "Russian Kalibr warship salvo", "Russian cruise missile sea launch"],
+    "buk":              ["Buk missile system launch", "SA-11 Buk air defense footage", "Russian Buk radar launch"],
+    # New platforms
+    "b-21 raider":      ["B-21 Raider stealth bomber", "US new stealth bomber footage", "Northrop Grumman B-21 flight"],
+    "kf-21":            ["KF-21 Boramae fighter South Korea", "Korean fighter jet KF-21 test flight", "South Korea 4.5 gen fighter"],
+    "k2 tank":          ["K2 Black Panther tank South Korea", "K2 main battle tank firing", "Korean tank combat footage"],
+    "poseidon":         ["Poseidon nuclear torpedo Russia", "Russian underwater drone nuclear", "Status-6 nuclear weapon footage"],
+    "white phosphorus": ["white phosphorus artillery footage", "smoke screen military operation", "incendiary weapon military use"],
 }
 
 
@@ -234,6 +306,45 @@ EVENT_VISUAL_TERMS = {
     "border":           ["border military standoff footage", "troops border deployment footage", "border crossing military footage", "border tension soldiers footage"],
     "urban warfare":    ["urban combat footage", "street fighting footage", "soldiers clearing building footage", "infantry city warfare footage", "house to house combat footage"],
     "conflict":         ["military conflict footage", "frontline combat footage", "war zone footage", "active combat footage", "battlefield warfare footage"],
+    "drone warfare":    ["FPV drone strike Ukraine footage", "loitering munition attack footage", "drone swarm military footage", "kamikaze drone impact footage", "drone intercepted footage"],
+    "electronic warfare": ["electronic warfare jamming footage", "military EW system footage", "GPS jamming military", "electronic warfare vehicle footage"],
+    "siege":            ["city under siege military footage", "siege warfare frontline", "encircled city military footage", "supply convoy blocked footage"],
+    "naval battle":     ["naval battle warship footage", "naval confrontation footage", "warships firing missiles at sea", "naval standoff footage", "coast guard vs navy footage"],
+    "naval blockade":   ["naval blockade enforcement footage", "Red Sea ship attack Houthi", "maritime interdiction footage"],
+    "trench warfare":   ["trench warfare footage Ukraine", "soldiers trench assault footage", "frontline trench positions footage"],
+    "mine clearing":    ["mine clearing demining footage", "explosive ordnance disposal footage", "military mine sweep footage"],
+    "cyber attack":     ["critical infrastructure attack footage", "power grid failure military sabotage", "cyber warfare operations center"],
+    "space":            ["military satellite launch footage", "anti-satellite missile test footage", "GPS military satellite footage"],
+}
+
+# Savaş alanı/coğrafi konumlar → görsel arama terimleri
+LOCATION_VISUAL_TERMS = {
+    # Gaza
+    "rafah":            ["Rafah Gaza military footage", "IDF Rafah operation", "Rafah crossing destruction"],
+    "khan younis":      ["Khan Younis IDF operation footage", "southern Gaza combat footage"],
+    "northern gaza":    ["northern Gaza airstrikes footage", "IDF north Gaza ground forces"],
+    "gaza city":        ["Gaza City bombing footage", "Gaza urban warfare footage"],
+    # Ukraine
+    "bakhmut":          ["Bakhmut battle footage", "Wagner Bakhmut combat", "Bakhmut frontline footage"],
+    "kharkiv":          ["Kharkiv shelling footage", "Ukraine Kharkiv frontline", "Kharkiv Russian strike footage"],
+    "zaporizhzhia":     ["Zaporizhzhia frontline Ukraine", "Zaporizhzhia nuclear plant tension"],
+    "donbas":           ["Donbas frontline footage", "eastern Ukraine combat", "Donbas artillery footage"],
+    "avdiivka":         ["Avdiivka battle footage", "Ukraine Avdiivka defense footage"],
+    "kursk":            ["Kursk Ukraine incursion footage", "Ukrainian troops Kursk Russia"],
+    # Seas / Straits
+    "red sea":          ["Red Sea Houthi attack footage", "US Navy Red Sea operations", "Red Sea cargo ship attack"],
+    "strait of hormuz": ["Strait of Hormuz naval standoff", "Iran IRGC speedboat Hormuz", "Hormuz tanker seizure"],
+    "south china sea":  ["South China Sea military confrontation", "PLA Navy South China Sea patrol", "Philippines China sea clash"],
+    "taiwan strait":    ["Taiwan Strait military exercise", "China Taiwan strait warships", "PLAN Taiwan strait patrol"],
+    "black sea":        ["Black Sea naval warfare", "Russia Ukraine Black Sea battle", "Ukrainian naval drone Black Sea"],
+    # Middle East
+    "beirut":           ["Beirut military footage", "Lebanon Beirut airstrike", "Hezbollah south Lebanon footage"],
+    "homs":             ["Syria Homs military footage", "Syrian airstrike Homs"],
+    "aleppo":           ["Aleppo battle footage", "Syria Aleppo military operations"],
+    "fallujah":         ["Fallujah battle urban warfare", "Iraq Fallujah military footage"],
+    # Other
+    "karabakh":         ["Nagorno-Karabakh offensive footage", "Azerbaijan Karabakh drone attack", "Karabakh 2020 war footage"],
+    "tigray":           ["Tigray conflict Ethiopia footage", "Tigray war military footage"],
 }
 
 def _extract_news_entities(text: str) -> dict:
@@ -249,7 +360,7 @@ def _extract_news_entities(text: str) -> dict:
         f'Extract key entities from this military news text for YouTube footage search:\n"{text[:400]}"\n\n'
         'Return JSON with these fields — ALL VALUES MUST BE IN ENGLISH regardless of input language:\n'
         '{"countries": ["country1", "country2"], '
-        '"event_type": "one of: ceasefire/negotiation/sanction/nuclear/missile/airstrike/invasion/offensive/blockade/deployment/exercise/summit/attack/retreat/occupation/conflict", '
+        '"event_type": "one of: ceasefire/negotiation/sanction/nuclear/missile/airstrike/invasion/offensive/blockade/deployment/exercise/summit/attack/retreat/occupation/conflict/drone warfare/siege/naval battle/trench warfare/electronic warfare/cyber attack/space", '
         '"weapons": ["weapon1 in english"], '
         '"locations": ["city or region in english"], '
         '"key_actors": ["military unit or leader in english"]}'
@@ -296,9 +407,18 @@ def _build_entity_queries(entities: dict, scene_index: int) -> list[FootageQuery
 
     # 3) Lokasyon + askeri bağlam
     for loc in locations:
-        queries.append(FootageQuery(f"{loc} military footage", relevance=0.88, source="entity_location", scene_index=scene_index))
-        if countries:
-            queries.append(FootageQuery(f"{countries[0]} {loc} conflict footage", relevance=0.85, source="entity_location", scene_index=scene_index))
+        loc_lower = loc.lower()
+        matched = False
+        for known_loc, loc_terms in LOCATION_VISUAL_TERMS.items():
+            if known_loc in loc_lower or loc_lower in known_loc:
+                for lt in loc_terms[:2]:
+                    queries.append(FootageQuery(lt, relevance=0.88, source="entity_location", scene_index=scene_index))
+                matched = True
+                break
+        if not matched:
+            queries.append(FootageQuery(f"{loc} military footage", relevance=0.88, source="entity_location", scene_index=scene_index))
+            if countries:
+                queries.append(FootageQuery(f"{countries[0]} {loc} conflict footage", relevance=0.85, source="entity_location", scene_index=scene_index))
 
     # 4) Aktör/birlik bazlı
     for actor in actors:
@@ -486,17 +606,41 @@ def generate_smart_queries(script: dict) -> list[FootageQuery]:
         print(f"[footage_matcher]   Sahne {i+1}: {total_scene} sorgu "
               f"({len(entity_queries)} varlık, {len(gemini_queries)} Gemini)")
 
-    # 4) Orijinal search_keywords (fallback — düşük relevance)
+    # 4) Recency sorguları — yıl ekleyerek YouTube'da daha güncel sonuçlar
+    countries = entities.get("countries", [])
+    event = entities.get("event_type", "")
+    for country in countries[:2]:
+        for yr in [str(_CURRENT_YEAR), str(_PREV_YEAR)]:
+            base = EVENT_VISUAL_TERMS.get(event, ["military operation footage"])[0]
+            all_queries.append(FootageQuery(
+                query=f"{country} {base} {yr}",
+                relevance=0.88, source="recency", scene_index=0,
+            ))
+
+    # 5) Alternatif dil sorguları — bazı içerikler yalnızca TR/AR/RU'da bulunuyor
+    for country in countries[:2]:
+        ck = country.lower()
+        for alt_q in ALT_LANG_TERMS.get(ck, [])[:2]:
+            all_queries.append(FootageQuery(
+                query=alt_q, relevance=0.82, source="alt_lang", scene_index=0,
+            ))
+
+    # 6) Orijinal search_keywords (fallback — düşük relevance)
     for kw in original_keywords:
         q = kw if ("footage" in kw.lower() or "operations" in kw.lower()) else f"{kw} footage"
         all_queries.append(FootageQuery(query=q, relevance=0.55, source="original"))
 
-    # 5) Deduplicate (query metni bazında) + relevance sıralaması
+    # 7) Blacklist filtresi: generic/alakasız sorgular çıkarılır
+    def _is_blacklisted(query_text: str) -> bool:
+        ql = query_text.lower()
+        return any(b in ql for b in QUERY_BLACKLIST_TERMS)
+
+    # 8) Deduplicate (query metni bazında) + relevance sıralaması
     seen: set[str] = set()
     unique_queries: list[FootageQuery] = []
     for q in all_queries:
         key = q.query.lower().strip()
-        if key not in seen:
+        if key not in seen and not _is_blacklisted(q.query):
             seen.add(key)
             unique_queries.append(q)
 

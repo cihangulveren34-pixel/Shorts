@@ -57,6 +57,8 @@ def upload_video(
     description: str,
     tags: list,
     thumbnail_path: str = None,
+    localizations: dict = None,
+    category_id: str = "25",
 ) -> str:
     """
     Videoyu YouTube'a yükler, thumbnail ekler. Video ID'sini döndürür.
@@ -69,7 +71,8 @@ def upload_video(
             "title": title,
             "description": description,
             "tags": tags,
-            "categoryId": "25",  # News & Politics
+            "categoryId": category_id,
+            "defaultLanguage": "en",
         },
         "status": {
             "privacyStatus": "public",
@@ -95,6 +98,27 @@ def upload_video(
 
     video_id = response["id"]
     print(f"[uploader] Video yüklendi: https://youtube.com/shorts/{video_id}")
+
+    # Localization (çoklu dil başlık/açıklama) ekle
+    if localizations:
+        print(f"[uploader] Localization ekleniyor ({len(localizations)} dil)...")
+        try:
+            youtube.videos().update(
+                part="localizations",
+                body={
+                    "id": video_id,
+                    "localizations": localizations,
+                },
+            ).execute()
+            print("[uploader] Localization eklendi.")
+        except Exception as e:
+            print(f"[uploader] Localization başarısız — video siliniyor: {e}")
+            try:
+                youtube.videos().delete(id=video_id).execute()
+                print(f"[uploader] Video silindi: {video_id}")
+            except Exception as del_err:
+                print(f"[uploader] Video silinemedi: {del_err}")
+            raise RuntimeError(f"Localization eklenemedi, video silindi: {e}")
 
     # Thumbnail yükle
     if thumbnail_path and os.path.exists(thumbnail_path):

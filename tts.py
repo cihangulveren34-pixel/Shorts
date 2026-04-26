@@ -13,8 +13,8 @@ RATE = "+40%"
 PITCH = "-5Hz"
 
 
-async def _synthesize(text: str, audio_path: str, vtt_path: str, voice: str = DEFAULT_VOICE) -> None:
-    communicate = edge_tts.Communicate(text, voice, rate=RATE, pitch=PITCH)
+async def _synthesize(text: str, audio_path: str, vtt_path: str, voice: str = DEFAULT_VOICE, rate: str = None, pitch: str = None) -> None:
+    communicate = edge_tts.Communicate(text, voice, rate=rate or RATE, pitch=pitch or PITCH)
     subs = edge_tts.SubMaker()
     sub_type = None  # Track which boundary type we use
     with open(audio_path, "wb") as audio_f:
@@ -97,10 +97,11 @@ def parse_vtt(vtt_path: str, words_per_chunk: int = 4) -> list:
     return chunks
 
 
-def generate_audio(narration: str, output_dir: str = "output", voice: str = None) -> tuple:
+def generate_audio(narration: str, output_dir: str = "output", voice: str = None, rate: str = None, pitch: str = None) -> tuple:
     """
     Narration metnini Edge TTS ile MP3 + VTT'e çevirir.
     voice: None ise DEFAULT_VOICE kullanılır.
+    rate/pitch: None ise modül sabitleri kullanılır.
     (audio_path, vtt_path) tuple döndürür.
     """
     os.makedirs(output_dir, exist_ok=True)
@@ -108,7 +109,7 @@ def generate_audio(narration: str, output_dir: str = "output", voice: str = None
     vtt_path = os.path.join(output_dir, "narration.vtt")
     selected_voice = voice or DEFAULT_VOICE
 
-    asyncio.run(_synthesize(narration, audio_path, vtt_path, selected_voice))
+    asyncio.run(_synthesize(narration, audio_path, vtt_path, selected_voice, rate, pitch))
     print(f"[tts] Ses: {audio_path} (ses: {selected_voice})")
     print(f"[tts] Altyazı zamanlaması: {vtt_path}")
     return audio_path, vtt_path

@@ -1,10 +1,13 @@
 name: WAR SHORTS — Arabic Batch
 
 on:
-  workflow_dispatch:        # Sadece manuel tetikleme
+  schedule:
+    - cron: '0 3 * * *'    # Her gün 03:00 UTC
+  workflow_dispatch:
 
 jobs:
   run-arabic-pipeline:
+    if: github.event_name == 'workflow_dispatch' || vars.ACTIVE_SYSTEM == 'ar'
     runs-on: ubuntu-latest
     timeout-minutes: 55
 
@@ -105,8 +108,8 @@ jobs:
       - name: Download Arabic font
         run: python -c "from setup_assets import download_arabic_font; download_arabic_font()"
 
-      - name: Run Arabic pipeline (no upload)
-        run: python main.py --dry-run
+      - name: Run Arabic pipeline
+        run: python main.py
         env:
           TOPIC_KEYWORDS: ${{ vars.TOPIC_KEYWORDS || 'Israel,Gaza,Hamas,Hezbollah,IDF,West Bank,Jerusalem,Iran,IRGC,Iran nuclear,Iran missile,Iran US,Iran Israel,Iranian' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
