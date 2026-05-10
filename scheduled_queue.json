@@ -483,5 +483,119 @@
     "video_path": null,
     "published": false,
     "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-05-11",
+    "topic": "[NEWS] Why Iran accuses US of 'reckless military adventure' Changes Everything",
+    "title": "كارثي: اتهام أمريكا بمغامرة.. إيران تفجر الوضع!",
+    "script_path": "batch_output/2026-05-11/script.json",
+    "video_path": "batch_output/2026-05-11/short.mp4",
+    "audio_path": "batch_output/2026-05-11/narration.mp3",
+    "thumbnail_path": "batch_output/2026-05-11/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "أمريكا بالفعل تخطط لشيء؟ 🤔\nA) نعم، استراتيجية خبيثة 😈\nB) لا، مجرد تهديدات فارغة 🥱\nC) لا أعرف 🤷‍♀️\n#فقط 5% يفهمون! 👇",
+      "community_poll": {
+        "text": "Is the US escalating tensions with Iran, or is Iran the real instigator? 🤔🌍",
+        "poll_options": [
+          "US Provoking",
+          "Iran Provoking",
+          "Both Sides",
+          "Too Complex"
+        ]
+      },
+      "debate_starter": "Why is the world so quick to blame Iran when America has a history of foreign interventions? 🤔",
+      "prediction_game": "⚡ 30-SECOND CHALLENGE: After watching this video...\n\nWhat's the ONE thing that could change everything?\nBest answer gets pinned! 📌👇"
+    },
+    "score": 39
+  },
+  {
+    "scheduled_date": "2026-05-12",
+    "topic": "[NEWS] Staple Food Prices Soar In Iran As Inflation Hits 'Unprecedented Level: Here's What It Means for the World",
+    "title": "كارثة إيران: 70% جوعًا.. والسبب الحقيقي يصدم العالم!",
+    "script_path": "batch_output/2026-05-12/script.json",
+    "video_path": "batch_output/2026-05-12/short.mp4",
+    "audio_path": "batch_output/2026-05-12/narration.mp3",
+    "thumbnail_path": "batch_output/2026-05-12/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "هل 70% جوعًا بسبب: A) العقوبات أم B) القرارات الخاطئة؟ 🤯 Only 10% get this right... 🤔👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on كارثة إيران: 70% جوعًا.. والسبب الحقيقي ... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "⚡ 30-SECOND CHALLENGE: After watching this video...\n\nWhat's the ONE thing that could change everything?\nBest answer gets pinned! 📌👇"
+    },
+    "score": 37
+  },
+  {
+    "scheduled_date": "2026-05-13",
+    "topic": "[NEWS] Flotilla activist gives defiant message after Israel deports him to Gr: Here's What It Means for the World",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-05-14",
+    "topic": "Iran vs Israel: The Shadow War Nobody Talks About",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-05-15",
+    "topic": "What if Iran Closes the Strait of Hormuz Tomorrow?",
+    "title": "كارثي: إيران تغلق مضيق هرمز؟ العالم على حافة الهاوية!",
+    "script_path": "batch_output/2026-05-15/script.json",
+    "video_path": "batch_output/2026-05-15/short.mp4",
+    "audio_path": "batch_output/2026-05-15/narration.mp3",
+    "thumbnail_path": "batch_output/2026-05-15/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "🎯 Prediction challenge: Only 5% get this right!\n\nWhat's the REAL endgame here? Comment your theory 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on كارثي: إيران تغلق مضيق هرمز؟ العالم على ... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🔮 CRYSTAL BALL TIME: كارثي: إيران تغلق مضيق هرمز؟ العالم على \n\nComment your wildest theory about what happens next.\nWrong answers only 😂👇"
+    },
+    "score": 35
+  },
+  {
+    "scheduled_date": "2026-05-16",
+    "topic": "Israel's Iron Dome: How It Actually Works",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-05-17",
+    "topic": "Israel's Secret Nuclear Arsenal: What We Know",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
   }
 ]
