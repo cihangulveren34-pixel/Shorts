@@ -808,5 +808,119 @@
     "video_path": null,
     "published": false,
     "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-06-01",
+    "topic": "Israel's Secret Nuclear Arsenal: What We Know",
+    "title": "حصري: إسرائيل تملك السلاح النووي السري!",
+    "script_path": "batch_output/2026-06-01/script.json",
+    "video_path": "batch_output/2026-06-01/short.mp4",
+    "audio_path": "batch_output/2026-06-01/narration.mp3",
+    "thumbnail_path": "batch_output/2026-06-01/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "هل إسرائيل تمتلك السلاح النووي؟ ☢️\nA) نعم، بالتأكيد!\nB) لا، مجرد شائعات.\nC) لا أعرف.\n\nOnly 10% get this right... 🤔",
+      "community_poll": {
+        "text": "The world *needs* to know: Is Israel's alleged nuclear arsenal a threat or a deterrent? 🤔 ☢️",
+        "poll_options": [
+          "Major Threat",
+          "Necessary Deterrent",
+          "IAEA Should Act",
+          "Ignore It"
+        ]
+      },
+      "debate_starter": "إسرائيل النووي؟ هم فقط يلعبون لعبة إعلامية، بينما العالم العربي يملك ما هو أكثر فتكاً. 😉 هل نحن جادون؟",
+      "prediction_game": "⚡ 30-SECOND CHALLENGE: After watching this video...\n\nWhat's the ONE thing that could change everything?\nBest answer gets pinned! 📌👇"
+    },
+    "score": 37
+  },
+  {
+    "scheduled_date": "2026-06-02",
+    "topic": "What if the Gulf States Unite Against Iran?",
+    "title": "حرب الخليج ضد إيران؟ 200 ألف جندي جاهزون!",
+    "script_path": "batch_output/2026-06-02/script.json",
+    "video_path": "batch_output/2026-06-02/short.mp4",
+    "audio_path": "batch_output/2026-06-02/narration.mp3",
+    "thumbnail_path": "batch_output/2026-06-02/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "🎯 Prediction challenge: Only 5% get this right!\n\nWhat's the REAL endgame here? Comment your theory 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on حرب الخليج ضد إيران؟ 200 ألف جندي جاهزون... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "⚡ 30-SECOND CHALLENGE: After watching this video...\n\nWhat's the ONE thing that could change everything?\nBest answer gets pinned! 📌👇"
+    },
+    "score": 34
+  },
+  {
+    "scheduled_date": "2026-06-03",
+    "topic": "What if Hezbollah Launches 100,000 Rockets at Israel at Once?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-06-04",
+    "topic": "Iran vs Israel: The Shadow War Nobody Talks About",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-06-05",
+    "topic": "What if Iran and Israel Launch Full Nuclear War?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-06-06",
+    "topic": "Israel's Trophy System: Why Tanks Are Almost Impossible to Destroy",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-06-07",
+    "topic": "Israel's Iron Dome: How It Actually Works",
+    "title": "القبة الحديدية: أكذوبة الغرب الكبرى!",
+    "script_path": "batch_output/2026-06-07/script.json",
+    "video_path": "batch_output/2026-06-07/short.mp4",
+    "audio_path": "batch_output/2026-06-07/narration.mp3",
+    "thumbnail_path": "batch_output/2026-06-07/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "⚡ Hot take: What happens next?\n\n🔴 Full-scale war\n🟡 Cold war standoff\n🟢 Peace deal\n\nVote below! Most get this WRONG 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on القبة الحديدية: أكذوبة الغرب الكبرى!... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "⚡ 30-SECOND CHALLENGE: After watching this video...\n\nWhat's the ONE thing that could change everything?\nBest answer gets pinned! 📌👇"
+    },
+    "score": 32
   }
 ]
