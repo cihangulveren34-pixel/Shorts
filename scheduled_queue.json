@@ -922,5 +922,136 @@
       "prediction_game": "⚡ 30-SECOND CHALLENGE: After watching this video...\n\nWhat's the ONE thing that could change everything?\nBest answer gets pinned! 📌👇"
     },
     "score": 32
+  },
+  {
+    "scheduled_date": "2026-06-08",
+    "topic": "[NEWS] Iran says staff blocked from entering US after players given World Cup: The Analysis Nobody Is Giving You",
+    "title": "2024: إيران تمنع موظفيها من أمريكا.. حرب باردة؟",
+    "script_path": "batch_output/2026-06-08/script.json",
+    "video_path": "batch_output/2026-06-08/short.mp4",
+    "audio_path": "batch_output/2026-06-08/narration.mp3",
+    "thumbnail_path": "batch_output/2026-06-08/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "هل منع موظفي إيران من أمريكا رد؟ 🤔 A) تكتيك حرب باردة B) رسالة لإسرائيل C) استراتيجية اقتصادية جديدة؟ 🤔 10% يفهمون! 👇",
+      "community_poll": {
+        "text": "Iran banning employees from the US: Is this a sign of escalating cold war tensions? 🥶⚔️",
+        "poll_options": [
+          "Full-blown conflict",
+          "Just political posturing",
+          "Minor diplomatic spat",
+          "No impact on relations"
+        ]
+      },
+      "debate_starter": "إيران تمنع موظفيها من أمريكا، لكنها تسمح للاعبين بالدخول. هذا تناقض يكشف عن استراتيجية أكبر أم مجرد دبلوماسية انتقائية؟ 🤔",
+      "prediction_game": "⚡ 30-SECOND CHALLENGE: After watching this video...\n\nWhat's the ONE thing that could change everything?\nBest answer gets pinned! 📌👇"
+    },
+    "score": 43
+  },
+  {
+    "scheduled_date": "2026-06-09",
+    "topic": "[NEWS] Why US and Iran exchange strikes in Gulf in latest test of ceasefire Changes Everything",
+    "title": "5 ضربات غيرت مسار الصراع الإيراني-الأمريكي",
+    "script_path": "batch_output/2026-06-09/script.json",
+    "video_path": "batch_output/2026-06-09/short.mp4",
+    "audio_path": "batch_output/2026-06-09/narration.mp3",
+    "thumbnail_path": "batch_output/2026-06-09/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "5 ضربات غيّرت التاريخ! 💥 أي ضربة كانت الأكثر حسماً؟ 🤔\nA. الهجوم على أرامكو ⛽\nB. إسقاط الدرون ✈️\nC. اغتيال سليماني 🦂\nشاركنا رأيك! 👇",
+      "community_poll": {
+        "text": "Who's truly winning the Iran-US naval chess match? ♟️ Let's settle this! 💥",
+        "poll_options": [
+          "US Dominance",
+          "Iran's Resilience",
+          "Stalemate",
+          "Proxy Battles"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "⚡ 30-SECOND CHALLENGE: After watching this video...\n\nWhat's the ONE thing that could change everything?\nBest answer gets pinned! 📌👇"
+    },
+    "score": 37
+  },
+  {
+    "scheduled_date": "2026-06-10",
+    "topic": "[NEWS] Pakistan’s Naqvi visits Iran with ‘special letter’ for supreme leader: Here's What It Means for the World",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-06-11",
+    "topic": "What if Iran and Israel Launch Full Nuclear War?",
+    "title": "كارثي: حرب نووية بين إيران وإسرائيل.. ماذا يعني ذلك؟",
+    "script_path": "batch_output/2026-06-11/script.json",
+    "video_path": "batch_output/2026-06-11/short.mp4",
+    "audio_path": "batch_output/2026-06-11/narration.mp3",
+    "thumbnail_path": "batch_output/2026-06-11/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "⚡ Hot take: What happens next?\n\n🔴 Full-scale war\n🟡 Cold war standoff\n🟢 Peace deal\n\nVote below! Most get this WRONG 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on كارثي: حرب نووية بين إيران وإسرائيل.. ما... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🧠 INTEL TEST: Based on this briefing...\n\nWhat would YOU do as commander-in-chief?\nMost strategic answer wins! 🎖️👇"
+    },
+    "score": 35
+  },
+  {
+    "scheduled_date": "2026-06-12",
+    "topic": "Iran's Hypersonic Missile Program: Should the World Worry?",
+    "title": "صادم: صاروخ إيران الخارق.. هل يهدد إسرائيل؟",
+    "script_path": "batch_output/2026-06-12/script.json",
+    "video_path": "batch_output/2026-06-12/short.mp4",
+    "audio_path": "batch_output/2026-06-12/narration.mp3",
+    "thumbnail_path": "batch_output/2026-06-12/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "⚡ Hot take: What happens next?\n\n🔴 Full-scale war\n🟡 Cold war standoff\n🟢 Peace deal\n\nVote below! Most get this WRONG 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on صادم: صاروخ إيران الخارق.. هل يهدد إسرائ... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🔮 CRYSTAL BALL TIME: صادم: صاروخ إيران الخارق.. هل يهدد إسرائ\n\nComment your wildest theory about what happens next.\nWrong answers only 😂👇"
+    },
+    "score": 37
+  },
+  {
+    "scheduled_date": "2026-06-13",
+    "topic": "Iran vs Israel: The Shadow War Nobody Talks About",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-06-14",
+    "topic": "[NEWS] Why Iran after 100 days of war Changes Everything",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
   }
 ]
