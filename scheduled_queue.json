@@ -1053,5 +1053,102 @@
     "video_path": null,
     "published": false,
     "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-06-15",
+    "topic": "UAE vs Iran: The Hidden Arms Race in the Gulf",
+    "title": "2024: حرب الأشباح بين الإمارات وإيران!",
+    "script_path": "batch_output/2026-06-15/script.json",
+    "video_path": "batch_output/2026-06-15/short.mp4",
+    "audio_path": "batch_output/2026-06-15/narration.mp3",
+    "thumbnail_path": "batch_output/2026-06-15/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "Only 10% know the truth! 🤯 UAE vs. Iran: Who truly dominates the hypersonic arms race? 🚀 A) UAE's stealth tech wins B) Iran's missiles prevail C) A stalemate? Vote! 👇",
+      "community_poll": {
+        "text": "Is the UAE-Iran 'ghost war' escalating, or is it just a strategic standoff? 👻⚔️",
+        "poll_options": [
+          "Full-blown conflict",
+          "Cold war tension",
+          "Proxy battles",
+          "Diplomatic chess"
+        ]
+      },
+      "debate_starter": "الإمارات وإيران يتنافسان على \"الأشباح\"، لكن هل هذا السباق حقيقي أم مجرد تكتيك لجذب الاستثمارات الغربية؟ 🤔",
+      "prediction_game": "🔮 CRYSTAL BALL TIME: 2024: حرب الأشباح بين الإمارات وإيران!\n\nComment your wildest theory about what happens next.\nWrong answers only 😂👇"
+    },
+    "score": 35
+  },
+  {
+    "scheduled_date": "2026-06-16",
+    "topic": "[NEWS] The U.S. and Iran Might Actually Have a Deal: Here's What It Means for the World",
+    "title": "صفقة إيران النووية: 3 مليارات الدولارات تغير الشرق الأوسط",
+    "script_path": "batch_output/2026-06-16/script.json",
+    "video_path": "batch_output/2026-06-16/short.mp4",
+    "audio_path": "batch_output/2026-06-16/narration.mp3",
+    "thumbnail_path": "batch_output/2026-06-16/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "⚡ Hot take: What happens next?\n\n🔴 Full-scale war\n🟡 Cold war standoff\n🟢 Peace deal\n\nVote below! Most get this WRONG 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on صفقة إيران النووية: 3 مليارات الدولارات ... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🎯 PREDICTION GAME: What happens by end of 2026?\n\nDrop your prediction — I'll pin the best one! 📌\n\nMost creative prediction wins a shoutout! 🏆"
+    },
+    "score": 36
+  },
+  {
+    "scheduled_date": "2026-06-17",
+    "topic": "[NEWS] What Iran Update Special Report, June 13, 2026 Really Means for the Future",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-06-18",
+    "topic": "[NEWS] Why As officials again say Iran war could soon end, some Trump objectives  Changes Everything",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-06-19",
+    "topic": "[NEWS] Missile Defense Worked Against Iran. It Might Not Work Against China.: Here's What It Means for the World",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-06-20",
+    "topic": "[NEWS] June 12, 2026 — US and Iran say an agreement is close, but questions r: The Analysis Nobody Is Giving You",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-06-21",
+    "topic": "[NEWS] Trump says deal to end war will be signed on Sunday, Iran questions ti: Here's What It Means for the World",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
   }
 ]
