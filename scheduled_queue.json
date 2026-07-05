@@ -1395,5 +1395,102 @@
     "video_path": null,
     "published": false,
     "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-06",
+    "topic": "What if Iran and Israel Launch Full Nuclear War?",
+    "title": "24 ساعة: الحرب النووية بين إيران وإسرائيل تبدأ؟",
+    "script_path": "batch_output/2026-07-06/script.json",
+    "video_path": "batch_output/2026-07-06/short.mp4",
+    "audio_path": "batch_output/2026-07-06/narration.mp3",
+    "thumbnail_path": "batch_output/2026-07-06/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "هل سيناريو الحرب النووية الإيرانية الإسرائيلية حتمي؟ 🤔 A) نعم 💥 B) لا 🕊️ C) ربما ❓ فقط 5% يفهمون العواقب الحقيقية! شاركونا رأيكم! 👇",
+      "community_poll": {
+        "text": "Is a nuclear war between Iran and Israel inevitable? 💥 The Middle East is on a knife's edge!",
+        "poll_options": [
+          "Yes, it's coming",
+          "No, diplomacy wins",
+          "Maybe, depends",
+          "Too early to tell"
+        ]
+      },
+      "debate_starter": "The real threat isn't nuclear war, it's the fear-mongering itself. Are we so desperate for conflict that we imagine it? 🤔",
+      "prediction_game": "🧠 INTEL TEST: Based on this briefing...\n\nWhat would YOU do as commander-in-chief?\nMost strategic answer wins! 🎖️👇"
+    },
+    "score": 38
+  },
+  {
+    "scheduled_date": "2026-07-07",
+    "topic": "Israel's Iron Dome: How It Actually Works",
+    "title": "خطير: القبة الحديدية تخذل إسرائيل؟ حقيقة مرعبة",
+    "script_path": "batch_output/2026-07-07/script.json",
+    "video_path": "batch_output/2026-07-07/short.mp4",
+    "audio_path": "batch_output/2026-07-07/narration.mp3",
+    "thumbnail_path": "batch_output/2026-07-07/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "🎯 Prediction challenge: Only 5% get this right!\n\nWhat's the REAL endgame here? Comment your theory 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on خطير: القبة الحديدية تخذل إسرائيل؟ حقيقة... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🎯 PREDICTION GAME: What happens by end of 2026?\n\nDrop your prediction — I'll pin the best one! 📌\n\nMost creative prediction wins a shoutout! 🏆"
+    },
+    "score": 35
+  },
+  {
+    "scheduled_date": "2026-07-08",
+    "topic": "What if Iran Closes the Strait of Hormuz Tomorrow?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-09",
+    "topic": "Israel's Arrow 3: The Missile That Can Intercept in Space",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-10",
+    "topic": "What if Hezbollah Launches 100,000 Rockets at Israel at Once?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-11",
+    "topic": "Israel's Secret Nuclear Arsenal: What We Know",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-12",
+    "topic": "What if the Gulf States Unite Against Iran?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
   }
 ]
