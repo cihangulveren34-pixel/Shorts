@@ -1492,5 +1492,136 @@
     "video_path": null,
     "published": false,
     "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-13",
+    "topic": "[NEWS] IRGC vows ‘crushing response’ to any further US attacks: Here's What It Means for the World",
+    "title": "3 أسباب لرد إيران القوي.. هل العالم مستعد؟",
+    "script_path": "batch_output/2026-07-13/script.json",
+    "video_path": "batch_output/2026-07-13/short.mp4",
+    "audio_path": "batch_output/2026-07-13/narration.mp3",
+    "thumbnail_path": "batch_output/2026-07-13/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "هل رد إيران القادم سيكون محسوبًا أم عاطفياً؟ 🤔 A) محسوب 🎯 B) عاطفي 💥 فقط 10% يفهمون الفرق! #إيران #الشرق_الأوسط",
+      "community_poll": {
+        "text": "Should Iran's recent actions be seen as a sign of strength or desperation? 🤔 Let's settle this debate! 💥",
+        "poll_options": [
+          "Pure Strength",
+          "Calculated Risk",
+          "Desperate Move",
+          "Miscalculation"
+        ]
+      },
+      "debate_starter": "This is all a performance. Iran's threats are aimed at domestic audiences and regional rivals, not the US. 🎭 What if the real target isn't America?",
+      "prediction_game": "⚡ 30-SECOND CHALLENGE: After watching this video...\n\nWhat's the ONE thing that could change everything?\nBest answer gets pinned! 📌👇"
+    },
+    "score": 36
+  },
+  {
+    "scheduled_date": "2026-07-14",
+    "topic": "[NEWS] Why Lindsey Graham, one of Israel’s strongest US Senate allies, dies Changes Everything",
+    "title": "صادم: ليندسي غراهام مات.. إسرائيل في خطر؟",
+    "script_path": "batch_output/2026-07-14/script.json",
+    "video_path": "batch_output/2026-07-14/short.mp4",
+    "audio_path": "batch_output/2026-07-14/narration.mp3",
+    "thumbnail_path": "batch_output/2026-07-14/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "هل موت غراهام ضربة قاتلة لإسرائيل؟ 🤔\nA) نعم، دعم أمريكا سينهار 📉\nB) لا، هناك بدائل أقوى 💪\nC) مصير إسرائيل غير مؤكد 🤷‍♀️\nOnly 10% will guess correctly! 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on صادم: ليندسي غراهام مات.. إسرائيل في خطر... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🔮 CRYSTAL BALL TIME: صادم: ليندسي غراهام مات.. إسرائيل في خطر\n\nComment your wildest theory about what happens next.\nWrong answers only 😂👇"
+    },
+    "score": 31
+  },
+  {
+    "scheduled_date": "2026-07-15",
+    "topic": "[NEWS] US CENTCOM completes third round of strikes on Iran: Here's What It Means for the World",
+    "title": "صادم: أمريكا تضرب إيران للمرة الثالثة!",
+    "script_path": "batch_output/2026-07-15/script.json",
+    "video_path": "batch_output/2026-07-15/short.mp4",
+    "audio_path": "batch_output/2026-07-15/narration.mp3",
+    "thumbnail_path": "batch_output/2026-07-15/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "أمريكا ضربت إيران للمرة الثالثة! هل هذا سيجبرهم على التراجع؟ 🤔\nA) نعم، سريعاً! 🚀\nB) لا، سيتصاعد الوضع! 💥\nفقط 10% يفهمون الهدف الحقيقي...",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on صادم: أمريكا تضرب إيران للمرة الثالثة!... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "The US isn't targeting Iran, they're targeting the IRGC. A necessary evil to stabilize the region? 🤔",
+      "prediction_game": "🎯 PREDICTION GAME: What happens by end of 2026?\n\nDrop your prediction — I'll pin the best one! 📌\n\nMost creative prediction wins a shoutout! 🏆"
+    },
+    "score": 30
+  },
+  {
+    "scheduled_date": "2026-07-16",
+    "topic": "[NEWS] US launches fresh strikes as Iran closes Strait of Hormuz: Here's What It Means for the World",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-17",
+    "topic": "Iran's Drone Army: How They Changed the Middle East",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-18",
+    "topic": "What if Israel and Iran Go to Full-Scale War?",
+    "title": "صادم: حرب شاملة بين إيران وإسرائيل.. المصير المحتوم؟",
+    "script_path": "batch_output/2026-07-18/script.json",
+    "video_path": "batch_output/2026-07-18/short.mp4",
+    "audio_path": "batch_output/2026-07-18/narration.mp3",
+    "thumbnail_path": "batch_output/2026-07-18/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "⚡ Hot take: What happens next?\n\n🔴 Full-scale war\n🟡 Cold war standoff\n🟢 Peace deal\n\nVote below! Most get this WRONG 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on صادم: حرب شاملة بين إيران وإسرائيل.. الم... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🔮 CRYSTAL BALL TIME: صادم: حرب شاملة بين إيران وإسرائيل.. الم\n\nComment your wildest theory about what happens next.\nWrong answers only 😂👇"
+    },
+    "score": 35
+  },
+  {
+    "scheduled_date": "2026-07-19",
+    "topic": "What if the Gulf States Unite Against Iran?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
   }
 ]
