@@ -1623,5 +1623,102 @@
     "video_path": null,
     "published": false,
     "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-20",
+    "topic": "[NEWS] US and Iran exchange strikes after two US soldiers killed in Jordan: Here's What It Means for the World",
+    "title": "عاجل: إيران ترد على أمريكا.. حرب جديدة تشتعل؟",
+    "script_path": "batch_output/2026-07-20/script.json",
+    "video_path": "batch_output/2026-07-20/short.mp4",
+    "audio_path": "batch_output/2026-07-20/narration.mp3",
+    "thumbnail_path": "batch_output/2026-07-20/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "🔥 حرب جديدة تشتعل؟ هل سترد إيران بقوة أم ستنتظر؟ 🤔\nA) رد مباشر 🚀\nB) هجوم بالوكالة 🤫\nC) دبلوماسية 🕊️\nOnly 10% guess right! 👇",
+      "community_poll": {
+        "text": "Is a full-blown Middle East war inevitable now? 💥 Let us know your thoughts!",
+        "poll_options": [
+          "Yes, it's coming",
+          "No, de-escalation",
+          "Maybe, depends",
+          "Too early to tell"
+        ]
+      },
+      "debate_starter": "Iran's response is just posturing. They know a direct conflict with the US is suicide. What's their real plan? 🤔",
+      "prediction_game": "⚡ 30-SECOND CHALLENGE: After watching this video...\n\nWhat's the ONE thing that could change everything?\nBest answer gets pinned! 📌👇"
+    },
+    "score": 39
+  },
+  {
+    "scheduled_date": "2026-07-21",
+    "topic": "[NEWS] Israel demolishes Palestinian home in Masafer Yatta: Here's What It Means for the World",
+    "title": "صادم: هدم منزل فلسطيني.. ما الذي تخفيه إسرائيل؟",
+    "script_path": "batch_output/2026-07-21/script.json",
+    "video_path": "batch_output/2026-07-21/short.mp4",
+    "audio_path": "batch_output/2026-07-21/narration.mp3",
+    "thumbnail_path": "batch_output/2026-07-21/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "⚡ Hot take: What happens next?\n\n🔴 Full-scale war\n🟡 Cold war standoff\n🟢 Peace deal\n\nVote below! Most get this WRONG 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on صادم: هدم منزل فلسطيني.. ما الذي تخفيه إ... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🔮 CRYSTAL BALL TIME: صادم: هدم منزل فلسطيني.. ما الذي تخفيه إ\n\nComment your wildest theory about what happens next.\nWrong answers only 😂👇"
+    },
+    "score": 27
+  },
+  {
+    "scheduled_date": "2026-07-22",
+    "topic": "Israel's Iron Dome: How It Actually Works",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-23",
+    "topic": "Israel's Secret Nuclear Arsenal: What We Know",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-24",
+    "topic": "Iran's Hypersonic Missile Program: Should the World Worry?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-25",
+    "topic": "Iran's Proxy Network: The Most Powerful Non-State Military in the World",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-26",
+    "topic": "Iran vs Israel: The Shadow War Nobody Talks About",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
   }
 ]
