@@ -1720,5 +1720,136 @@
     "video_path": null,
     "published": false,
     "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-27",
+    "topic": "[NEWS] Four Palestinians and two Israelis killed in West Bank shooting: The Analysis Nobody Is Giving You",
+    "title": "مرعب: ٦ قتلى في الضفة.. حقيقة إسرائيلية مخفية؟",
+    "script_path": "batch_output/2026-07-27/script.json",
+    "video_path": "batch_output/2026-07-27/short.mp4",
+    "audio_path": "batch_output/2026-07-27/narration.mp3",
+    "thumbnail_path": "batch_output/2026-07-27/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "٦ قتلى، هل هي مصادفة أم خطة؟ 🤔\nA) مجرد تصعيد عادي 😠\nB) خطة ممنهجة 🤯\n(15% فقط يفهمون الحقيقة!) 👇",
+      "community_poll": {
+        "text": "Is the recent West Bank violence a sign of a new escalation or just isolated incidents? 🚨👇",
+        "poll_options": [
+          "Full-blown war",
+          "Escalation",
+          "Isolated",
+          "False alarm"
+        ]
+      },
+      "debate_starter": "This tragedy isn't just about who shot first, but why decades of oppression have created this cycle. 💔 When will we address the root cause?",
+      "prediction_game": "🎯 PREDICTION GAME: What happens by end of 2026?\n\nDrop your prediction — I'll pin the best one! 📌\n\nMost creative prediction wins a shoutout! 🏆"
+    },
+    "score": 30
+  },
+  {
+    "scheduled_date": "2026-07-28",
+    "topic": "[NEWS] Why Israel raids West Bank live Changes Everything",
+    "title": "تصعيد الضفة: 72 ساعة تفصلنا عن كارثة؟",
+    "script_path": "batch_output/2026-07-28/script.json",
+    "video_path": "batch_output/2026-07-28/short.mp4",
+    "audio_path": "batch_output/2026-07-28/narration.mp3",
+    "thumbnail_path": "batch_output/2026-07-28/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "⚡ Hot take: What happens next?\n\n🔴 Full-scale war\n🟡 Cold war standoff\n🟢 Peace deal\n\nVote below! Most get this WRONG 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on تصعيد الضفة: 72 ساعة تفصلنا عن كارثة؟... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "The West's \"support\" for Palestinian governance is a facade. They fund the occupation indirectly. Thoughts? 🤔",
+      "prediction_game": "⚡ 30-SECOND CHALLENGE: After watching this video...\n\nWhat's the ONE thing that could change everything?\nBest answer gets pinned! 📌👇"
+    },
+    "score": 33
+  },
+  {
+    "scheduled_date": "2026-07-29",
+    "topic": "What if Israel and Iran Go to Full-Scale War?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-07-30",
+    "topic": "Iran's Hypersonic Missile Program: Should the World Worry?",
+    "title": "خطير: صاروخ إيران الخارق.. إسرائيل في مرمى النيران!",
+    "script_path": "batch_output/2026-07-30/script.json",
+    "video_path": "batch_output/2026-07-30/short.mp4",
+    "audio_path": "batch_output/2026-07-30/narration.mp3",
+    "thumbnail_path": "batch_output/2026-07-30/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "🎯 Prediction challenge: Only 5% get this right!\n\nWhat's the REAL endgame here? Comment your theory 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on خطير: صاروخ إيران الخارق.. إسرائيل في مر... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🧠 INTEL TEST: Based on this briefing...\n\nWhat would YOU do as commander-in-chief?\nMost strategic answer wins! 🎖️👇"
+    },
+    "score": 35
+  },
+  {
+    "scheduled_date": "2026-07-31",
+    "topic": "Israel's Iron Dome: How It Actually Works",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-08-01",
+    "topic": "Israel's Secret Nuclear Arsenal: What We Know",
+    "title": "كارثي: إسرائيل تملك النووي.. والصمت الدولي مريب!",
+    "script_path": "batch_output/2026-08-01/script.json",
+    "video_path": "batch_output/2026-08-01/short.mp4",
+    "audio_path": "batch_output/2026-08-01/narration.mp3",
+    "thumbnail_path": "batch_output/2026-08-01/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "🔥 Bold prediction time: How does this end?\n\nA) Escalation 💥\nB) Diplomacy 🤝\nC) Surprise twist 🔄\n\nDrop your answer! 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on كارثي: إسرائيل تملك النووي.. والصمت الدو... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🔮 CRYSTAL BALL TIME: كارثي: إسرائيل تملك النووي.. والصمت الدو\n\nComment your wildest theory about what happens next.\nWrong answers only 😂👇"
+    },
+    "score": 31
+  },
+  {
+    "scheduled_date": "2026-08-02",
+    "topic": "Iran vs Israel: The Shadow War Nobody Talks About",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
   }
 ]
