@@ -1851,5 +1851,119 @@
     "video_path": null,
     "published": false,
     "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-08-03",
+    "topic": "[NEWS] Why Israeli West Bank settler tells BBC attacks on Palestinians are justif Changes Everything",
+    "title": "مستوطن يبرر اعتداءات الضفة؟ BBC تكشف!",
+    "script_path": "batch_output/2026-08-03/script.json",
+    "video_path": "batch_output/2026-08-03/short.mp4",
+    "audio_path": "batch_output/2026-08-03/narration.mp3",
+    "thumbnail_path": "batch_output/2026-08-03/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "هل يعتقد المستوطن أن الاعتداءات مبررة؟ 🤔 A: نعم، دائمًا B: أحيانًا C: لا أبدًا! Only 10% get this right... 👇",
+      "community_poll": {
+        "text": "Is violence ever justified to defend settlements? 🤔 Let's discuss! 🇵🇸🇮🇱",
+        "poll_options": [
+          "Always Wrong",
+          "Self-Defense Only",
+          "Complex Reality",
+          "Depends on Context"
+        ]
+      },
+      "debate_starter": "This \"settler\" is just another victim of propaganda, just like the Palestinians. Who is truly brainwashing whom? 🤔",
+      "prediction_game": "🧠 INTEL TEST: Based on this briefing...\n\nWhat would YOU do as commander-in-chief?\nMost strategic answer wins! 🎖️👇"
+    },
+    "score": 33
+  },
+  {
+    "scheduled_date": "2026-08-04",
+    "topic": "[NEWS] Trump says he is cancelling strikes on Iran subject to deal being made: Here's What It Means for the World",
+    "title": "72 ساعة: صفقة ترامب النووية لإيران؟",
+    "script_path": "batch_output/2026-08-04/script.json",
+    "video_path": "batch_output/2026-08-04/short.mp4",
+    "audio_path": "batch_output/2026-08-04/narration.mp3",
+    "thumbnail_path": "batch_output/2026-08-04/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "🔥 Bold prediction time: How does this end?\n\nA) Escalation 💥\nB) Diplomacy 🤝\nC) Surprise twist 🔄\n\nDrop your answer! 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on 72 ساعة: صفقة ترامب النووية لإيران؟... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "⚡ 30-SECOND CHALLENGE: After watching this video...\n\nWhat's the ONE thing that could change everything?\nBest answer gets pinned! 📌👇"
+    },
+    "score": 33
+  },
+  {
+    "scheduled_date": "2026-08-05",
+    "topic": "[NEWS] What Gaza students overcome Israel’s genocide to mark Tawjihi results Really Means for the Future",
+    "title": "صادم: ما يخفيه الغرب عن صمود غزة!",
+    "script_path": "batch_output/2026-08-05/script.json",
+    "video_path": "batch_output/2026-08-05/short.mp4",
+    "audio_path": "batch_output/2026-08-05/narration.mp3",
+    "thumbnail_path": "batch_output/2026-08-05/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "🎯 Prediction challenge: Only 5% get this right!\n\nWhat's the REAL endgame here? Comment your theory 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on صادم: ما يخفيه الغرب عن صمود غزة!... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "⚡ 30-SECOND CHALLENGE: After watching this video...\n\nWhat's the ONE thing that could change everything?\nBest answer gets pinned! 📌👇"
+    },
+    "score": 27
+  },
+  {
+    "scheduled_date": "2026-08-06",
+    "topic": "Iran's Proxy Network: The Most Powerful Non-State Military in the World",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-08-07",
+    "topic": "Israel's Trophy System: Why Tanks Are Almost Impossible to Destroy",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-08-08",
+    "topic": "What if Iran Closes the Strait of Hormuz Tomorrow?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-08-09",
+    "topic": "Iran vs Israel: The Shadow War Nobody Talks About",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
   }
 ]
