@@ -2508,5 +2508,102 @@
     "video_path": null,
     "published": false,
     "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-09-28",
+    "topic": "[NEWS] Iranian minister says only negotiation can end conflict after Trump re: Here's What It Means for the World",
+    "title": "خطير: إيران تفتح باب الحرب؟ تفاصيل الصدمة!",
+    "script_path": "batch_output/2026-09-28/script.json",
+    "video_path": "batch_output/2026-09-28/short.mp4",
+    "audio_path": "batch_output/2026-09-28/narration.mp3",
+    "thumbnail_path": "batch_output/2026-09-28/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "هل المناورات الإيرانية مجرد تهديد أم استعداد لحرب؟ 🤔\nA) تهديد 🚨\nB) استعداد 💥\nOnly 10% will guess correctly! 👇",
+      "community_poll": {
+        "text": "Is Iran's recent aggression a calculated gamble or a desperate act? 🤔 Let's hear your take! 💥",
+        "poll_options": [
+          "Calculated Gamble",
+          "Desperate Act",
+          "Miscalculation",
+          "Other (Comment!)"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🎯 PREDICTION GAME: What happens by end of 2026?\n\nDrop your prediction — I'll pin the best one! 📌\n\nMost creative prediction wins a shoutout! 🏆"
+    },
+    "score": 32
+  },
+  {
+    "scheduled_date": "2026-09-29",
+    "topic": "[NEWS] Republic of Ireland to wear black armbands for Israel game: The Analysis Nobody Is Giving You",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-09-30",
+    "topic": "[NEWS] Rejection of Iran's proposal signals possible US attack, MP says: Here's What It Means for the World",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-10-01",
+    "topic": "Israel's Iron Dome: How It Actually Works",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-10-02",
+    "topic": "Iran vs Israel: The Shadow War Nobody Talks About",
+    "title": "خطير: حرب الظل بين إيران وإسرائيل.. الحقيقة كاملة!",
+    "script_path": "batch_output/2026-10-02/script.json",
+    "video_path": "batch_output/2026-10-02/short.mp4",
+    "audio_path": "batch_output/2026-10-02/narration.mp3",
+    "thumbnail_path": "batch_output/2026-10-02/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "🎯 Prediction challenge: Only 5% get this right!\n\nWhat's the REAL endgame here? Comment your theory 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on خطير: حرب الظل بين إيران وإسرائيل.. الحق... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🧠 INTEL TEST: Based on this briefing...\n\nWhat would YOU do as commander-in-chief?\nMost strategic answer wins! 🎖️👇"
+    },
+    "score": 31
+  },
+  {
+    "scheduled_date": "2026-10-03",
+    "topic": "Iran's Proxy Network: The Most Powerful Non-State Military in the World",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-10-04",
+    "topic": "What if Iran Closes the Strait of Hormuz Tomorrow?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
   }
 ]
