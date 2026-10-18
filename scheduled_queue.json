@@ -2748,5 +2748,102 @@
     "video_path": null,
     "published": false,
     "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-10-19",
+    "topic": "[NEWS] European diplomats attacked by Israeli settlers in West Bank: Here's What It Means for the World",
+    "title": "3 أسباب لتجاهل الغرب لهجوم المستوطنين!",
+    "script_path": "batch_output/2026-10-19/script.json",
+    "video_path": "batch_output/2026-10-19/short.mp4",
+    "audio_path": "batch_output/2026-10-19/narration.mp3",
+    "thumbnail_path": "batch_output/2026-10-19/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "هل الغرب يتجاهل عن قصد؟ 🤔\nA) نعم، لخدمة مصالح أعمق.\nB) لا، هو عاجز عن التدخل.\nC) ربما، وهو ما يريده المعتدون!\n\nفقط 5% يفهمون الحقيقة! 👇",
+      "community_poll": {
+        "text": "Should international bodies intervene more forcefully in settler-related incidents, or is it an internal Israeli matter? 🤔🌍",
+        "poll_options": [
+          "Global intervention needed",
+          "Israel handles it",
+          "UN should mediate",
+          "EU must sanction"
+        ]
+      },
+      "debate_starter": "الغرب يستخدم القانون الدولي كأداة سياسية، وليس كقيمة. هل نتوقع منه العدالة حقًا؟ 🤔",
+      "prediction_game": "🔮 CRYSTAL BALL TIME: 3 أسباب لتجاهل الغرب لهجوم المستوطنين!\n\nComment your wildest theory about what happens next.\nWrong answers only 😂👇"
+    },
+    "score": 32
+  },
+  {
+    "scheduled_date": "2026-10-20",
+    "topic": "Iran's Underground Missile Cities: The Hidden Threat",
+    "title": "مرعب: مدن إيران الصاروخية.. أخطر مما تتخيل!",
+    "script_path": "batch_output/2026-10-20/script.json",
+    "video_path": "batch_output/2026-10-20/short.mp4",
+    "audio_path": "batch_output/2026-10-20/narration.mp3",
+    "thumbnail_path": "batch_output/2026-10-20/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "هل تظن أن شبكات إيران الصاروخية ستصل إلى هدفها؟ 🚀\nA) نعم، حتماً!\nB) لا، سيتم تدميرها.\nC) المفاجأة الكبرى!\nOnly 10% get this right... 🤔",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on مرعب: مدن إيران الصاروخية.. أخطر مما تتخ... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🎯 PREDICTION GAME: What happens by end of 2026?\n\nDrop your prediction — I'll pin the best one! 📌\n\nMost creative prediction wins a shoutout! 🏆"
+    },
+    "score": 39
+  },
+  {
+    "scheduled_date": "2026-10-21",
+    "topic": "Israel's Secret Nuclear Arsenal: What We Know",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-10-22",
+    "topic": "Iran vs Israel: The Shadow War Nobody Talks About",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-10-23",
+    "topic": "Israel's Trophy System: Why Tanks Are Almost Impossible to Destroy",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-10-24",
+    "topic": "[NEWS] Hegseth says Iran has choice between deal or ‘devastation’: Here's What It Means for the World",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-10-25",
+    "topic": "[NEWS] What Iran Boosts Air Defenses as It Braces for Fresh US Attacks Really Means for the Future",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
   }
 ]
