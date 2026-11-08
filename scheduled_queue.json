@@ -3022,5 +3022,102 @@
     "video_path": null,
     "published": false,
     "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-11-09",
+    "topic": "[NEWS] Why US offers $20m reward for information about Iran's nuclear programme Changes Everything",
+    "title": "20 مليون دولار: أمريكا تخنق إيران نوويًا؟",
+    "script_path": "batch_output/2026-11-09/script.json",
+    "video_path": "batch_output/2026-11-09/short.mp4",
+    "audio_path": "batch_output/2026-11-09/narration.mp3",
+    "thumbnail_path": "batch_output/2026-11-09/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "⚡ Hot take: What happens next?\n\n🔴 Full-scale war\n🟡 Cold war standoff\n🟢 Peace deal\n\nVote below! Most get this WRONG 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on 20 مليون دولار: أمريكا تخنق إيران نوويًا... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "عرض $20 مليون يثبت أن أمريكا تخشى إيران النووي أكثر مما تدعي. هل الهدف هو التخويف أم الاعتراف بالضعف؟ ⚛️",
+      "prediction_game": "🔮 CRYSTAL BALL TIME: 20 مليون دولار: أمريكا تخنق إيران نوويًا\n\nComment your wildest theory about what happens next.\nWrong answers only 😂👇"
+    },
+    "score": 38
+  },
+  {
+    "scheduled_date": "2026-11-10",
+    "topic": "[NEWS] Will Eisenkot be able to form Israel’s next gov’t amid divided opposit: Here's What It Means for the World",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-11-11",
+    "topic": "What if the Gulf States Unite Against Iran?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-11-12",
+    "topic": "Iran's Hypersonic Missile Program: Should the World Worry?",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-11-13",
+    "topic": "Iran's Underground Missile Cities: The Hidden Threat",
+    "title": "خطر إيران الصاروخي: مدن تحت الأرض أخطر مما تتخيل!",
+    "script_path": "batch_output/2026-11-13/script.json",
+    "video_path": "batch_output/2026-11-13/short.mp4",
+    "audio_path": "batch_output/2026-11-13/narration.mp3",
+    "thumbnail_path": "batch_output/2026-11-13/thumbnail.png",
+    "language": "ar",
+    "published": false,
+    "engagement_pack": {
+      "pinned_comment": "🎯 Prediction challenge: Only 5% get this right!\n\nWhat's the REAL endgame here? Comment your theory 👇",
+      "community_poll": {
+        "text": "🔥 After watching today's analysis on خطر إيران الصاروخي: مدن تحت الأرض أخطر م... What's YOUR prediction?",
+        "poll_options": [
+          "Full escalation 💥",
+          "Diplomatic solution 🤝",
+          "Status quo continues",
+          "Something nobody expects 🔮"
+        ]
+      },
+      "debate_starter": "",
+      "prediction_game": "🧠 INTEL TEST: Based on this briefing...\n\nWhat would YOU do as commander-in-chief?\nMost strategic answer wins! 🎖️👇"
+    },
+    "score": 33
+  },
+  {
+    "scheduled_date": "2026-11-14",
+    "topic": "Israel's Iron Dome: How It Actually Works",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
+  },
+  {
+    "scheduled_date": "2026-11-15",
+    "topic": "Iran's Proxy Network: The Most Powerful Non-State Military in the World",
+    "title": "?",
+    "script_path": null,
+    "video_path": null,
+    "published": false,
+    "error": "Tüm script üretim denemeleri başarısız oldu."
   }
 ]
